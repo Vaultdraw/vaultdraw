@@ -22,11 +22,11 @@ export type RuntimeState =
   | "disabled";
 
 const RUNTIME_LABEL: Record<RuntimeState, string> = {
-  idle: "Not loaded",
+  idle: "Loads when used",
   loading: "Loading",
   active: "Active",
   failed: "Failed to load",
-  disabled: "Not loaded",
+  disabled: "Turned off",
 };
 
 const formatMb = (bytes: number) =>

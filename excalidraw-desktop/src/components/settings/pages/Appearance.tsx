@@ -218,7 +218,7 @@ const AccentSetting = () => {
           type="text"
           className="vault-input vault-input--compact"
           aria-label="Accent colour hex"
-          placeholder="Theme default"
+          placeholder="Default"
           spellCheck={false}
           value={shown}
           aria-invalid={
