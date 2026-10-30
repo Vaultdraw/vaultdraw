@@ -115,6 +115,10 @@ pub(crate) struct MenuItem {
     pub title: Option<String>,
     #[serde(default)]
     pub kinds: Vec<String>,
+    /// Context keys that must all hold for the item to be listed (`!key` negates), the same
+    /// clauses a command's `when` takes. Empty means always listed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub when: Vec<String>,
 }
 
 /// A toolbar button (`[[contributes.toolbar]]`): runs a command of the plugin. `icon` is SVG path data

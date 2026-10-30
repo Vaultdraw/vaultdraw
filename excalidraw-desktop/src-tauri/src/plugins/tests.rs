@@ -1480,6 +1480,18 @@ fn menus_parse_and_serialise() {
 }
 
 #[test]
+fn menu_when_parses_and_serialises() {
+    let m = manifest::parse(&menu("when = [\"markdown.importedNote\", \"!writable\"]\n")).unwrap();
+    assert_eq!(m.contributes.menus[0].when, ["markdown.importedNote", "!writable"]);
+    let v = serde_json::to_value(&m).unwrap();
+    assert_eq!(v["contributes"]["menus"][0]["when"], json!(["markdown.importedNote", "!writable"]));
+    // No `when`: the field is absent from the JSON the app reads.
+    let plain = manifest::parse(&menu("")).unwrap();
+    let v = serde_json::to_value(&plain).unwrap();
+    assert!(v["contributes"]["menus"][0].get("when").is_none());
+}
+
+#[test]
 fn menu_rules() {
     bad(&menu("kinds = [\"file\"]\n"), "unknown");
     bad(&menu("title = \"\"\n"), "title");

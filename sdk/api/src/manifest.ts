@@ -149,6 +149,12 @@ export interface MenuContribution {
   title: string | null;
   /** Tree rows it shows for; empty means all. @since 0.12.0 */
   kinds: ("drawing" | "note" | "folder")[];
+  /**
+   * Context keys that must all hold for the item to be listed (`!key` negates), as in a
+   * command's `when`. Absent or empty: always listed.
+   * @since 0.37.0
+   */
+  when?: string[];
 }
 
 /**
