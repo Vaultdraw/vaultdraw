@@ -45,29 +45,26 @@ const SKIP: { match: RegExp; reason: string }[] = [
 ];
 
 /** Logged bugs: a problem for this row is not a failure (and fails when it stops showing). */
-const UNVERIFIED =
-  "UNVERIFIED (test-net-2, 2026-10-30): the row works on screen but the e2e config-overrides fake may not record this key; triage: read the real config layer in the packaged app";
-const KNOWN: { id: RegExp; match: RegExp; bug: string }[] = [
-  ...[
-    "network-updates",
-    "network-themes",
-    "network-plugins",
-    "colour-theme",
-    "ai-enabled",
-  ].map((id) => ({
-    id: new RegExp(`^${id}$`),
-    match: /config layer has no new value/,
-    bug: `${id}: ${UNVERIFIED}`,
-  })),
-  ...["interface-zoom", "tool-rectangle", "pdf-max-side"].map((id) => ({
-    id: new RegExp(`^${id}$`),
-    match: /Reset did not put the config layer back/,
-    bug: `${id}: Reset leaves a value in the config layer (${UNVERIFIED})`,
-  })),
-];
+const KNOWN: { id: RegExp; match: RegExp; bug: string }[] = [];
 
+// The config stand-in leaves an empty table behind when its last key is reset: not a difference.
 const overrides = (p: Page) =>
-  p.evaluate(() => JSON.stringify((window as any).__e2eOverrides ?? {}));
+  p.evaluate(() => {
+    const prune = (v: any): any => {
+      if (v && typeof v === "object") {
+        const out: any = {};
+        for (const [k, x] of Object.entries(v)) {
+          const y = prune(x);
+          if (!(y && typeof y === "object" && !Object.keys(y).length)) {
+            out[k] = y;
+          }
+        }
+        return out;
+      }
+      return v;
+    };
+    return JSON.stringify(prune((window as any).__e2eOverrides ?? {}));
+  });
 
 const answers = (p: Page) =>
   Promise.race([
@@ -81,6 +78,11 @@ const change = async (row: Locator, page: Page): Promise<string | null> => {
   if (await sw.count()) {
     await sw.click({ force: true });
     return "switch";
+  }
+  const radio = row.locator('[role="radio"][aria-checked="false"]').first();
+  if (await radio.count()) {
+    await radio.click();
+    return "radio";
   }
   const off = row
     .locator('[role="group"] button[aria-pressed="false"]')
@@ -105,8 +107,15 @@ const change = async (row: Locator, page: Page): Promise<string | null> => {
   const spin = row.locator('[role="spinbutton"], input[type="range"]').first();
   if (await spin.count()) {
     await spin.focus();
+    const was = await overrides(page);
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowUp");
+    await page.waitForTimeout(150);
+    if ((await overrides(page)) === was) {
+      // Already at the top: go down.
+      await page.keyboard.press("ArrowLeft");
+      await page.keyboard.press("ArrowDown");
+    }
     return "number";
   }
   return null;
@@ -153,6 +162,10 @@ test("every setting: changed through Settings, saved, reset", async ({
         seen.add(r.id);
         continue;
       }
+      if (process.env.TN2_ONLY && !process.env.TN2_ONLY.split(",").includes(r.id)) {
+        seen.add(r.id);
+        continue;
+      }
       const row = dlg.locator(`[data-setting-id="${r.id}"]`).first();
       if (!(await row.count())) {
         stats.notShown.push(r.id);
@@ -174,13 +187,25 @@ test("every setting: changed through Settings, saved, reset", async ({
         '[role="dialog"]:not([aria-labelledby="settings-title"])',
       );
       if (await other.count()) {
-        await page.keyboard.press("Escape");
+        const yes = other.getByRole("button", { name: /^Turn on$/ });
+        if (await yes.count()) {
+          await yes.click();
+        } else {
+          await page.keyboard.press("Escape");
+        }
         await page.waitForTimeout(150);
       }
       const add = (m: string) =>
         problems.push(`${r.id} (${pg.label} > ${r.label}): ${m}`);
+      if (process.env.TN2_ONLY) {
+        // eslint-disable-next-line no-console
+        console.log(`PROBE ${r.id} ${kind} before=${before} after=${await overrides(page)}`);
+      }
       if (!(await answers(page))) {
         add("the window stopped answering");
+      }
+      for (let i = 0; i < 8 && (await overrides(page)) === before; i++) {
+        await page.waitForTimeout(150);
       }
       if (r.configKey && (await overrides(page)) === before) {
         add(
@@ -203,6 +228,12 @@ test("every setting: changed through Settings, saved, reset", async ({
       if (!(await dlg.isVisible()) && (await other.count())) {
         await page.keyboard.press("Escape");
         await page.waitForTimeout(300);
+      }
+      if (!(await reset.count()) && kind === "switch") {
+        // No Reset on this row: flip it back so the next row starts from the default (a
+        // master switch like Offline mode otherwise disables the rows below it).
+        await row.locator('input[role="switch"]').first().click({ force: true });
+        await page.waitForTimeout(200);
       }
       if (!(await dlg.isVisible())) {
         add("the Settings window closed by itself");
