@@ -52,6 +52,23 @@ for (const theme of ["light", "dark"] as const) {
     expect(stack.toast).toBeGreaterThan(stack.menu);
     expect(stack.accent).not.toBe("auto");
     expect(stack.accent).not.toBe("");
+    // Native controls and selection follow the theme (radio, checkbox, text
+    // selection), and the notice action is one colour in both modes.
+    const native = await page.evaluate(() => {
+      const s = getComputedStyle(document.documentElement);
+      const sel = document.createElement("span");
+      sel.textContent = "x";
+      document.body.append(sel);
+      const selBg = getComputedStyle(sel, "::selection").backgroundColor;
+      sel.remove();
+      return {
+        accent: s.accentColor,
+        primary: s.getPropertyValue("--vault-primary").trim(),
+        selBg,
+      };
+    });
+    expect(native.accent).not.toBe("auto");
+    expect(native.selBg).not.toBe("rgba(0, 0, 0, 0)");
     expect(errors).toEqual([]);
   });
 }

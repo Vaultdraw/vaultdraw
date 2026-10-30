@@ -212,4 +212,42 @@ describe("design token guards", () => {
       .map((f) => f.rel);
     expect(bad).toEqual([]);
   });
+
+  it("native controls and text selection take theme tokens, never a fixed colour", () => {
+    const ds = FILES.find((f) =>
+      f.rel.endsWith("theme/designSystem.css"),
+    )!.text;
+    expect(ds).toMatch(/:root\s*\{\s*accent-color:\s*var\(--vault-primary\)/);
+    expect(ds).toMatch(
+      /::selection\s*\{[^}]*background-color:\s*var\(--vault-/,
+    );
+    const bad: string[] = [];
+    for (const { rel, text } of cssFiles()) {
+      for (const m of text.matchAll(
+        /(accent-color|caret-color|-webkit-tap-highlight-color)\s*:\s*([^;]+);/g,
+      )) {
+        if (
+          !/var\(--/.test(m[2]) &&
+          !/^(auto|transparent|currentcolor)$/i.test(m[2].trim())
+        ) {
+          bad.push(`${rel}: ${m[0]}`);
+        }
+      }
+      for (const m of text.matchAll(/::selection\s*\{([^}]*)\}/g)) {
+        if (/#[0-9a-f]{3,8}\b|rgba?\(|\bhsla?\(/i.test(m[1])) {
+          bad.push(`${rel}: ::selection ${m[1].trim()}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("the notice action has one colour in both modes", () => {
+    const fb = FILES.find((f) =>
+      f.rel.endsWith("components/feedback.css"),
+    )!.text;
+    const rule = /\.vd-toast__action\s*\{([^}]*)\}/.exec(fb)![1];
+    expect(rule).toMatch(/color:\s*var\(--vault-text\)/);
+    expect(fb).not.toMatch(/html\.dark[^{]*vd-toast__action/);
+  });
 });

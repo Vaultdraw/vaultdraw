@@ -135,6 +135,18 @@ html.dark {
   --vault-md-quote-bar: #8e8bf0;
 }
 
+/* Native controls and text selection follow the theme: radio buttons,
+ * checkboxes, range and progress use the primary colour; selected text uses
+ * the selection tint. Guarded in tests/designTokenGuards.test.ts. */
+:root {
+  accent-color: var(--vault-primary);
+}
+
+::selection {
+  background-color: var(--vault-sel-strong);
+  color: inherit;
+}
+
 /* One row style for every list (tree, menus, tab list, palette, search,
  * links, tags, templates): the same hover, selected and keyboard focus.
  * Zero specificity (:where) so each list's own active/drop states win. */

@@ -169,7 +169,10 @@
   border: 0;
   border-radius: var(--vd-radius-chip);
   background: transparent;
-  color: var(--vault-accent-text);
+  /* One colour in both modes (accent text falls back to black in light). */
+  color: var(--vault-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
