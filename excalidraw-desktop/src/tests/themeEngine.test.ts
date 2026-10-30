@@ -522,7 +522,10 @@ describe("Excalidraw variable overrides", () => {
         tokens["--vault-sel"],
       );
       expect(vars["--color-on-primary-container"]).toBe(tokens["--vault-text"]);
-      expect(vars["--lg-button-size"]).toBe("2rem");
+      // A theme never changes control sizes (Default and themed builds match).
+      for (const k of Object.keys(vars)) {
+        expect(k).not.toMatch(/size|height|width|padding|margin/);
+      }
       expect(vars["--color-primary"]).toBe(tokens["--vault-primary"]);
       expect(vars["--text-primary-color"]).toBe(tokens["--vault-text"]);
       expect(vars["--color-on-surface"]).toBe(tokens["--vault-text"]);

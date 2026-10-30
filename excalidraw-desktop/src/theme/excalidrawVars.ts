@@ -50,8 +50,9 @@ export const excalidrawVariableOverrides = (
     "--island-bg-color": t["--vault-surface"],
     "--shadow-island": t["--vault-shadow-island"],
     "--shadow-island-stronger": t["--vault-shadow-pop"],
-    // Tool buttons: 32 px, 6 px radius (design .tool).
-    "--lg-button-size": "2rem",
+    // Control sizes are NOT set here: a theme changes colours, never layout
+    // (Excalidraw's own --lg-button-size stays in every theme, Default
+    // included).
     "--border-radius-md": "6px",
     "--border-radius-lg": "8px",
     "--button-hover-bg": t["--vault-hover"],
