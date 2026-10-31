@@ -147,7 +147,10 @@ export function useVaultEditorLinks(
           await navigator.clipboard.writeText(text);
           toastStore.push({ message: `Copied ${text}` });
         } catch {
-          toastStore.push({ message: "Could not copy the link" });
+          toastStore.push({
+            message: "Could not copy the link",
+            kind: "error",
+          });
         }
       },
       "links.openUnderSelection": () => {
