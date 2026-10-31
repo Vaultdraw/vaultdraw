@@ -1,0 +1,14 @@
+{
+  "_doc": "Export into a chosen folder (F31): the native writer (src-tauri/src/export_folder.rs) and the browser fake (src/export/batch/exportTarget.ts) both answer these.",
+  "writes": [
+    { "present": [], "write": "Plan.png", "existing": "keep_both", "status": "written", "path": "Plan.png" },
+    { "present": ["Plan.png"], "write": "Plan.png", "existing": "keep_both", "status": "written", "path": "Plan 2.png" },
+    { "present": ["Plan.png", "Plan 2.png"], "write": "Plan.png", "existing": "keep_both", "status": "written", "path": "Plan 3.png" },
+    { "present": ["Plan.png"], "write": "Plan.png", "existing": "skip", "status": "skipped", "path": "Plan.png" },
+    { "present": ["Plan.png"], "write": "Plan.png", "existing": "replace", "status": "written", "path": "Plan.png" },
+    { "present": ["Sub/Plan.svg"], "write": "Sub/Plan.svg", "existing": "keep_both", "status": "written", "path": "Sub/Plan 2.svg" },
+    { "present": [], "write": "Sub/Deep/Plan.svg", "existing": "keep_both", "status": "written", "path": "Sub/Deep/Plan.svg" },
+    { "present": ["noext"], "write": "noext", "existing": "keep_both", "status": "written", "path": "noext 2" }
+  ],
+  "invalid": ["../x.png", "/abs/x.png", "a/../../x.png", "a\\b.png", "", "a//b.png", "./x.png"]
+}

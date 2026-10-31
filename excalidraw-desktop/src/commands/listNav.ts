@@ -57,6 +57,8 @@ export const LIST_ACTIONS = [
   "visual",
   "selectAll",
   "clearSelection",
+  // export every drawing of a folder (F31)
+  "exportFolder",
 ] as const;
 
 export type ListAction = typeof LIST_ACTIONS[number];

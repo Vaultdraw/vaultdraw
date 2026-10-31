@@ -43,6 +43,7 @@ import { focusList } from "../commands/listNav";
 import { registerCommandHandlers } from "../commands/handlerRegistry";
 import {
   CLEAR_SEARCH_COMMAND_ID,
+  EXPORT_FOLDER_COMMAND_ID,
   FOCUS_TREE_COMMAND_ID,
 } from "../commands/listCommands";
 import { focusCanvasIfIdle } from "../palette/focus";
@@ -116,6 +117,7 @@ import type {
 } from "../vault/types";
 
 import type { ExplorerExportFormat } from "../export/exportFromFile";
+import type { BatchExportRequest } from "../export/batch/BatchExportDialog";
 
 type CreateKind = "drawing" | "note" | "folder";
 const CREATE_PLACEHOLDER: Record<CreateKind, string> = {
@@ -201,6 +203,8 @@ interface VaultNavigatorProps {
     path: string,
     format: ExplorerExportFormat,
   ) => void | Promise<void>;
+  /** Export drawings and folders into a chosen folder (F13, F31); absent = not offered. */
+  onExportBatch?: (request: BatchExportRequest) => void;
   onSwitchVault: () => void | Promise<void>;
   treeNodes: TreeNode[];
   expandedFolders: Set<string>;
@@ -266,6 +270,7 @@ export const VaultNavigator = ({
   onCountFolderItems,
   onRevealEntry,
   onExportDrawing,
+  onExportBatch,
   onSwitchVault,
   treeNodes,
   expandedFolders,
@@ -389,6 +394,28 @@ export const VaultNavigator = ({
     } else {
       void trashPaths(paths);
     }
+  };
+  /** "the folder “DSA”", "the whole vault". */
+  const folderLabel = (path: string) =>
+    path
+      ? `the folder \u201c${path.split("/").pop()}\u201d`
+      : "the whole vault";
+  const exportFolder = (path: string) =>
+    onExportBatch?.({
+      sources: [{ path, kind: "folder" }],
+      label: folderLabel(path),
+    });
+  const exportMany = (paths: string[], format?: "png" | "svg") => {
+    const entries = paths.map(entryFor);
+    if (entries.length === 1 && entries[0].kind === "folder") {
+      onExportBatch?.({
+        sources: entries,
+        label: folderLabel(paths[0]),
+        format,
+      });
+      return;
+    }
+    onExportBatch?.({ sources: entries, label: countLabel(entries), format });
   };
   const requestMoveMany = (paths: string[]) => {
     if (paths.length === 1) {
@@ -865,6 +892,7 @@ export const VaultNavigator = ({
     setVisual,
     moveMany: requestMoveMany,
     trashMany: requestTrashMany,
+    exportMany: onExportBatch && exportMany,
     // command audit (S8): the row menu's items as list.* commands
     row: {
       duplicate: (path) => void onDuplicateDrawing(path),
@@ -884,6 +912,7 @@ export const VaultNavigator = ({
       export:
         onExportDrawing &&
         ((path, format) => void onExportDrawing(path, format)),
+      exportFolder: onExportBatch && exportFolder,
       sync: onSyncAction && ((entry, action) => onSyncAction(entry, action)),
       copyPath: (path, kind) =>
         void copyEntryPath(
@@ -919,6 +948,26 @@ export const VaultNavigator = ({
         },
       }),
     [exitTree, showNavigator],
+  );
+  // "Navigator: Export folder as images…": the focused folder, else the
+  // focused row's or open drawing's folder (F31).
+  const exportFolderLive = useRef<() => void>(() => undefined);
+  exportFolderLive.current = () =>
+    exportFolder(
+      targetFolder(
+        focusedPath ?? activePath,
+        (p) => rows.find((r) => r.entry.path === p)?.entry.kind === "folder",
+      ),
+    );
+  const canExportBatch = !!onExportBatch;
+  useEffect(
+    () =>
+      canExportBatch
+        ? registerCommandHandlers({
+            [EXPORT_FOLDER_COMMAND_ID]: () => exportFolderLive.current(),
+          })
+        : undefined,
+    [canExportBatch],
   );
   // Offered only while there is a query to clear (command audit S8).
   const hasQuery = searchQuery !== "";
@@ -1307,6 +1356,13 @@ export const VaultNavigator = ({
           ownerDocument={asideRef.current?.ownerDocument ?? ownerDocument}
           onClose={() => setMenu(null)}
           selectionActions={{
+            exportAs:
+              onExportBatch &&
+              ((entries, format) =>
+                exportMany(
+                  entries.map((e) => e.path),
+                  format,
+                )),
             move: (entries) => requestMoveMany(entries.map((e) => e.path)),
             trash: (entries) => requestTrashMany(entries.map((e) => e.path)),
             clear: () => {
@@ -1328,6 +1384,8 @@ export const VaultNavigator = ({
             exportAs:
               onExportDrawing &&
               ((entry, format) => void onExportDrawing(entry.path, format)),
+            exportFolder:
+              onExportBatch && ((entry) => exportFolder(entry.path)),
             trash: requestTrash,
             localGraph:
               onOpenLocalGraph &&

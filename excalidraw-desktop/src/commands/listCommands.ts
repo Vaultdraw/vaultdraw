@@ -10,6 +10,8 @@ import type { Chord, CommandDefinition } from "./types";
 export const FOCUS_TREE_COMMAND_ID = "navigator.focusTree";
 /** Command audit (S8): the search box's clear button. */
 export const CLEAR_SEARCH_COMMAND_ID = "navigator.clearSearch";
+/** F31: export every drawing in the focused folder (else the open drawing's folder). */
+export const EXPORT_FOLDER_COMMAND_ID = "navigator.exportFolder";
 
 const list = (
   action: ListAction,
@@ -80,11 +82,19 @@ export const LIST_COMMANDS: readonly CommandDefinition[] = [
   list("visual", "Visual selection mode", ["V"]),
   list("selectAll", "Select all items", []),
   list("clearSelection", "Clear selection", []),
+  list("exportFolder", "Export folder as images…", []),
   {
     id: FOCUS_TREE_COMMAND_ID,
     title: "Navigator: Focus file tree",
     category: "Navigator",
     keys: { default: ["Mod+Alt+F"] },
+    when: ["vaultOpen", "!modalOpen"],
+  },
+  {
+    id: EXPORT_FOLDER_COMMAND_ID,
+    title: "Navigator: Export folder as images…",
+    category: "Navigator",
+    keys: { default: [] },
     when: ["vaultOpen", "!modalOpen"],
   },
   {

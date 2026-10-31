@@ -21,6 +21,7 @@ mod clipboard;
 mod config;
 mod control;
 mod drawing_copy;
+mod export_folder;
 mod external;
 mod import_folder;
 mod links;
@@ -1157,7 +1158,7 @@ pub fn run() {
                 templates::write_global_template, templates::open_global_templates_dir,
                 thumbs::thumbs_lookup, thumbs::thumbs_put, thumbs::thumbs_clear,
                 plugins::plugins_list, plugins::plugins_install_folder, plugins::plugins_uninstall, plugins::plugins_consent_confirm, plugins::plugins_set_host_disabled, plugins::plugins_open_dir,
-                plugins::plugins_pick_folder, plugins::plugins_dev_log, plugins::plugins_launch_ok, plugins::plugins_restart_safe_mode, plugins::plugins_restart, plugins::plugins_restart_cancel, launch::app_restart_safe, launch::app_restart_normally, launch::launch_bisect_set, launch::launch_bisect_get, plugins::plugin_call, plugins::plugin_call_raw, plugins::plugins_data_list, plugins::plugins_data_delete,
+                plugins::plugins_pick_folder, export_folder::export_folder_pick, export_folder::export_folder_write, export_folder::export_folder_release, plugins::plugins_dev_log, plugins::plugins_launch_ok, plugins::plugins_restart_safe_mode, plugins::plugins_restart, plugins::plugins_restart_cancel, launch::app_restart_safe, launch::app_restart_normally, launch::launch_bisect_set, launch::launch_bisect_get, plugins::plugin_call, plugins::plugin_call_raw, plugins::plugins_data_list, plugins::plugins_data_delete,
                 control::uri::uri_open, control::files::external_file_read, control::linux_handlers::links_handlers_plan, control::linux_handlers::links_handlers_apply, control::bridge::control_ready, control::bridge::control_reply, control::bridge::control_spool_begin, control::bridge::control_spool_append, control::bridge::control_spool_abort, control::bridge::control_commands_snapshot, control::bridge::control_install_cli, control::events::control_event,
                 smoke::smoke_environment, smoke::smoke_log, smoke::smoke_finish, smoke::perf_process_ids, smoke::perf_layer_tree, smoke::perf_footprint,
                 refresh_rate::probes::perf_display_info, refresh_rate::probes::perf_native_input,
@@ -1181,7 +1182,7 @@ pub fn run() {
                 templates::write_global_template, templates::open_global_templates_dir,
                 thumbs::thumbs_lookup, thumbs::thumbs_put, thumbs::thumbs_clear,
                 plugins::plugins_list, plugins::plugins_install_folder, plugins::plugins_uninstall, plugins::plugins_consent_confirm, plugins::plugins_set_host_disabled, plugins::plugins_open_dir,
-                plugins::plugins_pick_folder, plugins::plugins_dev_log, plugins::plugins_launch_ok, plugins::plugins_restart_safe_mode, plugins::plugins_restart, plugins::plugins_restart_cancel, launch::app_restart_safe, launch::app_restart_normally, launch::launch_bisect_set, launch::launch_bisect_get, plugins::plugin_call, plugins::plugin_call_raw, plugins::plugins_data_list, plugins::plugins_data_delete,
+                plugins::plugins_pick_folder, export_folder::export_folder_pick, export_folder::export_folder_write, export_folder::export_folder_release, plugins::plugins_dev_log, plugins::plugins_launch_ok, plugins::plugins_restart_safe_mode, plugins::plugins_restart, plugins::plugins_restart_cancel, launch::app_restart_safe, launch::app_restart_normally, launch::launch_bisect_set, launch::launch_bisect_get, plugins::plugin_call, plugins::plugin_call_raw, plugins::plugins_data_list, plugins::plugins_data_delete,
                 control::uri::uri_open, control::files::external_file_read, control::linux_handlers::links_handlers_plan, control::linux_handlers::links_handlers_apply, control::bridge::control_ready, control::bridge::control_reply, control::bridge::control_spool_begin, control::bridge::control_spool_append, control::bridge::control_spool_abort, control::bridge::control_commands_snapshot, control::bridge::control_install_cli, control::events::control_event
             ])
         };
@@ -1202,7 +1203,7 @@ pub fn run() {
             templates::write_global_template, templates::open_global_templates_dir,
                 thumbs::thumbs_lookup, thumbs::thumbs_put, thumbs::thumbs_clear,
                 plugins::plugins_list, plugins::plugins_install_folder, plugins::plugins_uninstall, plugins::plugins_consent_confirm, plugins::plugins_set_host_disabled, plugins::plugins_open_dir,
-                plugins::plugins_pick_folder, plugins::plugins_dev_log, plugins::plugins_launch_ok, plugins::plugins_restart_safe_mode, plugins::plugins_restart, plugins::plugins_restart_cancel, launch::app_restart_safe, launch::app_restart_normally, launch::launch_bisect_set, launch::launch_bisect_get, plugins::plugin_call, plugins::plugin_call_raw, plugins::plugins_data_list, plugins::plugins_data_delete,
+                plugins::plugins_pick_folder, export_folder::export_folder_pick, export_folder::export_folder_write, export_folder::export_folder_release, plugins::plugins_dev_log, plugins::plugins_launch_ok, plugins::plugins_restart_safe_mode, plugins::plugins_restart, plugins::plugins_restart_cancel, launch::app_restart_safe, launch::app_restart_normally, launch::launch_bisect_set, launch::launch_bisect_get, plugins::plugin_call, plugins::plugin_call_raw, plugins::plugins_data_list, plugins::plugins_data_delete,
                 control::uri::uri_open, control::files::external_file_read, control::linux_handlers::links_handlers_plan, control::linux_handlers::links_handlers_apply, control::bridge::control_ready, control::bridge::control_reply, control::bridge::control_spool_begin, control::bridge::control_spool_append, control::bridge::control_spool_abort, control::bridge::control_commands_snapshot, control::bridge::control_install_cli, control::events::control_event
         ]);
         startup_trace("builder configured");

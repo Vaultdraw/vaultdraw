@@ -207,6 +207,8 @@ import {
 } from "./components/VaultNavigator";
 import { useNavigatorOverlay } from "./layout/useNavigatorOverlay";
 import { useExplorerExport } from "./export/useExplorerExport";
+import { loadExportOptions } from "./editor/exportOptions";
+
 import { Onboarding } from "./components/Onboarding";
 import { ConflictDialog } from "./components/ConflictDialog";
 import { RecoveryDialog } from "./components/RecoveryDialog";
@@ -228,6 +230,11 @@ import { DeferredHome } from "./components/DeferredHome";
 
 import "./components/VaultShell.css";
 import "./components/shell.css";
+
+import type {
+  BatchExportDeps,
+  BatchExportRequest,
+} from "./export/batch/BatchExportDialog";
 
 import type { NoteListOp } from "./notes/noteListSync";
 
@@ -273,6 +280,10 @@ const LinksDock = lazy(() =>
 
 // The first-run setup (also "Run setup again"): a lazy chunk, fetched only when it shows.
 const SetupWizard = lazy(() => import("./onboarding/SetupWizard"));
+// Export to a folder (F31, F13): loads when the first such export opens.
+const BatchExportDialog = lazy(
+  () => import("./export/batch/BatchExportDialog"),
+);
 
 // The theme install dialog loads only when a command, Settings or the
 // "no longer built in" notice opens it.
@@ -2401,6 +2412,62 @@ export const VaultApp = ({
     }
   };
 
+  // Export to a folder (F31, F13): the dialog's request and its native side.
+  const [batchExport, setBatchExport] = useState<BatchExportRequest | null>(
+    null,
+  );
+  const batchExportDeps = (): BatchExportDeps | null => {
+    const handle = vault?.handle;
+    const pick = repository.pickExportFolder?.bind(repository);
+    const write = repository.writeExportFile?.bind(repository);
+    if (!handle || !pick || !write || !win) {
+      return null;
+    }
+    return {
+      list: (path) => repository.listDirectory(handle, path),
+      render: async (path, format) => {
+        await flushExportedDoc(path);
+        const [{ renderExport }, { ExportError }, { readDrawingJson }] =
+          await Promise.all([
+            import("./export/renderExport"),
+            import("./export/exportError"),
+            import("./export/exportFromFile"),
+          ]);
+        const json = await readDrawingJson(repository, handle, path);
+        const { scale, background, embedScene, pattern, pageShaped } =
+          loadExportOptions();
+        try {
+          return await renderExport(
+            json,
+            getBaseName(path),
+            format,
+            {
+              scale,
+              background,
+              embedScene,
+              pattern,
+              pageShaped,
+              dark: appTheme === "dark",
+            },
+            win as Window & typeof globalThis,
+          );
+        } catch (e) {
+          if (e instanceof ExportError && e.code === "EMPTY") {
+            return null;
+          }
+          throw e;
+        }
+      },
+      pickFolder: pick,
+      write,
+      release: (token) =>
+        repository.releaseExportFolder?.(token) ?? Promise.resolve(),
+      existing: prefsNow.navigatorExportExisting,
+    };
+  };
+  const canExportBatch =
+    !!repository.pickExportFolder && !!repository.writeExportFile;
+
   const handleExportDrawing = useExplorerExport({
     repository,
     vault,
@@ -3722,6 +3789,7 @@ export const VaultApp = ({
           }
           onRevealEntry={handleRevealEntry}
           onExportDrawing={handleExportDrawing}
+          onExportBatch={canExportBatch ? setBatchExport : undefined}
           onSwitchVault={handleSwitchVault}
           sortOrder={navigatorSort}
           onSortChange={handleSortChange}
@@ -3835,6 +3903,16 @@ export const VaultApp = ({
       {/* After Settings: the warning must stack above it. */}
       <AiHost win={win} />
       <WatchdogHost win={win} />
+      {batchExport && batchExportDeps() && (
+        <Suspense fallback={null}>
+          <BatchExportDialog
+            request={batchExport}
+            deps={batchExportDeps()!}
+            onClose={() => setBatchExport(null)}
+          />
+        </Suspense>
+      )}
+
       {themeInstallRequest && (
         <Suspense fallback={null}>
           {themeInstallRequest.mode === "browse" ? (

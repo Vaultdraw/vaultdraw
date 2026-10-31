@@ -693,6 +693,19 @@ With rows selected:
 - Moving asks about links once for the whole batch. Trash goes to the system Trash, so it can be restored; the confirmation lists the first names and the count.
 - Set `navigator.mod_click = "new_tab"` to keep Cmd+click opening a new tab.
 
+### Exporting a folder
+
+**Export folder…** in a folder's menu (or **Navigator: Export folder as images…** in the palette) writes every drawing in that folder as an image into a folder you choose. **Export** in the menu of a selection does the same for the selected drawings and folders.
+
+1. Pick **PNG** or **SVG**, and whether **Include subfolders** counts (on by default).
+2. Press **Choose folder and export…** and pick the destination.
+3. A bar shows the progress; **Stop** (or Escape) ends it after the current drawing.
+
+- Subfolders are mirrored: `DSA/Trees/BFS.excalidraw` lands as `Trees/BFS.png`. A selected folder becomes a subfolder of its name.
+- Each image uses the same settings as **Export image** (scale, background, dark mode, embed scene). Unsaved edits to the open drawing are saved first. Notes and empty drawings are left out, and the summary says how many.
+- A file of the same name already there: kept, and the new one gets a number (`Graphs 2.png`). Set `navigator.export_existing` to `"replace"` or `"skip"` to change that.
+- Drawings are exported one at a time, so the app stays responsive; nothing runs until you start an export.
+
 The file tree, the Tags list, the Links panel and the Settings page list share one set of `list.*` commands. Their keys work only while that list has focus (click into it, or press **Mod+Alt+F** for the file tree), so on the canvas `r` is still the rectangle tool and in a text field `j` still types a `j`. A key a list has no use for (for example `r` in the Links panel) is left alone.
 
 | Command id | What it does | Default keys |
@@ -718,6 +731,7 @@ The file tree, the Tags list, the Links panel and the Settings page list share o
 | `list.selectAll` / `list.clearSelection` | Select every visible row / clear the selection | none |
 | `navigator.focusTree` | Focus the file tree; again goes back to the canvas | `Mod+Alt+F` |
 | `navigator.clearSearch` | Clear the navigator's search box (offered while it has text) | none |
+| `navigator.exportFolder` | Export every drawing in the focused folder (else the open drawing's folder) into a folder you choose | none |
 
 The file tree's row menu items are commands too, with no default key. They act on the focused row, appear only where the row menu shows them (a folder offers reveal and show as grid, a drawing the rest; duplicate needs a writable vault), and are listed in the palette as **List: …**:
 
@@ -729,7 +743,8 @@ The file tree's row menu items are commands too, with no default key. They act o
 | `list.showAsGrid` | Show the folder as a grid |
 | `list.localGraph` | Open the drawing's local graph |
 | `list.history` | Show the drawing's history |
-| `list.exportPng` / `list.exportSvg` / `list.exportPdf` | Export the drawing |
+| `list.exportPng` / `list.exportSvg` / `list.exportPdf` | Export the drawing; with several rows selected, PNG and SVG export them all into a folder |
+| `list.exportFolder` | Export every drawing in the folder into a folder you choose |
 | `list.saveCopy` | Save a copy of the drawing |
 
 Other buttons that are now commands (no default key; except the templates folder, each is offered only while its button is there):

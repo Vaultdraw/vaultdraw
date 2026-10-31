@@ -26,6 +26,8 @@ export interface RowMenuActions {
   move: (entry: VaultEntry) => void;
   reveal: (entry: VaultEntry) => void;
   exportAs?: (entry: VaultEntry, format: ExplorerExportFormat) => void;
+  /** A folder: export every drawing in it (F31); absent = not offered. */
+  exportFolder?: (entry: VaultEntry) => void;
   trash: (entry: VaultEntry) => void;
   localGraph?: (entry: VaultEntry) => void;
   history?: (entry: VaultEntry) => void;
@@ -155,6 +157,16 @@ export function buildRowMenu({
             "Download from iCloud",
             () => a.syncAction?.(entry, "download"),
             { commandId: "list.downloadFromCloud" },
+          ),
+        ]
+      : []),
+    ...(isFolder && a.exportFolder
+      ? [
+          item(
+            "exportFolder",
+            "Export folder…",
+            () => a.exportFolder?.(entry),
+            { commandId: "list.exportFolder" },
           ),
         ]
       : []),

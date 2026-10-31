@@ -52,6 +52,9 @@ export type RecoveryEntry = {
 export type VaultChange = { handle: string; paths: string[]; rescan: boolean };
 export type SaveStatus = "saved" | "dirty" | "saving" | "conflict" | "error";
 
+/** A folder picked for an export: an opaque token and its path to show. */
+export type ExportFolder = { token: string; path: string };
+
 export interface VaultRepository {
   chooseVault(create?: boolean): Promise<VaultInfo | null>;
   reopenVault(): Promise<VaultInfo | null>;
@@ -87,6 +90,17 @@ export interface VaultRepository {
   /** Copies a drawing's bytes, unchanged, to a place picked in the save
    *  dialog. false = cancelled. */
   saveDrawingCopy(handle: string, path: string): Promise<boolean>;
+  /** Export to a folder (F31): the native folder picker; null = cancelled. */
+  pickExportFolder?(): Promise<ExportFolder | null>;
+  /** Writes one exported image at `rel` inside the picked folder. */
+  writeExportFile?(
+    token: string,
+    rel: string,
+    bytes: Uint8Array,
+    existing: "keep_both" | "replace" | "skip",
+  ): Promise<{ status: "written" | "skipped"; path: string }>;
+  /** Forgets a picked folder. */
+  releaseExportFolder?(token: string): Promise<void>;
   listRecovery(handle: string): Promise<RecoveryEntry[]>;
   discardRecovery(handle: string, id: string): Promise<void>;
   subscribe(listener: (event: VaultChange) => void): Promise<() => void>;

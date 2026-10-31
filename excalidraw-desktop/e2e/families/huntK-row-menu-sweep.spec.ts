@@ -29,6 +29,7 @@ const EXPECT: Record<string, Expect> = {
   Duplicate: "skip", // writes a copy: covered by file-kinds-menu and V-2
   "Save as template…": "dialog",
   "Move to…": "dialog",
+  "Export folder…": "dialog",
   "Open local graph": "view",
   History: "view",
   Export: "submenu",

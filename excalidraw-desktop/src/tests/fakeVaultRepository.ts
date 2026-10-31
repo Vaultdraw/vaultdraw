@@ -5,6 +5,7 @@
  * contract from `../vault/types.ts` with an in-memory filesystem so QA tests
  * can run before the native Rust backend and UI workers land.
  */
+import { exportTarget } from "../export/batch/exportTarget";
 import {
   conflictOriginal,
   numberedCopiesAreConflicts,
@@ -887,6 +888,58 @@ export class FakeVaultRepository implements VaultRepository {
     }
     this.exported.push({ name, bytes });
     return true;
+  }
+
+  /** Export to a folder (F31): files written into the picked folder, by relative path. */
+  exportFolder = new Map<string, Uint8Array>();
+  /** What the folder picker answers; null = the user cancels it. */
+  exportFolderPath: string | null = "/Users/me/Exports";
+  /** Optional delay per written file (ms), so tests can see progress and cancel. */
+  exportWriteDelayMs = 0;
+  private exportTokens = new Set<string>();
+
+  async pickExportFolder() {
+    if (this.exportFolderPath === null) {
+      return null;
+    }
+    const token = `export-${this.exportTokens.size + 1}`;
+    this.exportTokens.add(token);
+    return { token, path: this.exportFolderPath };
+  }
+
+  async writeExportFile(
+    token: string,
+    rel: string,
+    bytes: Uint8Array,
+    existing: "keep_both" | "replace" | "skip",
+  ) {
+    if (!this.exportTokens.has(token)) {
+      throw makeError("NOT_FOUND", "Choose the export folder again");
+    }
+    if (bytes.length === 0) {
+      throw makeError("INVALID_PATH", "Expected a non-empty raw binary body");
+    }
+    let out;
+    try {
+      out = exportTarget((p) => this.exportFolder.has(p), rel, existing);
+    } catch (e) {
+      const code =
+        e instanceof Error && e.message === "NAME_COLLISION"
+          ? "NAME_COLLISION"
+          : "INVALID_PATH";
+      throw makeError(code, String(e));
+    }
+    if (this.exportWriteDelayMs > 0) {
+      await new Promise((r) => setTimeout(r, this.exportWriteDelayMs));
+    }
+    if (out.status === "written") {
+      this.exportFolder.set(out.path, bytes);
+    }
+    return out;
+  }
+
+  async releaseExportFolder(token: string) {
+    this.exportTokens.delete(token);
   }
 
   async saveDrawingCopy(handle: string, path: string): Promise<boolean> {

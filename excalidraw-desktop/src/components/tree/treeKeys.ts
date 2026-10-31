@@ -55,6 +55,8 @@ export interface TreeKeyDeps {
   /** Bulk move and trash of these paths (top-level only). */
   moveMany?(paths: string[]): void;
   trashMany?(paths: string[]): void;
+  /** Export these drawings and folders into a chosen folder (F13, F31). */
+  exportMany?(paths: string[], format: "png" | "svg"): void;
   /** Row menu items (command audit S8); absent = not offered. */
   row?: TreeRowActions;
 }
@@ -68,6 +70,8 @@ export interface TreeRowActions {
   localGraph?(path: string): void;
   history?(path: string): void;
   export?(path: string, format: ExplorerExportFormat): void;
+  /** A folder: export every drawing in it into a chosen folder (F31). */
+  exportFolder?(path: string): void;
   /** Copy the row's path: relative to the vault, absolute, or a vaultdraw:// link. */
   copyPath?(path: string, kind: "relative" | "absolute" | "link"): void;
   /** A sync-service row: compare a conflict copy, download an iCloud placeholder. */
@@ -116,6 +120,7 @@ export const TREE_ACTIONS: readonly TreeAction[] = [
   "visual",
   "selectAll",
   "clearSelection",
+  "exportFolder",
 ];
 
 /**
@@ -234,6 +239,14 @@ export function treeActions(d: TreeKeyDeps): TreeActions {
     newNote: createIn("note"),
     menu: item ? () => d.menu(item) : undefined,
     // Escape: leave visual mode and clear the selection first, then the tree.
+    ...rowMenuActions(item, d),
+    // A selection exports as a batch into a chosen folder.
+    ...(many && d.exportMany
+      ? {
+          exportPng: () => d.exportMany?.(many, "png"),
+          exportSvg: () => d.exportMany?.(many, "svg"),
+        }
+      : {}),
     exit: d.dragging
       ? undefined
       : sel.paths.size > 0 || d.visual
@@ -242,7 +255,6 @@ export function treeActions(d: TreeKeyDeps): TreeActions {
           d.setSelection?.(EMPTY_SELECTION);
         }
       : d.exit,
-    ...rowMenuActions(item, d),
   };
 }
 
@@ -316,6 +328,7 @@ function rowMenuActions(
       ...syncActions,
       reveal: bind(r.reveal),
       showAsGrid: bind(r.showAsGrid),
+      exportFolder: bind(r.exportFolder),
       ...copyActions(path, r, true),
     };
   }

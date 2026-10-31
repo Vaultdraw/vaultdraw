@@ -344,3 +344,35 @@
 .vd-move__row--context {
   color: var(--vault-text-faint);
 }
+
+/* Export to a folder (F31, F13) */
+.vd-batch-export__formats {
+  border: 0;
+  padding: 0;
+  margin: 0 0 8px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.vd-batch-export__formats legend {
+  float: left;
+  margin-right: 8px;
+  padding: 0;
+}
+.vd-batch-export__choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.vd-batch-export__bar {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--vault-accent);
+}
+.vd-batch-export__failed {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--vault-text-muted);
+  overflow-wrap: anywhere;
+}

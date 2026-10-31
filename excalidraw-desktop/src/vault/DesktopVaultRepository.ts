@@ -8,7 +8,7 @@ import {
   type VaultRepository,
 } from "./types";
 
-import type { FolderCount } from "./types";
+import type { ExportFolder, FolderCount } from "./types";
 
 export type InvokeFn = <T>(
   cmd: string,
@@ -164,6 +164,9 @@ export class DesktopVaultRepository implements VaultRepository {
     this.reveal = this.reveal.bind(this);
     this.exportFile = this.exportFile.bind(this);
     this.saveDrawingCopy = this.saveDrawingCopy.bind(this);
+    this.pickExportFolder = this.pickExportFolder.bind(this);
+    this.writeExportFile = this.writeExportFile.bind(this);
+    this.releaseExportFolder = this.releaseExportFolder.bind(this);
     this.listRecovery = this.listRecovery.bind(this);
     this.discardRecovery = this.discardRecovery.bind(this);
     this.subscribe = this.subscribe.bind(this);
@@ -374,6 +377,44 @@ export class DesktopVaultRepository implements VaultRepository {
       return await invoke<boolean>("export_file", bytes, {
         headers: { "x-file-name": encodeURIComponent(name) },
       });
+    } catch (err) {
+      throw normalizeError(err);
+    }
+  }
+
+  async pickExportFolder(): Promise<ExportFolder | null> {
+    const invoke = await this.getInvoke();
+    try {
+      return await invoke<ExportFolder | null>("export_folder_pick");
+    } catch (err) {
+      throw normalizeError(err);
+    }
+  }
+
+  async writeExportFile(
+    token: string,
+    rel: string,
+    bytes: Uint8Array,
+    existing: "keep_both" | "replace" | "skip",
+  ): Promise<{ status: "written" | "skipped"; path: string }> {
+    const invoke = await this.getInvoke();
+    try {
+      return await invoke("export_folder_write", bytes, {
+        headers: {
+          "x-export-token": token,
+          "x-file-name": encodeURIComponent(rel),
+          "x-existing": existing,
+        },
+      });
+    } catch (err) {
+      throw normalizeError(err);
+    }
+  }
+
+  async releaseExportFolder(token: string): Promise<void> {
+    const invoke = await this.getInvoke();
+    try {
+      await invoke("export_folder_release", { token });
     } catch (err) {
       throw normalizeError(err);
     }

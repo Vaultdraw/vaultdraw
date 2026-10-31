@@ -3671,12 +3671,33 @@
    "palette": true
   },
   {
+   "id": "list.exportFolder",
+   "title": "List: Export folder as images…",
+   "category": "Navigator",
+   "keys": [],
+   "when": [
+    "listFocus"
+   ],
+   "palette": true
+  },
+  {
    "id": "navigator.focusTree",
    "title": "Navigator: Focus file tree",
    "category": "Navigator",
    "keys": [
     "Mod+Alt+F"
    ],
+   "when": [
+    "vaultOpen",
+    "!modalOpen"
+   ],
+   "palette": true
+  },
+  {
+   "id": "navigator.exportFolder",
+   "title": "Navigator: Export folder as images…",
+   "category": "Navigator",
+   "keys": [],
    "when": [
     "vaultOpen",
     "!modalOpen"
