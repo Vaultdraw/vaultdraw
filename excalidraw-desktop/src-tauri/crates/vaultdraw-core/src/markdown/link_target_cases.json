@@ -1,0 +1,156 @@
+[
+ {
+  "note": "plain wikilink",
+  "src": "[[Old]]",
+  "written": [
+   "Old"
+  ]
+ },
+ {
+  "note": "heading and alias",
+  "src": "[[Old#H|a]]",
+  "written": [
+   "Old"
+  ]
+ },
+ {
+  "note": "table cell alias bar (toimprove 327)",
+  "src": "| a |\n|---|\n| [[Old\\|shown]] |\n",
+  "written": [
+   "Old"
+  ]
+ },
+ {
+  "note": "table cell heading and alias",
+  "src": "| a |\n|---|\n| [[Old#H\\|a]] |\n",
+  "written": [
+   "Old"
+  ]
+ },
+ {
+  "note": "table cell sized drawing embed",
+  "src": "| a |\n|---|\n| ![[Map.excalidraw\\|40]] |\n",
+  "written": [
+   "Map.excalidraw"
+  ]
+ },
+ {
+  "note": "sized image embed",
+  "src": "![[x.png|40]]",
+  "written": [
+   "x.png"
+  ]
+ },
+ {
+  "note": "with .md",
+  "src": "[[Old.md]]",
+  "written": [
+   "Old.md"
+  ]
+ },
+ {
+  "note": "block reference",
+  "src": "[[Old#^blk]]",
+  "written": [
+   "Old"
+  ]
+ },
+ {
+  "note": "no # before ^ is part of the name, as in Obsidian",
+  "src": "[[Old^block]]",
+  "written": [
+   "Old^block"
+  ]
+ },
+ {
+  "note": "spaces inside the brackets",
+  "src": "[[ Old ]]",
+  "written": [
+   "Old"
+  ]
+ },
+ {
+  "note": "percent-encoded Markdown link",
+  "src": "[x](Old%20One.md)",
+  "written": [
+   "Old%20One.md"
+  ]
+ },
+ {
+  "note": "angle brackets (toimprove 328)",
+  "src": "[x](<Old One.md>)",
+  "written": [
+   "Old One.md"
+  ]
+ },
+ {
+  "note": "angle brackets with heading",
+  "src": "[x](<Old One.md#H>)",
+  "written": [
+   "Old One.md"
+  ]
+ },
+ {
+  "note": "Markdown link with heading",
+  "src": "[x](Old.md#H)",
+  "written": [
+   "Old.md"
+  ]
+ },
+ {
+  "note": "Markdown link with title",
+  "src": "[x](Old.md \"title\")",
+  "written": [
+   "Old.md"
+  ]
+ },
+ {
+  "note": "Markdown embed",
+  "src": "![a](Old.md)",
+  "written": [
+   "Old.md"
+  ]
+ },
+ {
+  "note": "relative Markdown link",
+  "src": "[x](./sub/Old.md)",
+  "written": [
+   "./sub/Old.md"
+  ]
+ },
+ {
+  "note": "web link is not a vault target",
+  "src": "[y](https://a.b/Old.md)",
+  "written": [
+   null
+  ]
+ },
+ {
+  "note": "callout",
+  "src": "> [!note] T\n> see [[Old|y]] and [x](Old.md)\n",
+  "written": [
+   "Old",
+   "Old.md"
+  ]
+ },
+ {
+  "note": "task list",
+  "src": "- [ ] task [[Old]]\n",
+  "written": [
+   "Old"
+  ]
+ },
+ {
+  "note": "code is not a link",
+  "src": "`[[Old]]` `[x](Old.md)`\n```\n[[Old]]\n```\n",
+  "written": []
+ },
+ {
+  "note": "after frontmatter, CRLF",
+  "src": "---\r\ntitle: x\r\n---\r\nsee [[Old]] [x](<A B.md>)\r\n",
+  "written": [
+   "Old",
+   "A B.md"
+  ]
+ }
+]

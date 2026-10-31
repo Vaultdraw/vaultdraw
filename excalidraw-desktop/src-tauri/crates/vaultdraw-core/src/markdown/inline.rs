@@ -45,7 +45,7 @@ fn is_image_target(target: &str) -> bool {
 
 /// `Note#Heading` / `Note#^block` into (target, heading, blockRef).
 /// Percent-decodes a relative path; URLs with a scheme are kept as written.
-fn decode_dest(dest: &str) -> String {
+pub(super) fn decode_dest(dest: &str) -> String {
     let scheme = dest.split(['/', '?', '#']).next().is_some_and(|h| h.contains(':'));
     if scheme { dest.to_string() } else { pct_decode(dest) }
 }

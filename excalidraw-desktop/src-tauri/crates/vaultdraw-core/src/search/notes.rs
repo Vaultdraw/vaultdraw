@@ -56,7 +56,8 @@ pub fn extract_note(text: &str) -> NoteExtract {
     let mut elinks: Vec<ElementLink> = Vec::new();
     let mut linked_lines: Vec<usize> = Vec::new();
     for l in &doc.links {
-        let target = l.target.trim();
+        // A Markdown link keeps its `#heading` in the target: the file is the part before it.
+        let target = if l.kind == DocLinkKind::Link { l.target.split('#').next().unwrap_or("").trim() } else { l.target.trim() };
         let ok = match l.kind {
             DocLinkKind::Wikilink | DocLinkKind::Embed => !target.is_empty() && !is_attachment_ext(target),
             DocLinkKind::Link => {
@@ -131,6 +132,23 @@ mod tests {
         let got: Vec<_> = x.elinks.iter().map(|l| (&*l.element_id, l.link.trim_start_matches(NOTE_LINK_MARK).to_string())).collect();
         assert_eq!(got, vec![("L1", "A".to_string()), ("L5", "Other Note.md".to_string())]);
         assert_eq!(x.items.iter().filter(|i| i.kind == ItemKind::Code).count(), 3);
+    }
+
+    /// The link index and the rename rewrite read one table (`markdown/link_target_cases.json`):
+    /// every vault target a rename rewrites is also a link the index sees, under the same key, so
+    /// a note linking `[x](Old.md#H)` or `[[Old\\|a]]` is in the rename plan (toimprove 327, 328).
+    #[test]
+    fn index_sees_every_link_form_the_rename_rewrites() {
+        use crate::links::resolve::key_of_note_target;
+        let cases: serde_json::Value = serde_json::from_str(include_str!("../markdown/link_target_cases.json")).unwrap();
+        for c in cases.as_array().unwrap() {
+            let src = c["src"].as_str().unwrap();
+            let mut want: Vec<String> = c["written"].as_array().unwrap().iter().filter_map(|w| w.as_str()).filter(|w| !is_attachment_ext(w)).map(|w| key_of_note_target("", &crate::links::grammar::pct_decode(w)).0).collect();
+            let mut got: Vec<String> = extract_note(src).elinks.iter().map(|l| key_of_note_target("", l.link.trim_start_matches(NOTE_LINK_MARK)).0).collect();
+            want.sort();
+            got.sort();
+            assert_eq!(got, want, "{}: {src:?}", c["note"]);
+        }
     }
 
     #[test]

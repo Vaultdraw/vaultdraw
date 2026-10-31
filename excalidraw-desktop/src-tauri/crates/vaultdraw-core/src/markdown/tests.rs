@@ -588,3 +588,18 @@ fn task_status_contract_table() {
     }
     assert!(failures.is_empty(), "{failures:#?}");
 }
+
+/// Every link form a rename must rewrite: where its target is written, as the parser reads it.
+/// `note_rewrite.rs` edits exactly these bytes, so the parse and the rewrite cannot drift
+/// (toimprove 327, 328). `null` = not a vault target (web link).
+#[test]
+fn link_target_span_cases() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!("link_target_cases.json")).unwrap();
+    for c in cases.as_array().unwrap() {
+        let src = c["src"].as_str().unwrap();
+        let doc = parse_markdown(src, &ParseOptions::default());
+        let got: Vec<Option<String>> = doc.links.iter().map(|l| link_target_span(src, l).map(|s| src[s.start..s.end].to_string())).collect();
+        let want: Vec<Option<String>> = c["written"].as_array().unwrap().iter().map(|w| w.as_str().map(String::from)).collect();
+        assert_eq!(got, want, "{}: {src:?}", c["note"]);
+    }
+}

@@ -8,10 +8,12 @@ mod frontmatter;
 mod inline;
 mod model;
 mod reader;
+mod target_span;
 #[cfg(test)]
 mod tests;
 
 pub use model::*;
+pub use target_span::{link_target_span, TargetSpan, TargetStyle};
 pub use reader::{parse_markdown_file, read_markdown_file, MAX_MARKDOWN_BYTES};
 
 use inline::Ctx;
