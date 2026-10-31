@@ -71,7 +71,7 @@ const SHAPE_KEYS = new Set(["id", "title", "icon", "width", "height"]);
 const TOOL_KEYS = new Set(["id", "title", "icon", "cursor"]);
 const TOOL_CURSORS = ["crosshair", "default", "pointer", "grab", "text"];
 const TOOLBAR_KEYS = new Set(["command", "title", "icon", "priority"]);
-const MENU_KEYS = new Set(["surface", "command", "title", "kinds"]);
+const MENU_KEYS = new Set(["surface", "command", "title", "kinds", "when"]);
 const MENU_SURFACES = ["tree", "tab", "canvas"];
 const TREE_KINDS = ["drawing", "note", "folder"];
 const NOTE_EXTENSIONS = ["md", "markdown", "excalidraw.md"];
@@ -481,6 +481,9 @@ function checkMenus(menus, commands, err) {
         "title-invalid",
         `menu item title must be 1 to ${MAX_TITLE} characters`,
       );
+    }
+    if ("when" in x && !isStringArray(x.when)) {
+      err("contribution-invalid", "menu item when must be a list of strings");
     }
     if ("kinds" in x) {
       if (
