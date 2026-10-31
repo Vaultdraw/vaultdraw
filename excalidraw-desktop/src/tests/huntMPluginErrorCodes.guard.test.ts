@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
  * mod.rs join errors, "Search service unavailable") and `TRASH_FAILED` (exports.rs, removing an
  * export). A plugin written against the types (an exhaustive `switch (e.code)`) is told those
  * cannot happen. Either list them, or map them to a listed code at the gateway.
+ * Fixed: TRASH_FAILED maps to IO_ERROR (1.2.x); INTERNAL and the ctx.net codes are listed (API 1.3.0).
  */
 const REPO = join(__dirname, "..", "..", "..");
 const read = (p: string) => readFileSync(join(REPO, p), "utf8");
@@ -48,24 +49,11 @@ const missing = (file: string) => [
 describe("every code a plugin call rejects with is in PluginErrorCode (toimprove M-12)", () => {
   it("(context) the union parsed and has the documented codes", () => {
     expect(union.has("NOT_FOUND")).toBe(true);
-    expect(union.size).toBeGreaterThanOrEqual(19);
-  });
-
-  it("(context) today's unlisted codes, so a new one is noticed", () => {
-    expect([...new Set(REACHABLE.flatMap(missing))].sort()).toEqual([
-      "INTERNAL",
-      "INVALID_URL",
-      "NETWORK_TIMEOUT",
-      "PRIVATE_ADDRESS",
-      "SECRET_MISSING",
-      "TOO_MANY_STREAMS",
-      // TRASH_FAILED is gone: an export's Trash failure is IO_ERROR (toimprove 262, part 1).
-      // The rest need the union extended, a minor API version (left for the plugins team).
-    ]);
+    expect(union.size).toBeGreaterThanOrEqual(27);
   });
 
   // API 1.1 (617d9364): ctx.net's own doc comment lists the codes it rejects with.
-  it.fails("every code ctx.net documents is in the union", () => {
+  it("every code ctx.net documents is in the union", () => {
     const doc = read("sdk/api/src/net.ts")
       .split("Error codes:")[1]
       .split("*/")[0];
@@ -74,7 +62,7 @@ describe("every code a plugin call rejects with is in PluginErrorCode (toimprove
     expect(named.filter((c) => !union.has(c))).toEqual([]);
   });
 
-  it.fails("no plugin-reachable native code is missing from the union", () => {
+  it("no plugin-reachable native code is missing from the union", () => {
     expect(REACHABLE.flatMap(missing)).toEqual([]);
   });
 });

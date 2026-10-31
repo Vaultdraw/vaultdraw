@@ -171,6 +171,20 @@ describe("surface update rules", () => {
     );
   });
 
+  it("lets a string-literal union gain members in a minor release", () => {
+    const u = (m: string) => `${base}export type C = ${m};\n`;
+    const old = a("1.0.0", u(`"A" | "B"`));
+    expect(
+      refuseUpdate(old, a("1.1.0", u(`"A" | "AB" | "B"`)), "1.1.0", none),
+    ).toBe(null);
+    expect(
+      refuseUpdate(old, a("1.1.0", u(`"A" | "C"`)), "1.1.0", none),
+    ).toMatch(/needs a major version/);
+    expect(
+      refuseUpdate(old, a("1.1.0", u(`"A" | "B" | number`)), "1.1.0", none),
+    ).toMatch(/needs a major version/);
+  });
+
   it("lets a removal through with a major bump", () => {
     const next = a("2.0.0", base.replace("    f(): void;\n", ""));
     expect(refuseUpdate(a("1.0.0", base), next, "2.0.0", none)).toBe(null);

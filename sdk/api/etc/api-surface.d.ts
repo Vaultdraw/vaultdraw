@@ -1,4 +1,4 @@
-// @vaultdraw/api 1.2.0
+// @vaultdraw/api 1.3.0
 // clipboard.ts
 import type { Disposable } from "./disposable";
 export interface PasteEvent {
@@ -52,7 +52,7 @@ export interface Disposable {
 }
 
 // errors.ts
-export type PluginErrorCode = "CONFLICT" | "DRAWING_CHANGED" | "FONT_UNAVAILABLE" | "INVALID_ARGUMENT" | "INVALID_FILE" | "INVALID_PATH" | "IO_ERROR" | "NAME_COLLISION" | "NETWORK_ERROR" | "NETWORK_NOT_ALLOWED" | "NO_VAULT" | "NO_VERSION" | "NOT_FOUND" | "NOT_SUPPORTED" | "PERMISSION" | "QUOTA" | "READ_ONLY" | "TIMEOUT" | "TOO_LARGE";
+export type PluginErrorCode = "ABORTED" | "CONFLICT" | "DRAWING_CHANGED" | "FONT_UNAVAILABLE" | "INTERNAL" | "INVALID_ARGUMENT" | "INVALID_FILE" | "INVALID_PATH" | "INVALID_URL" | "IO_ERROR" | "NAME_COLLISION" | "NETWORK_DISABLED" | "NETWORK_ERROR" | "NETWORK_NOT_ALLOWED" | "NETWORK_TIMEOUT" | "NO_VAULT" | "NO_VERSION" | "NOT_FOUND" | "NOT_SUPPORTED" | "PERMISSION" | "PRIVATE_ADDRESS" | "QUOTA" | "READ_ONLY" | "SECRET_MISSING" | "TIMEOUT" | "TOO_LARGE" | "TOO_MANY_STREAMS";
 export interface PluginApiError extends Error {
     readonly name: "PluginApiError";
     readonly code: PluginErrorCode;

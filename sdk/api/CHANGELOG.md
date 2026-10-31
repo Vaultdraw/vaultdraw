@@ -13,6 +13,12 @@ An addition for the official AI assistant plugin. Nothing a 1.0 plugin uses chan
 - Errors of `ctx.net` carry the codes listed on its members (`NETWORK_DISABLED`, `NETWORK_TIMEOUT`, `PRIVATE_ADDRESS`, `SECRET_MISSING`, `ABORTED` and others); the `PluginErrorCode` type is unchanged.
 - The permission names `net` and `secret` are no longer reserved.
 
+## 1.3.0
+
+### Added
+
+- **`PluginErrorCode` lists every code a call can reject with.** New: `INTERNAL` (something failed inside the app, not in the call) and the `ctx.net` codes `ABORTED`, `INVALID_URL`, `NETWORK_DISABLED`, `NETWORK_TIMEOUT`, `PRIVATE_ADDRESS`, `SECRET_MISSING` and `TOO_MANY_STREAMS`. The app already sent them; the type now says so. A `switch (e.code)` with a default branch keeps working; one without it can now handle these codes by name.
+
 ## 1.2.0
 
 ### Added

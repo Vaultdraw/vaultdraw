@@ -2,7 +2,8 @@
  * The rules that keep the public API surface frozen. `etc/api-surface.d.ts` is the pinned
  * text; it starts with `// @vaultdraw/api <version>`. A change to it needs a new version
  * in `package.json`; a line that disappears (a removal or a changed signature) needs a new
- * major version, unless it belongs to an `@experimental` declaration.
+ * major version, unless it belongs to an `@experimental` declaration. A union of string
+ * literals that only gains members (a new error code) is an addition, not a change.
  */
 export const HEADER_RE = /^\/\/ @vaultdraw\/api (\d+\.\d+\.\d+)\n/;
 
@@ -25,13 +26,38 @@ const cmp = (a: string, b: string): number => {
 
 const DECL_RE = /^export (?:declare )?(?:interface|type|const|class) (\w+)/;
 
+/** `export type X = "A" | "B";` as its name and members; null for any other line. */
+const LITERAL_UNION_RE =
+  /^(export (?:declare )?type \w+ = )((?:"[^"]*"(?: \| )?)+);$/;
+const literalUnion = (line: string) => {
+  const m = LITERAL_UNION_RE.exec(line);
+  return m ? { head: m[1], members: m[2].split(" | ") } : null;
+};
+
+/** True when `next` has the same literal union as `line`, with every old member kept. */
+const widened = (line: string, next: readonly string[]): boolean => {
+  const old = literalUnion(line);
+  return (
+    !!old &&
+    next.some((l) => {
+      const now = literalUnion(l);
+      return (
+        !!now &&
+        now.head === old.head &&
+        old.members.every((x) => now.members.includes(x))
+      );
+    })
+  );
+};
+
 /** Lines of `old` that `next` no longer has, minus lines of experimental declarations. */
 export const removedLines = (
   old: string,
   next: string,
   experimental: ReadonlySet<string>,
 ): string[] => {
-  const have = new Set(next.split("\n"));
+  const nextLines = next.split("\n");
+  const have = new Set(nextLines);
   const mentions = (line: string) =>
     [...experimental].some((n) => new RegExp(`\\b${n}\\b`).test(line));
   const out: string[] = [];
@@ -47,6 +73,7 @@ export const removedLines = (
       line.trim() !== "" &&
       !line.startsWith("// @vaultdraw/api ") &&
       !have.has(line) &&
+      !widened(line, nextLines) &&
       !experimental.has(current) &&
       !mentions(line)
     ) {
