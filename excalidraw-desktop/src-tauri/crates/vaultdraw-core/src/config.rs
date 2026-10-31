@@ -278,6 +278,8 @@ autosave_delay_ms = 500
 # heading_bold = true
 # A box that is entirely **bold** or `code` takes that look when you type the closing mark
 # inline_styles = true
+# Draw **bold**, *italic* and `code` words inside a line without their marks (the text keeps them)
+# live_preview = true
 
 [layout]
 # Show the header above the canvas (title, save status, History, Graph)

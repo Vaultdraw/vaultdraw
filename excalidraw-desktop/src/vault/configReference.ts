@@ -390,6 +390,9 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
       inline_styles: {
         doc: "In Markdown mode a box that is entirely **bold** or `code` takes that look when you type the closing mark.",
       },
+      live_preview: {
+        doc: "In Markdown mode, **bold**, *italic* and `code` words inside a line are drawn without their marks; the text keeps them.",
+      },
     },
   },
   {

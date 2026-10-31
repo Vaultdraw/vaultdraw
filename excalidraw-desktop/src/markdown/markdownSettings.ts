@@ -20,6 +20,7 @@ export const MARKDOWN_FIELDS = [
   "markdownBlockGap",
   "markdownHeadingBold",
   "markdownInlineStyles",
+  "markdownLivePreview",
 ] as const;
 export type MarkdownField = typeof MARKDOWN_FIELDS[number];
 
@@ -42,6 +43,8 @@ export interface MarkdownPreferences {
   markdownHeadingBold: boolean;
   /** markdown.inline_styles: a box that is entirely **bold** or `code` takes that look. */
   markdownInlineStyles: boolean;
+  /** markdown.live_preview: bold, italic and code words drawn without their marks. */
+  markdownLivePreview: boolean;
 }
 
 const SIZE_FIELDS = [
@@ -64,6 +67,7 @@ export const MARKDOWN_DEFAULTS: MarkdownPreferences = {
   markdownBlockGap: DEFAULT_BLOCK_GAP,
   markdownHeadingBold: true,
   markdownInlineStyles: true,
+  markdownLivePreview: true,
 };
 
 const isBool = (v: unknown): v is boolean => typeof v === "boolean";
@@ -83,6 +87,7 @@ const VALID: Record<MarkdownField, (v: unknown) => boolean> = {
   markdownBlockGap: inRange(BLOCK_GAP_LIMITS),
   markdownHeadingBold: isBool,
   markdownInlineStyles: isBool,
+  markdownLivePreview: isBool,
 };
 
 export const MARKDOWN_MAPPINGS: readonly ConfigMapping[] = [
@@ -115,6 +120,12 @@ export const MARKDOWN_MAPPINGS: readonly ConfigMapping[] = [
   {
     field: "markdownInlineStyles",
     key: "markdown.inline_styles",
+    expected: "true or false",
+    valid: isBool,
+  },
+  {
+    field: "markdownLivePreview",
+    key: "markdown.live_preview",
     expected: "true or false",
     valid: isBool,
   },

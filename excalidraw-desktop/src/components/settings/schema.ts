@@ -682,6 +682,24 @@ export const SETTINGS_SCHEMA: readonly SettingSchema[] = [
     keywords: ["markdown", "bold", "code", "inline", "asterisks", "backtick"],
     configKey: "markdown.inline_styles",
   },
+  {
+    id: "markdown-live-preview",
+    page: "drawing",
+    label: "Hide bold, italic and code marks",
+    description:
+      "In Markdown mode, bold, italic and code words inside a line are drawn in their style without the stars, underscores and backticks around them. The text keeps the marks; you see them while you edit the box.",
+    keywords: [
+      "markdown",
+      "bold",
+      "italic",
+      "code",
+      "inline",
+      "marks",
+      "live preview",
+      "asterisks",
+    ],
+    configKey: "markdown.live_preview",
+  },
 
   // ---- Tools: pen and laser (page was "Pens & laser") ----
   {

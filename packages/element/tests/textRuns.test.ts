@@ -12,6 +12,8 @@ import {
   fillTextLineWithRuns,
   getTextRuns,
   invalidateTextRunStyles,
+  layoutTextLine,
+  offsetX,
   setTextRunStyler,
 } from "../src/textRuns";
 
@@ -172,5 +174,109 @@ describe("text run styler and the element bitmap cache", () => {
     setTextRunStyler(() => [{ start: 0, end: 1 }]);
     expect(getTextRuns(el, false)).toHaveLength(1);
     expect(getTextRuns({ ...el, text: "[[a]]\r\nb" }, false)).toBeNull();
+  });
+});
+
+describe("runs with fonts and hidden marks (Markdown inline)", () => {
+  // 10 px per character, 20 in the "wide" font
+  const measure = (t: string, f: string) => t.length * (f === "wide" ? 20 : 10);
+
+  it("hides marks, measures each piece in its font, keeps the line in its box", () => {
+    // "a **bb** c": marks at 2-4 and 6-8, bold "bb" at 4-6
+    const layout = layoutTextLine(
+      measure,
+      "a **bb** c",
+      0,
+      [
+        { start: 2, end: 4, hidden: true },
+        { start: 4, end: 6, font: "wide" },
+        { start: 6, end: 8, hidden: true },
+      ],
+      "base",
+    )!;
+    expect(layout.segments.map((s) => s.text)).toEqual(["a ", "bb", " c"]);
+    expect(layout.segments.map((s) => [s.x, s.x2])).toEqual([
+      [0, 20],
+      [20, 60],
+      [60, 80],
+    ]);
+    expect(layout.squeeze).toBe(1);
+    expect(layout.width).toBe(80);
+    // a hidden mark collapses onto the text next to it
+    expect(offsetX(layout, 3)).toBe(20);
+    expect(offsetX(layout, 8)).toBe(60);
+    expect(offsetX(layout, 10)).toBe(80);
+  });
+
+  it("squeezes a styled line wider than the plain one", () => {
+    const layout = layoutTextLine(
+      measure,
+      "`codecode`",
+      0,
+      [
+        { start: 0, end: 1, hidden: true },
+        { start: 1, end: 9, font: "wide" },
+        { start: 9, end: 10, hidden: true },
+      ],
+      "base",
+    )!;
+    // drawn 160 > plain 100
+    expect(layout.squeeze).toBeCloseTo(100 / 160);
+    expect(layout.width).toBeCloseTo(100);
+  });
+
+  it("merges a link's colour with a bold font on the same words", () => {
+    const layout = layoutTextLine(
+      measure,
+      "**[[a]]**",
+      0,
+      [
+        { start: 2, end: 7, color: "link", underline: "solid" },
+        { start: 0, end: 2, hidden: true },
+        { start: 2, end: 7, font: "wide" },
+        { start: 7, end: 9, hidden: true },
+      ],
+      "base",
+    )!;
+    expect(layout.segments).toHaveLength(1);
+    expect(layout.segments[0].run).toMatchObject({
+      color: "link",
+      underline: "solid",
+      font: "wide",
+    });
+  });
+
+  it("draws each piece in its font and restores the context font", () => {
+    const fonts: string[] = [];
+    const ctx: any = {
+      textAlign: "left",
+      fillStyle: "#000",
+      font: "base",
+      measureText: (t: string) => ({ width: measure(t, ctx.font) }),
+      fillText: () => fonts.push(ctx.font),
+      fillRect: () => {},
+    };
+    fillTextLineWithRuns(ctx, "a *b* c", 0, 0, 0, 20, [
+      { start: 2, end: 3, hidden: true },
+      { start: 3, end: 4, font: "wide" },
+      { start: 4, end: 5, hidden: true },
+    ]);
+    expect(fonts).toEqual(["base", "wide", "base"]);
+    expect(ctx.font).toBe("base");
+  });
+
+  it("merges the runs of several stylers and keeps the merge by identity", () => {
+    const links = [{ start: 0, end: 1, color: "#00f" }];
+    const marks = [{ start: 1, end: 2, hidden: true }];
+    setTextRunStyler(() => links);
+    setTextRunStyler(() => marks, "markdown");
+    const el = API.createElement({ type: "text", text: "ab" }) as any;
+    const first = getTextRuns(el, false)!;
+    expect(first).toEqual([...links, ...marks]);
+    expect(getTextRuns(el, false)).toBe(first);
+    setTextRunStyler(null, "markdown");
+    expect(getTextRuns(el, false)).toBe(links);
+    setTextRunStyler(null);
+    expect(getTextRuns(el, false)).toBeNull();
   });
 });

@@ -100,6 +100,26 @@ const InlineSetting = () => {
   );
 };
 
+const LivePreviewSetting = () => {
+  const { win } = useSettings();
+  const on = usePref(win, "markdownLivePreview");
+  return (
+    <SettingRow
+      id="markdown-live-preview"
+      htmlFor="vault-markdown-live-preview"
+      testId="setting-markdown-live-preview"
+    >
+      <Switch
+        id="vault-markdown-live-preview"
+        checked={on}
+        onChange={(next) =>
+          updatePreferences({ markdownLivePreview: next }, win)
+        }
+      />
+    </SettingRow>
+  );
+};
+
 const GapSetting = () => {
   const { win } = useSettings();
   const value = usePref(win, "markdownBlockGap");
@@ -128,4 +148,5 @@ export const markdownControls: SettingControls = {
   "markdown-block-gap": { Component: GapSetting },
   "markdown-heading-bold": { Component: BoldSetting },
   "markdown-inline-styles": { Component: InlineSetting },
+  "markdown-live-preview": { Component: LivePreviewSetting },
 };

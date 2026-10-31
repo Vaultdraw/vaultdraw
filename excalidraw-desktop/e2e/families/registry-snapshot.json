@@ -4846,6 +4846,13 @@
    "section": null
   },
   {
+   "id": "markdown-live-preview",
+   "page": "drawing",
+   "label": "Hide bold, italic and code marks",
+   "configKey": "markdown.live_preview",
+   "section": null
+  },
+  {
    "id": "pen-presets",
    "page": "tools",
    "label": "Pen presets",

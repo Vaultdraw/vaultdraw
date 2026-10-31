@@ -297,6 +297,7 @@ describe("family: [markdown] settings that shape typing", () => {
         "markdownH6Size",
         "markdownHeadingBold",
         "markdownInlineStyles",
+        "markdownLivePreview",
         "markdownTyping",
       ].sort(),
     );

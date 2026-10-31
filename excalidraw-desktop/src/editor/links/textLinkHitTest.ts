@@ -6,7 +6,13 @@
  * (about log2(line length) measurements).
  */
 import { getFontString, viewportCoordsToSceneCoords } from "@excalidraw/common";
-import { getLineHeightInPx, getLineWidth } from "@excalidraw/element";
+import {
+  getLineHeightInPx,
+  getLineWidth,
+  getTextRuns,
+  layoutTextLine,
+  offsetX,
+} from "@excalidraw/element";
 
 import { findLinks } from "../../links/grammar";
 
@@ -95,14 +101,41 @@ export function linksOf(el: TextLike): LinkSpan[] {
   return findLinks(isWrapped(el) ? el.text.replace(/\n/g, " ") : el.text);
 }
 
-function lineStartX(
+/** Where a line's offsets are drawn: plain measuring, or the styled layout when marks are hidden or fonts change. */
+type LineGeom = { width: number; xOf: (n: number) => number };
+
+/** Runs that move text (fonts, hidden Markdown marks), or null. */
+function movingRuns(el: TextLike) {
+  if (!/[*_`\\]/.test(el.text)) {
+    return null;
+  }
+  const runs = getTextRuns(el as never, false);
+  return runs?.some((r) => r.font || r.hidden) ? runs : null;
+}
+
+function lineGeom(
   el: TextLike,
   line: string,
+  lineStart: number,
   font: string,
   measure: MeasureFn,
-): number {
+  runs: ReturnType<typeof movingRuns>,
+): LineGeom {
+  const layout = runs
+    ? layoutTextLine(measure, line, lineStart, runs, font)
+    : null;
+  if (layout) {
+    return { width: layout.width, xOf: (n) => offsetX(layout, n) };
+  }
+  return {
+    width: measure(line, font),
+    xOf: (n) => measure(line.slice(0, n), font),
+  };
+}
+
+function lineStartX(el: TextLike, geom: LineGeom): number {
   const k = ALIGN[el.textAlign] ?? 0;
-  return el.x + (el.width - measure(line, font)) * k;
+  return el.x + (el.width - geom.width) * k;
 }
 
 function fragmentsOf(
@@ -112,6 +145,7 @@ function fragmentsOf(
   lineH: number,
   font: string,
   measure: MeasureFn,
+  runs: ReturnType<typeof movingRuns>,
 ): LinkFragment[] {
   const out: LinkFragment[] = [];
   ranges.forEach(([s, e], i) => {
@@ -120,11 +154,11 @@ function fragmentsOf(
     if (from >= to) {
       return;
     }
-    const line = el.text.slice(s, e);
-    const x0 = lineStartX(el, line, font, measure);
+    const geom = lineGeom(el, el.text.slice(s, e), s, font, measure, runs);
+    const x0 = lineStartX(el, geom);
     out.push({
-      x1: x0 + measure(line.slice(0, from - s), font),
-      x2: x0 + measure(line.slice(0, to - s), font),
+      x1: x0 + geom.xOf(from - s),
+      x2: x0 + geom.xOf(to - s),
       top: el.y + i * lineH,
       bottom: el.y + (i + 1) * lineH,
     });
@@ -161,8 +195,10 @@ export function hitTestTextLink(
     const [ls, le] = ranges[lineIdx];
     const line = el.text.slice(ls, le);
     const font = getFontString(el as never);
-    const localX = p.x - lineStartX(el, line, font, measure);
-    if (localX < 0 || localX > measure(line, font)) {
+    const runs = movingRuns(el);
+    const geom = lineGeom(el, line, ls, font, measure, runs);
+    const localX = p.x - lineStartX(el, geom);
+    if (localX < 0 || localX > geom.width) {
       continue;
     }
     // First prefix length whose width passes the click, minus one.
@@ -170,7 +206,7 @@ export function hitTestTextLink(
     let hi = line.length;
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1;
-      if (measure(line.slice(0, mid), font) <= localX) {
+      if (geom.xOf(mid) <= localX) {
         lo = mid;
       } else {
         hi = mid - 1;
@@ -182,7 +218,7 @@ export function hitTestTextLink(
       return {
         element: el,
         span,
-        fragments: fragmentsOf(el, span, ranges, lineH, font, measure),
+        fragments: fragmentsOf(el, span, ranges, lineH, font, measure, runs),
       };
     }
   }
@@ -201,10 +237,11 @@ export function textLinksWithGeometry(
   const lineH = getLineHeightInPx(el.fontSize, el.lineHeight as never);
   const ranges = lineRanges(el.text);
   const font = getFontString(el as never);
+  const runs = movingRuns(el);
   return spans.map((span) => ({
     element: el,
     span,
-    fragments: fragmentsOf(el, span, ranges, lineH, font, measure),
+    fragments: fragmentsOf(el, span, ranges, lineH, font, measure, runs),
   }));
 }
 

@@ -12,6 +12,8 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { CaptureUpdateAction } from "@excalidraw/excalidraw";
+
 import type {
   ExcalidrawImperativeAPI,
   TextEditorExtension,
@@ -84,6 +86,16 @@ type TypingModule = typeof import("./markdownTyping");
 let typingModule: Promise<TypingModule> | null = null;
 const loadTyping = () => (typingModule ??= import("./markdownTyping"));
 
+let inlineModule: Promise<typeof import("./inlineStyler")> | null = null;
+const loadInline = () => (inlineModule ??= import("./inlineStyler"));
+
+/** Re-rasterise the scene's texts after the styler came or went. */
+const repaint = (api: ExcalidrawImperativeAPI | null) =>
+  api?.updateScene({
+    elements: api.getSceneElementsIncludingDeleted(),
+    captureUpdate: CaptureUpdateAction.NEVER,
+  });
+
 export function useMarkdownMode({
   getWindow,
   getApi,
@@ -138,6 +150,35 @@ export function useMarkdownMode({
       cancelled = true;
     };
   }, [on]);
+
+  // Bold, italic and code words drawn with their marks hidden (step 2): the
+  // styler module loads only once a drawing has the mode and live preview on.
+  const livePreview = useSyncExternalStore(
+    subscribePreferences,
+    () => getPreferences(getWindow()).markdownLivePreview,
+  );
+  const drawInline = on && livePreview;
+  useEffect(() => {
+    if (!drawInline) {
+      return;
+    }
+    let off: (() => void) | null = null;
+    let cancelled = false;
+    void loadInline().then((m) => {
+      if (cancelled) {
+        return;
+      }
+      off = m.installInlineStyler();
+      repaint(live.current.getApi());
+    });
+    return () => {
+      cancelled = true;
+      if (off) {
+        off();
+        repaint(live.current.getApi());
+      }
+    };
+  }, [drawInline]);
 
   const setDrawingValue = useCallback((value: boolean | null) => {
     drawingRef.current = value;
