@@ -1885,14 +1885,14 @@ export const VaultApp = ({
     );
   };
   const insertPicture = (path: string, at?: { x: number; y: number }) => {
-    const read = repository.readAsset;
-    if (!vault || !read) {
+    if (!vault || !repository.readAsset) {
       return;
     }
     const prefs = getPreferences(win);
     void insertVaultPicture(
       {
-        read: (p) => read(vault.handle, p),
+        // Called on the repository: a fake's method needs its `this`.
+        read: (p) => repository.readAsset!(vault.handle, p),
         editor: getActiveEditor(),
         prefs,
         notify: (message) => toastStore.push({ message }),

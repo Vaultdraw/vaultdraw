@@ -128,6 +128,7 @@ test("dragging a picture from the tree onto the drawing inserts it; the file sta
   await openVault(page);
   await seedAsset(page, "photo.png", true);
   await refresh(page);
+  await row(page, "DSA").click();
   await openDrawing(page, "Graphs");
   expect(await imageCount(page)).toBe(0);
 
@@ -184,6 +185,7 @@ test("the row menu offers Insert into drawing only while a drawing is open", asy
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
 
+  await row(page, "DSA").click();
   await openDrawing(page, "Graphs");
   await menu();
   await page.getByRole("menuitem", { name: "Insert into drawing" }).click();
