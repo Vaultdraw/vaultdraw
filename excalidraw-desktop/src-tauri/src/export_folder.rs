@@ -119,15 +119,18 @@ pub fn write_into(root: &Path, rel: &str, bytes: &[u8], existing: Existing) -> R
     let Some((name, dirs)) = parts.split_last() else {
         return Err(err("INVALID_PATH", "Missing file name"));
     };
-    let mut dir = root.to_path_buf();
+    // One folder at a time, each checked before anything is made inside it,
+    // so a symbolic link never leads a write (or a new folder) outside root.
+    let mut real = root.to_path_buf();
     for part in dirs {
-        dir.push(part);
-    }
-    std::fs::create_dir_all(&dir).map_err(ioerr)?;
-    // A folder inside the chosen one must not lead outside it (a symlink).
-    let real = dir.canonicalize().map_err(ioerr)?;
-    if !real.starts_with(root) {
-        return Err(err("INVALID_PATH", "Path leaves the export folder"));
+        let next = real.join(part);
+        if !next.exists() {
+            std::fs::create_dir(&next).map_err(ioerr)?;
+        }
+        real = next.canonicalize().map_err(ioerr)?;
+        if !real.starts_with(root) || !real.is_dir() {
+            return Err(err("INVALID_PATH", "Path leaves the export folder"));
+        }
     }
     let rel_dir = dirs.join("/");
     let join = |file: &str| if rel_dir.is_empty() { file.to_string() } else { format!("{rel_dir}/{file}") };
@@ -215,7 +218,9 @@ mod tests {
             let outside = temp_root();
             std::os::unix::fs::symlink(&outside, root.join("link")).unwrap();
             assert!(write_into(&root, "link/x.png", b"x", Existing::Replace).is_err());
+            assert!(write_into(&root, "link/sub/x.png", b"x", Existing::Replace).is_err());
             assert!(!outside.join("x.png").exists());
+            assert!(!outside.join("sub").exists(), "no folder made outside");
             std::fs::remove_dir_all(outside).unwrap();
         }
         std::fs::remove_dir_all(root).unwrap();

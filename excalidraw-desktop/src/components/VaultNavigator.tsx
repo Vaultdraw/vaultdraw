@@ -360,13 +360,8 @@ export const VaultNavigator = ({
   /** A path's entry: the loaded tree, the file list, else made from the path. */
   const entryFor = (path: string): VaultEntry =>
     rowsRef.current.find((r) => r.entry.path === path)?.entry ??
-    allIndexedEntries.find((e) => e.path === path) ?? {
-      path,
-      name: path.split("/").pop() ?? path,
-      kind: ((k) => (k === "other" ? "drawing" : k))(fileKind(path)),
-      modifiedAt: 0,
-      size: 0,
-    };
+    allIndexedEntries.find((e) => e.path === path) ??
+    entryFromPath(path);
   const trashPaths = async (paths: string[]) => {
     if (onTrashEntries) {
       await onTrashEntries(paths);
@@ -818,11 +813,8 @@ export const VaultNavigator = ({
     if (paths.length > 1) {
       const entries = paths.map(
         (p) =>
-          rowsRef.current.find((r) => r.entry.path === p)?.entry ?? {
-            ...entry,
-            path: p,
-            name: p.split("/").pop() ?? p,
-          },
+          rowsRef.current.find((r) => r.entry.path === p)?.entry ??
+          entryFromPath(p),
       );
       setMenu({
         entry,
@@ -1780,6 +1772,22 @@ const TreeRow = memo(
     );
   },
 );
+
+/**
+ * An entry for a selected path whose row is not loaded (inside a folder
+ * closed since): the tree shows drawings, notes and folders only, so a name
+ * with no known extension is a folder.
+ */
+const entryFromPath = (path: string): VaultEntry => {
+  const kind = fileKind(path);
+  return {
+    path,
+    name: path.split("/").pop() ?? path,
+    kind: kind === "other" ? "folder" : kind,
+    modifiedAt: 0,
+    size: 0,
+  };
+};
 
 /** "conflict" or "not downloaded" next to a tree row's name. Mounted only for flagged rows. */
 const SyncBadge = ({ sync }: { sync: "conflict" | "placeholder" }) => {
