@@ -17,8 +17,9 @@ import table from "../../src-tauri/crates/vaultdraw-core/src/contract/net_addres
 import hosts from "../../src-tauri/crates/vaultdraw-core/src/contract/private_host_cases.json";
 
 const enc = new TextEncoder();
-const open = async (url: string): Promise<string> => {
+const open = async (url: string, allow?: string[]): Promise<string> => {
   const fake = createFakeNet();
+  fake.allowPrivateHosts = allow;
   fake.respond = () => ({ chunks: [] });
   try {
     await fakeNetRow(
@@ -33,15 +34,23 @@ const open = async (url: string): Promise<string> => {
   }
 };
 
-type Row = { url: string; want: string; fake_known?: string };
+type Row = {
+  url: string;
+  want: string;
+  allow?: string[];
+  fake_known?: string;
+};
 /** One table for both twins (validator): net.rs runs the same rows in `address_contract_table`. */
 const ROWS = table.cases as Row[];
 
 describe("fake ctx.net answers like the app's net.rs (toimprove M-18)", () => {
-  ROWS.forEach(({ url, want, fake_known }) => {
-    (fake_known ? it.fails : it)(`${url} -> ${want}`, async () => {
-      expect(await open(url)).toBe(want);
-    });
+  ROWS.forEach(({ url, want, allow, fake_known }) => {
+    (fake_known ? it.fails : it)(
+      `${url} ${allow ?? ""} -> ${want}`,
+      async () => {
+        expect(await open(url, allow)).toBe(want);
+      },
+    );
   });
 });
 

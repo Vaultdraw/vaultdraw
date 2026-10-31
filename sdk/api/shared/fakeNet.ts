@@ -35,11 +35,69 @@ export interface FakeNet {
   secrets: Record<string, Record<string, string>>;
   /** Offline mode now. */
   offline?: () => boolean;
+  /**
+   * The user's `network.allow_private_hosts` (entries such as `192.168.1.20:11434` or `ollama.lan`):
+   * the hosts a request may reach although they are private, over http too. Default: none.
+   */
+  allowPrivateHosts?: string[];
   /** Streams closed by the plugin (cancel). */
   closed: number[];
 }
 
 export { isBlockedIpLiteral };
+
+/** One entry of `allow_private_hosts` as host and optional port; null when it is neither. Like net.rs. */
+const parsePrivateEntry = (
+  entry: string,
+): { host: string; port: number | null } | null => {
+  const e = entry.trim().toLowerCase();
+  if (e === "" || /[/@ \t?#\\]/.test(e)) {
+    return null;
+  }
+  let host: string;
+  let port: string | null = null;
+  if (e.startsWith("[")) {
+    const close = e.indexOf("]");
+    if (close < 0) {
+      return null;
+    }
+    host = e.slice(0, close + 1);
+    const after = e.slice(close + 1);
+    if (after !== "") {
+      if (!after.startsWith(":")) {
+        return null;
+      }
+      port = after.slice(1);
+    }
+  } else {
+    const parts = e.split(":");
+    if (parts.length > 2) {
+      return null;
+    }
+    host = parts[0];
+    port = parts.length === 2 ? parts[1] : null;
+  }
+  if (host === "" || host === "[]") {
+    return null;
+  }
+  if (port === null) {
+    return { host, port: null };
+  }
+  const n = /^\d{1,5}$/.test(port) ? Number(port) : 0;
+  return n >= 1 && n <= 65535 ? { host, port: n } : null;
+};
+
+/** Whether `entries` allow `url`: equal host, and the port when the entry names one. Like net.rs. */
+export const privateHostAllowed = (entries: readonly string[], url: URL) => {
+  const host = url.hostname.toLowerCase();
+  const port = Number(url.port || (url.protocol === "https:" ? 443 : 80));
+  return entries.some((entry) => {
+    const p = parsePrivateEntry(entry);
+    return (
+      p !== null && p.host === host && (p.port === null || p.port === port)
+    );
+  });
+};
 
 const coded = (code: string, message: string) =>
   Object.assign(new Error(message), { code, message });
@@ -109,16 +167,18 @@ export async function fakeNetRow(
       );
     }
     const local = LOOPBACK.test(url.hostname);
-    if (!local && url.protocol !== "https:") {
+    const listed =
+      !local && privateHostAllowed(fake.allowPrivateHosts ?? [], url);
+    if (!local && !listed && isBlockedIpLiteral(url.hostname)) {
+      throw coded(
+        "PRIVATE_ADDRESS",
+        "That address is private or local, so it was not contacted. To allow a computer on your own network, list it in network.allow_private_hosts in config.toml",
+      );
+    }
+    if (!local && !listed && url.protocol !== "https:") {
       throw coded(
         "INVALID_URL",
         "Only https addresses are allowed, or http to this computer",
-      );
-    }
-    if (!local && isBlockedIpLiteral(url.hostname)) {
-      throw coded(
-        "PRIVATE_ADDRESS",
-        "That address is private or local, so it was not contacted",
       );
     }
     if (!local && fake.offline?.()) {

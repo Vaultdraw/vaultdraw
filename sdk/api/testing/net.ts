@@ -36,6 +36,7 @@ export function createNetModel() {
       fake.requests = [];
       fake.secrets = {};
       fake.offline = undefined;
+      fake.allowPrivateHosts = undefined;
       fake.closed = [];
     },
   };

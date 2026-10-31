@@ -53,9 +53,9 @@ title = "AI: Remove API key"
 key = "provider"
 type = "select"
 title = "Provider"
-description = "Anthropic and OpenAI need your own key. Ollama runs on this computer and needs none. For another OpenAI-style service or server, pick OpenAI and set its address."
+description = "Anthropic and OpenAI need your own key. Ollama runs on your computer, or on another one you allow, and needs no key. For another OpenAI-style service or server, pick OpenAI and set its address."
 default = "anthropic"
-options = [{ value = "anthropic", label = "Anthropic" }, { value = "openai", label = "OpenAI (or compatible)" }, { value = "ollama", label = "Ollama (this computer)" }]
+options = [{ value = "anthropic", label = "Anthropic" }, { value = "openai", label = "OpenAI (or compatible)" }, { value = "ollama", label = "Ollama" }]
 scope = ["global"]
 
 [[contributes.settings]]
@@ -70,7 +70,7 @@ scope = ["global"]
 key = "base_url"
 type = "string"
 title = "Address"
-description = "Where requests go. Empty uses the provider's usual address. https, or http to this computer only."
+description = "Where requests go. Empty uses the provider's usual address. https, or http to this computer, or to a computer on your network that you listed in config.toml."
 default = ""
 scope = ["global"]
 

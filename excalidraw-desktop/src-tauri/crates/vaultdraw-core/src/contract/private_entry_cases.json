@@ -1,0 +1,30 @@
+{
+  "about": "Which URLs an entry of network.allow_private_hosts allows: the host must be equal (case does not matter); an entry with a port allows only that port, an entry without one allows every port; the port of a URL without one is the scheme's (80 or 443). Entries that are not a host or host:port allow nothing. Copies that must agree: src-tauri/src/network.rs private_host_allowed (plugins::net tests private_host_entries_match_by_host_and_optional_port) and the fake ctx.net in sdk/api/shared/fakeNet.ts (src/tests/privateHostEntryTwin.test.ts).",
+  "cases": [
+    { "entry": "192.168.1.20:11434", "url": "http://192.168.1.20:11434/api", "allowed": true },
+    { "entry": "192.168.1.20:11434", "url": "http://192.168.1.20:9999/api", "allowed": false },
+    { "entry": "192.168.1.20:11434", "url": "http://192.168.1.21:11434/api", "allowed": false },
+    { "entry": "192.168.1.20", "url": "http://192.168.1.20:11434/api", "allowed": true },
+    { "entry": "192.168.1.20", "url": "https://192.168.1.20/api", "allowed": true },
+    { "entry": "192.168.1.20:80", "url": "http://192.168.1.20/api", "allowed": true },
+    { "entry": "192.168.1.20:443", "url": "https://192.168.1.20/api", "allowed": true },
+    { "entry": "  192.168.1.20:11434 ", "url": "http://192.168.1.20:11434/", "allowed": true },
+    { "entry": "ollama.lan", "url": "http://ollama.lan:8080/x", "allowed": true },
+    { "entry": "OLLAMA.LAN", "url": "http://ollama.lan:8080/x", "allowed": true },
+    { "entry": "ollama.lan", "url": "http://ollama.lan.evil.example/x", "allowed": false },
+    { "entry": "ollama.lan", "url": "http://xollama.lan/x", "allowed": false },
+    { "entry": "[fd00::5]:11434", "url": "http://[fd00::5]:11434/x", "allowed": true },
+    { "entry": "[fd00::5]", "url": "http://[fd00::5]:1234/x", "allowed": true },
+    { "entry": "[fd00::5]:11434", "url": "http://[fd00::5]:1/x", "allowed": false },
+    { "entry": "http://192.168.1.20", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": "192.168.1.20/24", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": "192.168.1.0/24", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": "192.168.1.20:0", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": "192.168.1.20:abc", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": "192.168.1.20:99999", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": "user@192.168.1.20", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": "", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": "*", "url": "http://192.168.1.20/x", "allowed": false },
+    { "entry": ":11434", "url": "http://192.168.1.20:11434/x", "allowed": false }
+  ]
+}

@@ -221,6 +221,71 @@ describe("errors the user can fix", () => {
     expect(p!.net.requests[0].url).toBe("http://localhost:11434/api/chat");
   });
 
+  describe("Ollama on another computer on the network", () => {
+    const LAN = "http://192.168.1.20:11434";
+    // settings outlive a booted plugin in the test host: put the address back
+    afterEach(async () => {
+      await p?.setSetting("base_url", "");
+    });
+    const ollamaReply = () => ({
+      chunks: [
+        '{"message":{"content":"lan ok"},"done":false}\n',
+        '{"done":true}\n',
+      ],
+    });
+
+    it("is refused until the user lists it, and the message says how", async () => {
+      await start({ provider: "ollama", key: false });
+      await p!.setSetting("base_url", LAN);
+      p!.net.respond = ollamaReply;
+      await ask("hi");
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toMatch(
+          /allow_private_hosts/,
+        ),
+      );
+      expect(p!.net.requests).toEqual([]);
+    });
+
+    it("works once its address is listed, over http, with no key", async () => {
+      await start({ provider: "ollama", key: false });
+      await p!.setSetting("base_url", LAN);
+      p!.net.allowPrivateHosts = ["192.168.1.20:11434"];
+      p!.net.respond = ollamaReply;
+      await ask("hi");
+      await waitFor(() => expect(screen.getByText("lan ok")).toBeTruthy());
+      expect(p!.net.requests[0].url).toBe(`${LAN}/api/chat`);
+      expect(p!.net.requests[0].authHeader).toBeUndefined();
+    });
+
+    it("a listed computer is still blocked by Offline mode, in plain words", async () => {
+      await start({ provider: "ollama", key: false });
+      await p!.setSetting("base_url", LAN);
+      p!.net.allowPrivateHosts = ["192.168.1.20"];
+      p!.net.offline = () => true;
+      p!.net.respond = ollamaReply;
+      await ask("hi");
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toContain("Offline mode"),
+      );
+      expect(p!.net.requests).toEqual([]);
+    });
+
+    it("another address on the network stays refused", async () => {
+      await start({ provider: "ollama", key: false });
+      await p!.setSetting("base_url", "http://192.168.1.21:11434");
+      p!.net.allowPrivateHosts = ["192.168.1.20:11434"];
+      p!.net.respond = ollamaReply;
+      await ask("hi");
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toMatch(
+          /allow_private_hosts/,
+        ),
+      );
+      expect(p!.net.requests).toEqual([]);
+    });
+  });
+
   it("a break in the connection after some words keeps the words and says why", async () => {
     await start();
     p!.net.respond = () => ({

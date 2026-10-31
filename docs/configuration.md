@@ -1462,7 +1462,15 @@ max_context_chars = 12000     # most drawing text sent, 500 to 200000
 
 - **Commands** (palette, rebindable): `ai-assistant.ask` ("AI: Ask about this drawing"), `ai-assistant.describe` ("AI: Describe the selection"), `ai-assistant.diagram` ("AI: Generate a diagram from text"; the model writes a Mermaid diagram and **Draw it** turns it into shapes in one undo step), `ai-assistant.summarise` ("AI: Summarise this note": the note in the active tab, or the selected text, or all text in the drawing), `ai-assistant.cancel` ("AI: Stop the answer"), `ai-assistant.clear`, `ai-assistant.set-key` and `ai-assistant.remove-key`. The panel (also on the activity bar) has the question box, **Stop**, **Copy** and **Show what is sent**, which lists the exact instructions and drawing text of the next request.
 - **The key** is entered in the panel (or with "AI: Set API key"), kept by the app in your system keychain (see [Keys and the keychain](#keys-and-the-keychain)), and never written to `config.toml`, a vault or a drawing. The page cannot read it back; the app adds it to the request itself. "AI: Remove API key" deletes it.
-- **Offline mode** stops every request to another computer and says so in plain words. A request to this computer (`localhost`, `127.0.0.1`, `::1`, for example Ollama) still works, because nothing leaves the machine. Other computers on your network are not reachable (private addresses are refused), and there are no redirects.
+- **Offline mode** stops every request to another computer and says so in plain words. A request to this computer (`localhost`, `127.0.0.1`, `::1`, for example Ollama) still works, because nothing leaves the machine. A computer on your own network is refused unless you list it in `network.allow_private_hosts` ([Ollama on another computer](#ai-assistant-official-plugin)), and there are no redirects.
+- **Ollama on another computer:** private addresses (`192.168.x.x`, `10.x.x.x`, `*.local` names that resolve to them) are refused by default, so a script or a stray setting cannot point the assistant at a device on your network. To use a model server there, set the provider to `ollama`, the address (`base_url`) to `http://192.168.1.20:11434`, and list the computer in `config.toml`:
+
+  ```toml
+  [network]
+  allow_private_hosts = ["192.168.1.20:11434"]   # that port only; "ollama.lan" allows every port
+  ```
+
+  Only the listed hosts are allowed, over `http` too; any other private address stays refused. Offline mode still blocks them (they are another computer), and `network.allow_ai = false` still turns the assistant off. The key is read only from `config.toml`: Settings, `vaultdraw config set` and the page never write it. The server must listen on the network (Ollama: `OLLAMA_HOST=0.0.0.0`).
 - **Limits:** the drawing is sent as text (element kinds, labels, positions), not as a picture; Summarise reads a note from its file on disk (a note you just typed in is saved a moment after each edit, so give it a second), or the text in a drawing. The plugin asks to read your vault for this and never changes a note. Answers stop at 8 MiB.
 - Turn the plugin off in Settings, Plugins; it is not in the default `plugins.enabled`, and Restore defaults leaves it off.
 
@@ -2350,6 +2358,7 @@ The internet is on by default and used only when you use a feature that needs it
 | `allow_ai` | true | true or false |  | `false` turns AI requests off: the AI assistant plugin sends nothing, and says so. A model on this computer (Ollama) is not affected. Absent or `true` allows them. No Settings switch: use Offline mode to turn off every internet feature. |
 | `allow_updates` | true | true or false |  | `false` turns the update check off. Absent or `true` allows it. |
 | `allowed_hosts` | [] | a list of host names like ["themes.example.org"] |  | Extra hosts a download may contact, besides GitHub's own (`raw.githubusercontent.com`, `github.com`, `api.github.com`, `codeload.github.com`). Exact host names. Read only from `config.toml`: Settings, `vaultdraw config set` and the page never write it, so a script cannot add a host. |
+| `allow_private_hosts` | [] | a list of hosts like ["192.168.1.20:11434", "ollama.lan"] |  | Computers on your own network the AI assistant may reach although their addresses are private, such as a model server on another computer. Each entry is a host with an optional port: `192.168.1.20:11434` allows that port only, `ollama.lan` allows every port. Requests to a listed host may use plain `http`. Every other private address stays refused, and Offline mode still blocks listed hosts. Read only from `config.toml`: Settings, `vaultdraw config set` and the page never write it. See [Ollama on another computer](#ai-assistant-official-plugin). |
 
 ### `[secrets]`
 

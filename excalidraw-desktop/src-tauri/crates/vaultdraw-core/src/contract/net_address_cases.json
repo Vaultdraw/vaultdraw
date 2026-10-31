@@ -1,17 +1,109 @@
 {
-  "about": "What a plugin's ctx.net.open answers for a URL: \"ok\" or the error code. Copies that must agree: the app (src-tauri/src/plugins/net.rs check_url and net.open; plugins::net tests address_contract_table) and the fake used by the browser harness and the SDK mock host (sdk/api/shared/fakeNet.ts; src/tests/huntMFakeNetTwin.test.ts). A row with fake_known is drift in the fake (none since toimprove 274; the fake also runs private_host_cases.json). Rows from hunter M-18 and net.rs address_rules (validator, 2026-10-30 night).",
+  "about": "What a plugin's ctx.net.open answers for a URL: \"ok\" or the error code. Copies that must agree: the app (src-tauri/src/plugins/net.rs check_url and net.open; plugins::net tests address_contract_table) and the fake used by the browser harness and the SDK mock host (sdk/api/shared/fakeNet.ts; src/tests/huntMFakeNetTwin.test.ts). A row with fake_known is drift in the fake (none since toimprove 274; the fake also runs private_host_cases.json). Rows from hunter M-18 and net.rs address_rules (validator, 2026-10-30 night). Rows with \"allow\" run with that network.allow_private_hosts list (the user's explicit allowance; added 2026-10-31). A private address is PRIVATE_ADDRESS whatever the scheme (so the message can say how to allow it).",
   "cases": [
-    { "url": "http://192.168.1.5/x", "want": "INVALID_URL" },
-    { "url": "http://example.com/x", "want": "INVALID_URL" },
-    { "url": "ftp://example.com/x", "want": "INVALID_URL" },
-    { "url": "https://user:pw@example.com/x", "want": "INVALID_URL" },
-    { "url": "not a url", "want": "INVALID_URL" },
-    { "url": "https://10.0.0.1/x", "want": "PRIVATE_ADDRESS" },
-    { "url": "https://169.254.169.254/x", "want": "PRIVATE_ADDRESS" },
-    { "url": "https://[fd00::1]/x", "want": "PRIVATE_ADDRESS" },
-    { "url": "http://localhost:11434/api", "want": "ok" },
-    { "url": "https://127.0.0.1/api", "want": "ok" },
-    { "url": "http://[::1]:8080/api", "want": "ok" },
-    { "url": "https://api.openai.com/v1/chat", "want": "ok" }
+    {
+      "url": "http://192.168.1.5/x",
+      "want": "PRIVATE_ADDRESS"
+    },
+    {
+      "url": "http://example.com/x",
+      "want": "INVALID_URL"
+    },
+    {
+      "url": "ftp://example.com/x",
+      "want": "INVALID_URL"
+    },
+    {
+      "url": "https://user:pw@example.com/x",
+      "want": "INVALID_URL"
+    },
+    {
+      "url": "not a url",
+      "want": "INVALID_URL"
+    },
+    {
+      "url": "https://10.0.0.1/x",
+      "want": "PRIVATE_ADDRESS"
+    },
+    {
+      "url": "https://169.254.169.254/x",
+      "want": "PRIVATE_ADDRESS"
+    },
+    {
+      "url": "https://[fd00::1]/x",
+      "want": "PRIVATE_ADDRESS"
+    },
+    {
+      "url": "http://localhost:11434/api",
+      "want": "ok"
+    },
+    {
+      "url": "https://127.0.0.1/api",
+      "want": "ok"
+    },
+    {
+      "url": "http://[::1]:8080/api",
+      "want": "ok"
+    },
+    {
+      "url": "https://api.openai.com/v1/chat",
+      "want": "ok"
+    },
+    {
+      "url": "http://192.168.1.20:11434/api",
+      "allow": [
+        "192.168.1.20:11434"
+      ],
+      "want": "ok"
+    },
+    {
+      "url": "http://192.168.1.20:9999/api",
+      "allow": [
+        "192.168.1.20:11434"
+      ],
+      "want": "PRIVATE_ADDRESS"
+    },
+    {
+      "url": "https://192.168.1.21/api",
+      "allow": [
+        "192.168.1.20"
+      ],
+      "want": "PRIVATE_ADDRESS"
+    },
+    {
+      "url": "https://10.0.0.1/x",
+      "allow": [
+        "10.0.0.1"
+      ],
+      "want": "ok"
+    },
+    {
+      "url": "http://ollama.lan:8080/x",
+      "allow": [
+        "ollama.lan"
+      ],
+      "want": "ok"
+    },
+    {
+      "url": "http://ollama.lan/x",
+      "allow": [
+        "other.lan"
+      ],
+      "want": "INVALID_URL"
+    },
+    {
+      "url": "http://[fd00::5]:11434/x",
+      "allow": [
+        "[fd00::5]:11434"
+      ],
+      "want": "ok"
+    },
+    {
+      "url": "http://169.254.169.254/x",
+      "allow": [
+        "192.168.1.20"
+      ],
+      "want": "PRIVATE_ADDRESS"
+    }
   ]
 }

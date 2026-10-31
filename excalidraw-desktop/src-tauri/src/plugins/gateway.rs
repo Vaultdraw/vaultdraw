@@ -312,7 +312,7 @@ pub(crate) fn raw_call(app: &tauri::AppHandle, plugin_id: &str, method: &str, bo
     use tauri::Manager as _;
     if method.starts_with("net.") || method.starts_with("secret.") {
         let dirs = crate::config::resolve_dirs()?;
-        return Ok(super::net::call(&dirs.state, || crate::network::config_value(&dirs), plugin_id, method, body)?);
+        return Ok(super::net::call(&dirs.state, || crate::network::net_config_value(&dirs), plugin_id, method, body)?);
     }
     if method.starts_with("pdf.") {
         return Ok(crate::pdf_import::gateway_call(method, body)?);

@@ -690,6 +690,10 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
         doc: "Extra hosts a download may contact, besides GitHub's own (`raw.githubusercontent.com`, `github.com`, `api.github.com`, `codeload.github.com`). Exact host names. Read only from `config.toml`: Settings, `vaultdraw config set` and the page never write it, so a script cannot add a host.",
         default: "[]",
       },
+      allow_private_hosts: {
+        doc: "Computers on your own network the AI assistant may reach although their addresses are private, such as a model server on another computer. Each entry is a host with an optional port: `192.168.1.20:11434` allows that port only, `ollama.lan` allows every port. Requests to a listed host may use plain `http`. Every other private address stays refused, and Offline mode still blocks listed hosts. Read only from `config.toml`: Settings, `vaultdraw config set` and the page never write it. See [Ollama on another computer](#ai-assistant-official-plugin).",
+        default: "[]",
+      },
     },
   },
   {

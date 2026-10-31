@@ -466,6 +466,10 @@ autosave_delay_ms = 500
 # Extra hosts downloads may contact, besides GitHub's (raw.githubusercontent.com, github.com,
 # api.github.com, codeload.github.com). Read only from this file, never from overrides.toml
 # allowed_hosts = []
+# Computers on your own network the AI assistant may reach although their addresses are private
+# (a model server on another computer): "192.168.1.20:11434" (that port only), "ollama.lan" (every
+# port). http is allowed to these. Offline mode still blocks them. Read only from this file
+# allow_private_hosts = []
 
 [secrets]
 # Where plugin keys (such as the AI assistant's key) are kept: "auto" = the system keychain, and a

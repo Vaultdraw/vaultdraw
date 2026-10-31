@@ -79,6 +79,7 @@ pub(crate) fn refuse_unsafe_writes(changes: &[config::LayerChange]) -> Result<()
     let hosts_err = || {
         err("CONSENT_REQUIRED", "`network.allowed_hosts` can only be edited by hand in config.toml".to_string())
     };
+    let private_err = || err("CONSENT_REQUIRED", "`network.allow_private_hosts` can only be edited by hand in config.toml".to_string());
     let empty = |v: &Value| matches!(v, Value::Null) || matches!(v, Value::Array(a) if a.is_empty());
     for change in changes {
         // Where the lists come from is read from config.toml only too (see `list_address`).
@@ -96,10 +97,16 @@ pub(crate) fn refuse_unsafe_writes(changes: &[config::LayerChange]) -> Result<()
         if change.key == "network.allowed_hosts" && !empty(&change.value) {
             return Err(hosts_err());
         }
+        if change.key == "network.allow_private_hosts" && !empty(&change.value) {
+            return Err(private_err());
+        }
         if change.key == "network" {
             if let Value::Object(fields) = &change.value {
                 if fields.get("allowed_hosts").is_some_and(|v| !empty(v)) {
                     return Err(hosts_err());
+                }
+                if fields.get("allow_private_hosts").is_some_and(|v| !empty(v)) {
+                    return Err(private_err());
                 }
             }
         }
@@ -392,6 +399,76 @@ pub(crate) fn check_host(url: &Url, extra: &[String]) -> Result<()> {
     ))
 }
 
+/// One entry of `network.allow_private_hosts`: a host and an optional port. `192.168.1.20:11434`,
+/// `ollama.lan`, `[fd00::5]:11434`. Names are lower case. `None` for anything else (a scheme, a
+/// path, a space, a port of 0), which never matches.
+pub(crate) fn parse_private_entry(entry: &str) -> Option<(String, Option<u16>)> {
+    let e = entry.trim().to_ascii_lowercase();
+    if e.is_empty() || e.contains(['/', '@', ' ', '\t', '?', '#']) {
+        return None;
+    }
+    let (host, port) = if let Some(rest) = e.strip_prefix('[') {
+        let (h, after) = rest.split_once(']')?;
+        let port = match after {
+            "" => None,
+            p => Some(p.strip_prefix(':')?),
+        };
+        (format!("[{h}]"), port)
+    } else {
+        match e.split_once(':') {
+            Some((h, p)) if !p.contains(':') => (h.to_string(), Some(p)),
+            Some(_) => return None,
+            None => (e.clone(), None),
+        }
+    };
+    if host.is_empty() || host == "[]" {
+        return None;
+    }
+    let port = match port {
+        None => None,
+        Some(p) => Some(p.parse::<u16>().ok().filter(|p| *p != 0)?),
+    };
+    Some((host, port))
+}
+
+/// Whether the user allowed this address in `network.allow_private_hosts`: the host must be equal
+/// (an entry without a port allows every port of that host).
+pub(crate) fn private_host_allowed(entries: &[String], url: &Url) -> bool {
+    let Some(host) = url.host_str().map(str::to_ascii_lowercase) else { return false };
+    let port = url.port_or_known_default();
+    entries.iter().filter_map(|e| parse_private_entry(e)).any(|(h, p)| h == host && p.is_none_or(|p| Some(p) == port))
+}
+
+/// `network.allow_private_hosts` from `config.toml` only, like `allowed_hosts`: a script in the page
+/// must not be able to point a request at a computer on the user's network.
+pub(crate) fn private_hosts_from_config_toml(layers: &[config::LayerInfo]) -> Vec<String> {
+    layers
+        .iter()
+        .find(|l| l.kind == "config")
+        .and_then(|l| l.config.as_ref())
+        .and_then(|c| c.get("network")?.get("allow_private_hosts")?.as_array().cloned())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+        .unwrap_or_default()
+}
+
+/// The parsed config for `ctx.net`: the merged settings, but `network.allow_private_hosts` taken
+/// from `config.toml` alone.
+pub(crate) fn net_config_value(dirs: &config::Dirs) -> Result<Option<Value>> {
+    let loaded = config::load_settings_in(dirs)?;
+    let hosts = private_hosts_from_config_toml(&loaded.layers);
+    let value = serde_json::to_value(&loaded).map_err(|e| err("INTERNAL", e.to_string()))?;
+    let mut config = value.get("config").cloned();
+    if let Some(Value::Object(root)) = config.as_mut() {
+        let net = root.entry("network").or_insert_with(|| Value::Object(Default::default()));
+        if let Value::Object(net) = net {
+            net.insert("allow_private_hosts".into(), Value::Array(hosts.into_iter().map(Value::String).collect()));
+        }
+    } else if !hosts.is_empty() {
+        config = Some(serde_json::json!({"network": {"allow_private_hosts": hosts}}));
+    }
+    Ok(config)
+}
+
 /// `network.allowed_hosts` from `config.toml` only. `overrides.toml` (where Settings and the
 /// page's `update_config` write) is never read for this, so a script in the page cannot add a host.
 pub(crate) fn hosts_from_config_toml(layers: &[config::LayerInfo]) -> Vec<String> {
@@ -579,6 +656,39 @@ mod tests {
             assert_eq!(refuse_unsafe_writes(&[c]).unwrap_err().code, "CONSENT_REQUIRED");
         }
         assert!(refuse_unsafe_writes(&[change("network.allowed_hosts", Value::Null)]).is_ok(), "clearing is fine");
+    }
+
+    #[test]
+    fn security_the_page_cannot_allow_private_hosts_or_move_keys_to_a_file() {
+        let change = |key: &str, value: Value| config::LayerChange { key: key.into(), value, default: None };
+        let bad = [
+            change("network.allow_private_hosts", serde_json::json!(["192.168.1.20"])),
+            change("network", serde_json::json!({"allow_private_hosts": ["192.168.1.20"]})),
+            change("secrets.store", serde_json::json!("file")),
+        ];
+        for c in bad {
+            assert_eq!(refuse_unsafe_writes(&[c]).unwrap_err().code, "CONSENT_REQUIRED");
+        }
+        assert!(refuse_unsafe_writes(&[change("network.allow_private_hosts", Value::Null)]).is_ok(), "clearing is fine");
+        assert!(refuse_unsafe_writes(&[change("network.allow_private_hosts", serde_json::json!([]))]).is_ok());
+    }
+
+    #[test]
+    fn security_private_hosts_come_from_config_toml_not_overrides() {
+        let layer = |kind: &'static str, config: Option<serde_json::Value>| config::LayerInfo {
+            id: 0,
+            kind,
+            name: kind.into(),
+            path: String::new(),
+            status: "ok",
+            error: None,
+            config,
+            from: None,
+        };
+        let mine = layer("config", Some(serde_json::json!({"network": {"allow_private_hosts": ["192.168.1.20:11434", 3]}})));
+        let page = layer("overrides", Some(serde_json::json!({"network": {"allow_private_hosts": ["10.0.0.9"]}})));
+        assert_eq!(private_hosts_from_config_toml(&[mine, page]), vec!["192.168.1.20:11434".to_string()]);
+        assert!(private_hosts_from_config_toml(&[layer("overrides", Some(serde_json::json!({"network": {"allow_private_hosts": ["10.0.0.9"]}})))]).is_empty());
     }
 
     #[test]

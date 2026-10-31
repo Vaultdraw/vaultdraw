@@ -90,15 +90,28 @@ struct Auth {
 /// A request that passed every check, with the key already placed in its headers.
 struct Prepared {
     url: Url,
+    /// The host the user allowed in `network.allow_private_hosts` for this request, if it is one.
+    allowed_host: Option<String>,
     post: bool,
     headers: Vec<(String, String)>,
     body: Option<String>,
     timeout: Duration,
 }
 
-/// The URL rules: http or https, no user:pass; https unless the host is this computer; a literal
-/// private address is refused here (a host name is vetted when it resolves).
-fn check_url(text: &str) -> Result<Url> {
+/// The hosts of `network.allow_private_hosts` in the config (see `network::net_config_value`).
+fn private_hosts(config: impl Fn() -> Result<Option<Value>>) -> Vec<String> {
+    config()
+        .ok()
+        .flatten()
+        .and_then(|c| c.get("network")?.get("allow_private_hosts")?.as_array().cloned())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+        .unwrap_or_default()
+}
+
+/// The URL rules: http or https, no user:pass; https unless the host is this computer or one the
+/// user allowed; a literal private address is refused here unless the user allowed it (a host name
+/// is vetted when it resolves). `allowed` is read only for a host that is not this computer.
+fn check_url(text: &str, allowed: impl Fn() -> Vec<String>) -> Result<(Url, bool)> {
     let bad = |m: &str| err("INVALID_URL", m);
     let url = Url::parse(text).map_err(|_| bad("That is not a valid address"))?;
     if !matches!(url.scheme(), "http" | "https") {
@@ -108,15 +121,23 @@ fn check_url(text: &str) -> Result<Url> {
         return Err(bad("Addresses with a user name or password are not allowed"));
     }
     let host = url.host_str().ok_or_else(|| bad("That address has no host"))?;
+    let mut allowed_private = false;
     if !network::is_loopback(&url) {
-        if url.scheme() != "https" {
-            return Err(bad("Only https addresses are allowed, or http to this computer"));
-        }
-        if host.trim_matches(['[', ']']).parse::<std::net::IpAddr>().is_ok_and(network::is_blocked_address) {
-            return Err(err("PRIVATE_ADDRESS", "That address is private or local, so it was not contacted"));
+        allowed_private = network::private_host_allowed(&allowed(), &url);
+        if !allowed_private {
+            // A private address is named as such whatever the scheme, so the message can say how to allow it.
+            if host.trim_matches(['[', ']']).parse::<std::net::IpAddr>().is_ok_and(network::is_blocked_address) {
+                return Err(err(
+                    "PRIVATE_ADDRESS",
+                    "That address is private or local, so it was not contacted. To allow a computer on your own network, list it in network.allow_private_hosts in config.toml",
+                ));
+            }
+            if url.scheme() != "https" {
+                return Err(bad("Only https addresses are allowed, or http to this computer"));
+            }
         }
     }
-    Ok(url)
+    Ok((url, allowed_private))
 }
 
 /// Offline mode and `network.allow_ai` apply to requests that leave the computer. A loopback
@@ -152,8 +173,9 @@ fn check_header(name: &str, value: &str) -> Result<()> {
 }
 
 fn prepare(state_dir: &Path, plugin_id: &str, req: OpenRequest, config: impl Fn() -> Result<Option<Value>> + Copy) -> Result<Prepared> {
-    let url = check_url(&req.url)?;
+    let (url, allowed_private) = check_url(&req.url, || private_hosts(config))?;
     check_policy(&url, config)?;
+    let allowed_host = allowed_private.then(|| url.host_str().unwrap_or_default().to_ascii_lowercase());
     let post = match req.method.as_deref() {
         None => req.body.is_some(),
         Some("POST") => true,
@@ -179,19 +201,22 @@ fn prepare(state_dir: &Path, plugin_id: &str, req: OpenRequest, config: impl Fn(
         headers.retain(|(k, _)| !k.eq_ignore_ascii_case(&auth.header));
         headers.push((auth.header, value));
     }
-    Ok(Prepared { url, post, headers, body: req.body, timeout: Duration::from_millis(timeout_ms) })
+    Ok(Prepared { url, allowed_host, post, headers, body: req.body, timeout: Duration::from_millis(timeout_ms) })
 }
 
 /// Like `network::GuardedResolver`, but a loopback URL host is allowed (and must resolve to
 /// loopback only); every other host must resolve to no private or local address.
 #[derive(Debug)]
-struct AiResolver<R: Resolver>(R);
+struct AiResolver<R: Resolver> {
+    inner: R,
+    /// The host the user allowed in `network.allow_private_hosts`: its answers are not vetted.
+    allowed_host: Option<String>,
+}
 
 impl<R: Resolver> Resolver for AiResolver<R> {
     fn resolve(&self, uri: &ureq::http::Uri, config: &ureq::config::Config, timeout: NextTimeout) -> std::result::Result<ResolvedSocketAddrs, ureq::Error> {
-        let addrs = self.0.resolve(uri, config, timeout)?;
-        let loopback_url = uri.host().is_some_and(network::is_loopback_host);
-        if network::check_resolved(loopback_url, &addrs) {
+        let addrs = self.inner.resolve(uri, config, timeout)?;
+        if resolver_accepts(self.allowed_host.as_deref(), uri.host(), &addrs) {
             Ok(addrs)
         } else {
             Err(ureq::Error::Io(io::Error::new(io::ErrorKind::PermissionDenied, ForbiddenAddress)))
@@ -199,9 +224,22 @@ impl<R: Resolver> Resolver for AiResolver<R> {
     }
 }
 
+/// Whether a connection to `host` may go to the resolved `addrs`: anything for the host the user
+/// allowed in `network.allow_private_hosts`; for every other host no private or local address (a
+/// loopback host must resolve to loopback only).
+fn resolver_accepts(allowed_host: Option<&str>, host: Option<&str>, addrs: &[std::net::SocketAddr]) -> bool {
+    let bare = |h: &str| h.trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase();
+    if let (Some(allowed), Some(host)) = (allowed_host, host) {
+        if bare(allowed) == bare(host) {
+            return true;
+        }
+    }
+    network::check_resolved(host.is_some_and(network::is_loopback_host), addrs)
+}
+
 /// No proxy, no redirects, no overall time limit (a long answer may stream for minutes);
 /// `timeout` bounds connecting, the wait for the headers and every read.
-fn agent(timeout: Duration) -> ureq::Agent {
+fn agent(timeout: Duration, allowed_host: Option<String>) -> ureq::Agent {
     let config = ureq::Agent::config_builder()
         .proxy(None)
         .max_redirects(0)
@@ -212,11 +250,11 @@ fn agent(timeout: Duration) -> ureq::Agent {
         .timeout_per_read(Some(timeout))
         .user_agent(format!("Vaultdraw/{}", env!("CARGO_PKG_VERSION")))
         .build();
-    ureq::Agent::with_parts(config, DefaultConnector::new(), AiResolver(DefaultResolver::default()))
+    ureq::Agent::with_parts(config, DefaultConnector::new(), AiResolver { inner: DefaultResolver::default(), allowed_host })
 }
 
 fn send(p: &Prepared) -> Result<ureq::http::Response<ureq::Body>> {
-    let ag = agent(p.timeout);
+    let ag = agent(p.timeout, p.allowed_host.clone());
     let result = if p.post {
         let mut r = ag.post(p.url.as_str());
         for (k, v) in &p.headers {
@@ -668,7 +706,7 @@ mod tests {
     fn address_rules() {
         let dir = tempfile::tempdir().unwrap();
         for (url, want) in [
-            ("http://192.168.1.5/x", "INVALID_URL"),
+            ("http://192.168.1.5/x", "PRIVATE_ADDRESS"),
             ("http://example.com/x", "INVALID_URL"),
             ("ftp://example.com/x", "INVALID_URL"),
             ("https://user:pw@example.com/x", "INVALID_URL"),
@@ -679,10 +717,10 @@ mod tests {
         ] {
             assert_eq!(code(call_net(dir.path(), "t-addr", "net.open", json!({"url": url}))), want, "{url}");
         }
-        assert!(check_url("http://localhost:11434/api").is_ok());
-        assert!(check_url("https://127.0.0.1/api").is_ok());
-        assert!(check_url("http://[::1]:8080/api").is_ok());
-        assert!(check_url("https://api.openai.com/v1/chat").is_ok());
+        assert!(check_url("http://localhost:11434/api", Vec::new).is_ok());
+        assert!(check_url("https://127.0.0.1/api", Vec::new).is_ok());
+        assert!(check_url("http://[::1]:8080/api", Vec::new).is_ok());
+        assert!(check_url("https://api.openai.com/v1/chat", Vec::new).is_ok());
     }
 
     /// `vaultdraw-core/src/contract/net_address_cases.json` is read here and by
@@ -693,12 +731,69 @@ mod tests {
         let table: Value = serde_json::from_str(include_str!("../../crates/vaultdraw-core/src/contract/net_address_cases.json")).unwrap();
         for row in table["cases"].as_array().unwrap() {
             let (url, want) = (row["url"].as_str().unwrap(), row["want"].as_str().unwrap());
-            if want == "ok" {
-                assert!(check_url(url).is_ok(), "{url}");
-            } else {
+            let allow: Vec<String> = row["allow"].as_array().map(|a| a.iter().map(|v| v.as_str().unwrap().to_string()).collect()).unwrap_or_default();
+            match check_url(url, || allow.clone()) {
+                Ok(_) => assert_eq!(want, "ok", "{url} allow {allow:?}"),
+                Err(e) => assert_eq!(e.code, want, "{url} allow {allow:?}"),
+            }
+            // the full call agrees for a row without an allow list (it adds only the policy checks)
+            if allow.is_empty() && want != "ok" {
                 assert_eq!(code(call_net(dir.path(), "t-addr", "net.open", json!({"url": url}))), want, "{url}");
             }
         }
+    }
+
+    /// `network.allow_private_hosts`: who is allowed, who is not, and that a host the user did not
+    /// list stays refused. The entry shapes are in `contract/private_entry_cases.json` (the fake reads it too).
+    #[test]
+    fn private_host_entries_match_by_host_and_optional_port() {
+        let table: Value = serde_json::from_str(include_str!("../../crates/vaultdraw-core/src/contract/private_entry_cases.json")).unwrap();
+        for row in table["cases"].as_array().unwrap() {
+            let (entry, url) = (row["entry"].as_str().unwrap(), row["url"].as_str().unwrap());
+            let want = row["allowed"].as_bool().unwrap();
+            let got = network::private_host_allowed(&[entry.to_string()], &Url::parse(url).unwrap());
+            assert_eq!(got, want, "entry {entry:?} for {url}");
+        }
+    }
+
+    fn cfg_allow(hosts: &[&str]) -> impl Fn() -> Result<Option<Value>> + Copy {
+        let _ = hosts;
+        || Ok(Some(json!({"network": {"allow_private_hosts": ["192.168.1.20:11434", "ollama.lan"]}})))
+    }
+
+    #[test]
+    fn an_allowed_lan_host_passes_the_checks_and_nothing_else_does() {
+        let cfg = cfg_allow(&[]);
+        let allowed = || private_hosts(cfg);
+        // http to the listed address, on the listed port
+        let (_, private) = check_url("http://192.168.1.20:11434/api/chat", allowed).unwrap();
+        assert!(private);
+        // a host name entry covers every port
+        assert!(check_url("http://ollama.lan:8080/x", allowed).unwrap().1);
+        // other port, other address, other private literal: still refused
+        assert_eq!(check_url("http://192.168.1.20:9999/x", allowed).unwrap_err().code, "PRIVATE_ADDRESS");
+        assert_eq!(check_url("https://192.168.1.21:11434/x", allowed).unwrap_err().code, "PRIVATE_ADDRESS");
+        assert_eq!(check_url("https://10.0.0.1/x", allowed).unwrap_err().code, "PRIVATE_ADDRESS");
+        // the refusal says how to allow it
+        assert!(check_url("https://10.0.0.1/x", Vec::new).unwrap_err().message.contains("allow_private_hosts"));
+        // Offline mode still blocks a computer on the network
+        let off = || Ok(Some(json!({"network": {"offline": true, "allow_private_hosts": ["192.168.1.20"]}})));
+        let (u, _) = check_url("http://192.168.1.20:11434/x", || private_hosts(off)).unwrap();
+        assert_eq!(check_policy(&u, off).unwrap_err().code, "NETWORK_DISABLED");
+        // allow_ai = false still blocks it
+        let no_ai = || Ok(Some(json!({"network": {"allow_ai": false, "allow_private_hosts": ["192.168.1.20"]}})));
+        assert!(check_policy(&u, no_ai).is_err());
+    }
+
+    #[test]
+    fn the_resolver_trusts_only_the_allowed_host() {
+        let lan: Vec<std::net::SocketAddr> = vec!["192.168.1.20:11434".parse().unwrap()];
+        let public: Vec<std::net::SocketAddr> = vec!["93.184.216.34:443".parse().unwrap()];
+        assert!(resolver_accepts(Some("ollama.lan"), Some("OLLAMA.lan"), &lan));
+        assert!(resolver_accepts(Some("[fd00::5]"), Some("[fd00::5]"), &["[fd00::5]:1".parse().unwrap()]));
+        assert!(!resolver_accepts(None, Some("ollama.lan"), &lan), "unlisted: private answers are refused");
+        assert!(!resolver_accepts(Some("ollama.lan"), Some("other.lan"), &lan), "another host does not borrow the permission");
+        assert!(resolver_accepts(None, Some("example.com"), &public));
     }
 
     #[test]

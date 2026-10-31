@@ -17,4 +17,5 @@ Providers: Anthropic, OpenAI (or any OpenAI-style address), Ollama. Choose provi
 - The panel can show exactly what is sent ("Show what is sent").
 - The key is kept in your system keychain (the macOS Keychain, or the Secret Service on Linux), outside `config.toml` and your vault, and nothing can read it back. `[secrets] store = "file"` keeps it in a protected file instead (not encrypted).
 - Offline mode stops every request except one to this computer (a local Ollama).
+- Ollama on another computer: set the provider to Ollama, the address to `http://192.168.1.20:11434`, and list the computer in `config.toml`: `[network] allow_private_hosts = ["192.168.1.20:11434"]`. Nothing else on your network is reachable.
 - No Vaultdraw server is involved: requests go straight from the app to the provider.

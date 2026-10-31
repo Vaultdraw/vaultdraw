@@ -55,6 +55,7 @@ const OVERRIDES: Readonly<Record<string, Schema>> = {
   "network.allow_ai": { type: "boolean" },
   "network.allow_updates": { type: "boolean" },
   "network.allowed_hosts": stringList,
+  "network.allow_private_hosts": stringList,
   "secrets.store": { type: "string", enum: ["auto", "keychain", "file"] },
   "plugins.registry_url": {
     type: "string",

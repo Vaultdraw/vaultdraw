@@ -370,6 +370,7 @@ type ConfigField =
   | "activityBar"
   | "pluginsEnabled"
   | "networkAllowedHosts"
+  | "networkAllowPrivateHosts"
   | "secretsStore"
   | "pluginsDisabled"
   | "pluginImporters"
@@ -545,6 +546,13 @@ const CORE_MAPPING: readonly ConfigMapping[] = [
     field: "networkAllowedHosts",
     key: "network.allowed_hosts",
     expected: 'a list of host names like ["themes.example.org"]',
+    valid: (v) =>
+      isStringList(v) && (v as string[]).every((x) => x.trim() !== ""),
+  },
+  {
+    field: "networkAllowPrivateHosts",
+    key: "network.allow_private_hosts",
+    expected: 'a list of hosts like ["192.168.1.20:11434", "ollama.lan"]',
     valid: (v) =>
       isStringList(v) && (v as string[]).every((x) => x.trim() !== ""),
   },

@@ -55,6 +55,7 @@ export function friendlyError(err: unknown, provider: ProviderId): string {
     case "NETWORK_TIMEOUT":
       return `${name} did not answer in time. Try again, or raise the timeout in the AI settings.`;
     case "PRIVATE_ADDRESS":
+      return `That address is on your own network, which is off limits unless you allow it. Add it to network.allow_private_hosts in your config file, for example ["192.168.1.20:11434"].`;
     case "INVALID_URL":
       return `That address cannot be used: ${message}`;
     case "TOO_LARGE":
@@ -63,7 +64,7 @@ export function friendlyError(err: unknown, provider: ProviderId): string {
       return "Stopped.";
     case "NETWORK_ERROR":
       return provider === "ollama"
-        ? "Could not reach Ollama. Is it running on this computer?"
+        ? "Could not reach Ollama. Is it running, and is its address in the AI settings right?"
         : `Could not reach ${name}. Check your connection and the address in the AI settings.`;
     case "PERMISSION":
       return "The AI assistant does not have the permission it needs. Turn it off and on again in Settings, Plugins.";
