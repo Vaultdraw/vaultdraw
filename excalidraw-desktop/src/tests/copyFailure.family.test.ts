@@ -24,6 +24,7 @@ const MEMBERS: {
 }[] = [
   { file: "src/components/menu/copyPath.ts", way: "error-toast" },
   { file: "src/tabs/useTabs.ts", way: "error-toast" },
+  { file: "src/editor/links/useVaultEditorLinks.ts", way: "error-toast" },
   { file: "src/components/ReportDialog.tsx", way: "inline" },
   {
     file: "src/ai/aiSwitch.ts",
