@@ -101,3 +101,37 @@ describe("save_drawing_copy IPC contract", () => {
     });
   });
 });
+
+describe("export_folder IPC contract (F31)", () => {
+  it("picks, writes raw bytes with the token, path and rule in headers, releases", async () => {
+    const invoke = vi
+      .fn()
+      .mockResolvedValueOnce({ token: "t1", path: "/Users/me/Exports" })
+      .mockResolvedValueOnce({ status: "written", path: "Sub/Plan 2.png" })
+      .mockResolvedValueOnce(undefined);
+    const repo = new DesktopVaultRepository({ invoke });
+    const { pickExportFolder, writeExportFile, releaseExportFolder } = repo;
+    await expect(pickExportFolder()).resolves.toEqual({
+      token: "t1",
+      path: "/Users/me/Exports",
+    });
+    const bytes = new Uint8Array([1, 2]);
+    await expect(
+      writeExportFile("t1", "Sub/Plan ✓.png", bytes, "keep_both"),
+    ).resolves.toEqual({ status: "written", path: "Sub/Plan 2.png" });
+    expect(invoke.mock.calls[0][0]).toBe("export_folder_pick");
+    const [command, body, options] = invoke.mock.calls[1];
+    expect(command).toBe("export_folder_write");
+    expect(body).toBe(bytes);
+    expect(options.headers).toEqual({
+      "x-export-token": "t1",
+      "x-file-name": encodeURIComponent("Sub/Plan ✓.png"),
+      "x-existing": "keep_both",
+    });
+    await releaseExportFolder("t1");
+    expect(invoke.mock.calls[2]).toEqual([
+      "export_folder_release",
+      { token: "t1" },
+    ]);
+  });
+});
