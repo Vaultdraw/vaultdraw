@@ -133,7 +133,8 @@ describe("window methods (C3)", () => {
       "k9",
     );
     expect(
-      (await call("file.open", { path: "a.excalidraw", element: 7 })).error.code,
+      (await call("file.open", { path: "a.excalidraw", element: 7 })).error
+        .code,
     ).toBe("INVALID_PARAMS");
     expect((await call("file.open", { path: "../x" })).error.code).toBe(
       "INVALID_PARAMS",

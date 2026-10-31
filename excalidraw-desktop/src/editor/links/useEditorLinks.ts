@@ -312,11 +312,14 @@ export function useEditorLinks(opts: UseEditorLinksOptions) {
       return "";
     }
     latest.current.onNeedNames?.();
+    // Never relative: the link is copied and pasted into other drawings and notes.
     const target = linkTargetFor(
       currentPath,
-      currentPath,
+      null,
       resolverRef.current,
-      settings.newLinkFormat,
+      settings.newLinkFormat === "relative"
+        ? "shortest"
+        : settings.newLinkFormat,
     );
     return shapeLinkValue(target, settings.shapeLinkFormat, id);
   }, []);
@@ -331,7 +334,9 @@ export function useEditorLinks(opts: UseEditorLinksOptions) {
       return null;
     }
     const picked = getLinkIdAndTypeFromSelection(
-      api.getSceneElements().filter((el) => api.getAppState().selectedElementIds[el.id]),
+      api
+        .getSceneElements()
+        .filter((el) => api.getAppState().selectedElementIds[el.id]),
       api.getAppState(),
     );
     if (!picked) {
@@ -342,7 +347,9 @@ export function useEditorLinks(opts: UseEditorLinksOptions) {
       currentPath,
       null,
       resolverRef.current,
-      settings.newLinkFormat === "relative" ? "shortest" : settings.newLinkFormat,
+      settings.newLinkFormat === "relative"
+        ? "shortest"
+        : settings.newLinkFormat,
     );
     return wikiLink(target, null, picked.id);
   }, []);

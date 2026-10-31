@@ -18,13 +18,14 @@ export function decodeVaultUrlAnchor(url: string): string | null {
   const hash = url.indexOf("#", q);
   for (const pair of url.slice(q + 1, hash < 0 ? undefined : hash).split("&")) {
     if (pair.startsWith("anchor=")) {
+      // The first anchor that is an id wins, as in the Rust grammar (url_anchor_param).
       try {
         const v = decodeURIComponent(pair.slice(7));
-        return v.startsWith("^") && ANCHOR_RE.test(v.slice(1))
-          ? v.slice(1)
-          : null;
+        if (v.startsWith("^") && ANCHOR_RE.test(v.slice(1))) {
+          return v.slice(1);
+        }
       } catch {
-        return null;
+        // an undecodable value is not an id: look at the next anchor
       }
     }
   }

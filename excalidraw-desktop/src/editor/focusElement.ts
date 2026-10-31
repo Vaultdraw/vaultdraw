@@ -36,10 +36,16 @@ export function focusElement(
   const box = resolved
     ? resolved
     : (() => {
-        const x1 = Math.min(...members.map((m) => m.x));
-        const y1 = Math.min(...members.map((m) => m.y));
-        const x2 = Math.max(...members.map((m) => m.x + m.width));
-        const y2 = Math.max(...members.map((m) => m.y + m.height));
+        let x1 = Infinity;
+        let y1 = Infinity;
+        let x2 = -Infinity;
+        let y2 = -Infinity;
+        for (const m of members) {
+          x1 = Math.min(x1, m.x);
+          y1 = Math.min(y1, m.y);
+          x2 = Math.max(x2, m.x + m.width);
+          y2 = Math.max(y2, m.y + m.height);
+        }
         return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
       })();
 

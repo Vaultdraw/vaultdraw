@@ -72,6 +72,10 @@ describe("linkUri", () => {
       decodeVaultUrlAnchor("vaultdraw://open?file=a&anchor=k9"),
     ).toBeNull();
     expect(decodeVaultUrlAnchor("https://x?anchor=%5Ek")).toBeNull();
+    // Same as Rust: the first anchor that is an id wins.
+    expect(
+      decodeVaultUrlAnchor("vaultdraw://open?file=a&anchor=bad&anchor=%5Eid"),
+    ).toBe("id");
   });
   it("rejects malformed input", () => {
     expect(decodeVaultUrl("https://x")).toBeNull();
