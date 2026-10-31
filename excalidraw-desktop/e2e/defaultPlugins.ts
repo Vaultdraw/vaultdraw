@@ -57,6 +57,7 @@ export async function installDefaultBackend(win: Window): Promise<void> {
           command: x.command,
           title: x.title ?? null,
           kinds: x.kinds ?? [],
+          ...(x.when?.length ? { when: x.when } : {}),
         })),
         importers: (doc.contributes.importers ?? []).map((x: any) => ({
           id: x.id,

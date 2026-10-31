@@ -98,6 +98,7 @@ const readOfficial = async (id: string) => {
         command: x.command,
         title: x.title ?? null,
         kinds: x.kinds ?? [],
+        ...(x.when?.length ? { when: x.when } : {}),
       })),
       settings: c.settings ?? [],
       importers: (c.importers ?? []).map((x: any) => ({
