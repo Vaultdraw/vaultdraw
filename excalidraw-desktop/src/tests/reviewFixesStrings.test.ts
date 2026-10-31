@@ -21,6 +21,6 @@ describe("plain, true words in settings (design review 2026-10-30)", () => {
   it("the AI setting does not claim to be the offline switch", () => {
     const schema = read("components/settings/schema.ts");
     expect(schema).not.toMatch(/Off keeps your device fully offline/);
-    expect(schema).toContain("no AI app can read or change your drawings");
+    expect(schema).toContain("turn on Offline mode in General");
   });
 });
