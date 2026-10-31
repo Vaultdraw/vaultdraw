@@ -85,11 +85,19 @@ export const treeName = (page: Page, name: string): Locator =>
     .filter({ hasText: new RegExp(`^${name}$`) })
     .first();
 
+/**
+ * Clicks a tree row. `["Meta"]` means "open in a new tab": that is a middle
+ * click now, since Cmd+click adds the row to the selection (F13,
+ * `navigator.mod_click`).
+ */
 export const clickTree = (
   page: Page,
   name: string,
   modifiers: Array<"Meta" | "Shift"> = [],
-) => treeName(page, name).click({ modifiers });
+) =>
+  modifiers.includes("Meta")
+    ? treeName(page, name).click({ button: "middle" })
+    : treeName(page, name).click({ modifiers });
 
 export const strip = (page: Page) => page.getByTestId("vault-tabs");
 export const tabEls = (page: Page) => page.getByTestId("vault-tab");

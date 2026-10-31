@@ -61,7 +61,7 @@ const shownAfter = (page: Page, name: string, ids: string[]) =>
     .toEqual({ active: name, ids });
 
 test.describe("opening", () => {
-  test("Cmd+click opens a new tab, one tab per file, plain click replaces", async ({
+  test("Middle click opens a new tab, one tab per file, plain click replaces", async ({
     page,
   }) => {
     const errors = trackErrors(page);

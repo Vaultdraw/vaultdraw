@@ -348,7 +348,7 @@ for (const rate of RATES) {
       await row(page, "P00").click();
       await painted(page, "P00");
       await zoomIn(page, 2);
-      await row(page, "P01").click({ modifiers: [MOD] });
+      await row(page, "P01").click({ button: "middle" });
       await painted(page, "P01");
       await zoomIn(page, 3);
       const zooms: Record<string, number> = { P01: await zoomNow(page) };
@@ -401,7 +401,7 @@ for (const rate of RATES) {
         for (let i = 0; i < PER_ROUND; i++) {
           const name = pad(2 + i);
           await page.waitForTimeout(250);
-          await row(page, name).click({ modifiers: [MOD] });
+          await row(page, name).click({ button: "middle" });
           opn.push(await painted(page, name));
           await page.keyboard.press(`${MOD}+KeyW`);
           await painted(page, shown);
@@ -409,7 +409,7 @@ for (const rate of RATES) {
         // closeBackground: open a tab, return to the shown one, close the other
         for (let i = 0; i < PER_ROUND; i++) {
           const name = pad(2 + i);
-          await row(page, name).click({ modifiers: [MOD] });
+          await row(page, name).click({ button: "middle" });
           await painted(page, name);
           await tabOf(page, shown).click();
           await painted(page, shown);
@@ -840,7 +840,7 @@ test("tabs memory, canvases and idle: 20 tabs vs 1", async ({
   const idleOne = await idle();
 
   for (let k = 1; k < 20; k++) {
-    await row(page, pad(k)).click({ modifiers: [MOD] });
+    await row(page, pad(k)).click({ button: "middle" });
     await painted(page, pad(k));
   }
   await tabOf(page, "P00").click();
