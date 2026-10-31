@@ -14,6 +14,7 @@ import { parseArgs } from "node:util";
 
 import { impactedSpecs, listSpecNames, specsLoadingPlugin } from "./e2e-impact.mjs";
 import { lintableFiles } from "./lint-files.mjs";
+import { sourceGuardTests } from "./source-guards.mjs";
 import { exitOnSignals, runGuarded } from "./run-guarded.mjs";
 
 const { values: o, positionals } = parseArgs({
@@ -173,6 +174,23 @@ if (tier === "fast") {
       "**/*.bench.test.ts",
       ...rel(pkgSrc),
     ]);
+  // Guards and family sweeps read sources from disk and import nothing they check, so `vitest
+  // related` never picks them: three were red on main unseen (toimprove 266). ~9 s for all.
+  if (
+    files.some(
+      (f) =>
+        (f.startsWith("excalidraw-desktop/src/") || f.startsWith("packages/")) &&
+        !f.startsWith("excalidraw-desktop/src-tauri/"),
+    )
+  ) {
+    const guards = sourceGuardTests(path.join(desktop, "src"));
+    npx(desktop, `vitest (${guards.length} source guards)`, [
+      "vitest",
+      "run",
+      "--passWithNoTests",
+      ...guards.map((f) => path.join("src", f)),
+    ]);
+  }
   // Tests that read plugin manifests from disk are invisible to `vitest related`
   // (a plugin.toml change slipped past the startup stub table on 2026-10-30).
   if (files.some((f) => /^plugins\/official\/[^/]+\/plugin\.toml$/.test(f))) {
@@ -193,6 +211,24 @@ if (tier === "fast") {
       "--test",
       "excalidraw-desktop/scripts/*.test.mjs",
     ]);
+  // The plugin API revision and official manifests are pinned by Rust tests (plugins::tests):
+  // a bump in sdk/api/package.json or a plugin.toml must run them (6f24ddda left main red, 283).
+  const pinnedByRust = files.some(
+    (f) =>
+      f === "sdk/api/package.json" ||
+      /^plugins\/official\/[^/]+\/plugin\.toml$/.test(f),
+  );
+  if (
+    pinnedByRust &&
+    !files.some((f) => f.startsWith("excalidraw-desktop/src-tauri/"))
+  ) {
+    step("cargo test (plugins)", path.join(desktop, "src-tauri"), "cargo", [
+      "test",
+      "--quiet",
+      "--lib",
+      "plugins::tests",
+    ]);
+  }
   if (files.some((f) => f.startsWith("excalidraw-desktop/src-tauri/"))) {
     step("cargo test", path.join(desktop, "src-tauri"), "cargo", [
       "test",
