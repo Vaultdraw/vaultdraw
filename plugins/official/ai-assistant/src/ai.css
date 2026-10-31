@@ -18,3 +18,7 @@
 .vd-ai-sent pre { font-size: var(--vd-fs-caption, 11px); color: var(--vault-text-muted, inherit); max-height: 220px; overflow: auto; }
 .vd-ai-error { margin: 0; color: var(--vault-danger, #e03131); line-height: 1.5; }
 .vd-ai-key summary { cursor: pointer; color: var(--vault-text-muted, inherit); font-size: var(--vd-fs-small, 12px); }
+.vd-ai-proposal { border: 1px solid var(--vault-primary-border, var(--vault-accent, #6965db)); border-radius: var(--vd-radius-pop, 6px); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.vd-ai-ghosts { width: 100%; max-height: 180px; background: var(--vault-surface, transparent); border-radius: var(--vd-radius-pop, 6px); }
+.vd-ai-changes { margin: 0; padding-left: 18px; line-height: 1.5; max-height: 160px; overflow: auto; }
+.vd-ai-kept { margin: 0; color: var(--vault-text-muted, inherit); line-height: 1.5; }

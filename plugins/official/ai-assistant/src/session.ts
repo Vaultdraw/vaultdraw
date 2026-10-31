@@ -11,6 +11,13 @@ import {
   type Context,
 } from "./context";
 import { insertDiagram } from "./diagram";
+import {
+  buildProposal,
+  describeForEdit,
+  drawingName,
+  stillValid,
+  type Proposal,
+} from "./edits";
 import { friendlyError, statusMessage } from "./errors";
 import { SYSTEM, userMessage, type Task } from "./prompts";
 import {
@@ -45,6 +52,10 @@ export interface SessionState {
   via: string;
   /** Set after a diagram answer: the number of shapes drawn, or null. */
   drawn: number | null;
+  /** A change the model proposed, shown but not applied until Keep. */
+  proposal: Proposal | null;
+  /** What Keep did, in plain words (cleared by the next request). */
+  kept: string | null;
   /** Bumped by commands so the panel puts the cursor in the question box (or the key box). */
   focus: { tick: number; target: "request" | "key" };
 }
@@ -67,6 +78,10 @@ export interface Session {
   copyAnswer(): Promise<void>;
   /** Draws the Mermaid in the current answer. */
   draw(): Promise<void>;
+  /** Applies the proposed change (one undo step), or creates the new drawing. */
+  keep(): Promise<void>;
+  /** Drops the proposed change; nothing was written. */
+  discard(): void;
   config(): ProviderConfig;
   /** A command picked a task: select it and focus the box. */
   setTask(task: Task, target?: "request" | "key"): void;
@@ -94,6 +109,8 @@ export function createSession(ctx: PluginContext): Session {
     hasKey: false,
     via: "",
     drawn: null,
+    proposal: null,
+    kept: null,
     focus: { tick: 0, target: "request" },
   };
 
@@ -138,6 +155,18 @@ export function createSession(ctx: PluginContext): Session {
   async function contextFor(task: Task): Promise<Context | null> {
     if (task === "diagram") {
       return null;
+    }
+    if (task === "create") {
+      return null;
+    }
+    if (task === "edit") {
+      const all = ctx.scene.elements();
+      const d = describeForEdit(all, ctx.scene.selection(), limit());
+      return {
+        text: d.text,
+        cut: d.cut,
+        summary: `The whole drawing: ${d.summary}`,
+      };
     }
     if (task === "summarise") {
       // A note in the active tab is summarised as it is on disk; a drawing by its text.
@@ -188,6 +217,7 @@ export function createSession(ctx: PluginContext): Session {
     if (state.status === "running") {
       return;
     }
+    state = { ...state, proposal: null, kept: null };
     // the key belongs to the provider and address chosen now (toimprove 272)
     hasKey = await ctx.secret.has(secretNameOf(config()));
     const cfg = config();
@@ -219,6 +249,35 @@ export function createSession(ctx: PluginContext): Session {
         error:
           context?.emptyMessage ??
           "The drawing is empty, so there is nothing to ask about.",
+        via,
+        drawn: null,
+      });
+      return;
+    }
+    if ((task === "edit" || task === "create") && !request.trim()) {
+      set({
+        task,
+        request,
+        context,
+        sent,
+        answer: "",
+        error:
+          task === "edit"
+            ? "Say what to change in the drawing."
+            : "Say what the new drawing should show.",
+        via,
+        drawn: null,
+      });
+      return;
+    }
+    if (task === "edit" && ctx.scene.path() === null) {
+      set({
+        task,
+        request,
+        context,
+        sent,
+        answer: "",
+        error: 'Open a drawing first, or use "New drawing" to make one.',
         via,
         drawn: null,
       });
@@ -294,7 +353,26 @@ export function createSession(ctx: PluginContext): Session {
         task === "ask"
           ? [...messages, { role: "assistant" as const, content: answer }]
           : [];
-      set({ status: "idle", history });
+      if (task === "edit" || task === "create") {
+        try {
+          const proposal = buildProposal(
+            answer,
+            task,
+            ctx.scene.elements(),
+            task === "edit" ? ctx.scene.path() : null,
+            Math.max(1, ctx.settings.get<number>("edit_max_ops") || 60),
+          );
+          set({ status: "idle", history, proposal });
+          // The first shape the plan touches is selected, so the change shows on the canvas too.
+          if (proposal.touched[0]) {
+            ctx.scene.scrollTo(proposal.touched[0]);
+          }
+        } catch (err) {
+          set({ status: "idle", history, error: (err as Error).message });
+        }
+      } else {
+        set({ status: "idle", history });
+      }
     } catch (err) {
       const stopped = (err as { code?: string }).code === "ABORTED";
       set({
@@ -332,6 +410,8 @@ export function createSession(ctx: PluginContext): Session {
         error: null,
         history: [],
         drawn: null,
+        proposal: null,
+        kept: null,
       });
     },
     refreshKey,
@@ -353,6 +433,64 @@ export function createSession(ctx: PluginContext): Session {
       hasKey = false;
       set({ hasKey });
     },
+    discard() {
+      set({ proposal: null, kept: null, answer: "" });
+    },
+    async keep() {
+      const p = state.proposal;
+      if (!p) {
+        ctx.ui.toast("There is no proposed change to keep");
+        return;
+      }
+      const undo = /mac/i.test(navigator.platform) ? "Cmd" : "Ctrl";
+      try {
+        if (p.kind === "edit") {
+          if (!stillValid(p, ctx.scene.elements(), ctx.scene.path())) {
+            set({
+              proposal: null,
+              error:
+                "The drawing changed since this was proposed, so nothing was applied. Ask again.",
+            });
+            return;
+          }
+          await ctx.scene.batch(p.ops, { path: p.path ?? undefined });
+          set({
+            proposal: null,
+            error: null,
+            kept: `Applied: ${p.headline}. Undo with ${undo}+Z.`,
+          });
+        } else {
+          const folder = (
+            ctx.settings.get<string>("create_folder") || ""
+          ).replace(/^\/+|\/+$/g, "");
+          const base = drawingName(p.title);
+          let made: string | null = null;
+          for (let n = 1; n <= 50 && !made; n++) {
+            const name = `${base}${n === 1 ? "" : ` ${n}`}.excalidraw`;
+            const path = folder ? `${folder}/${name}` : name;
+            try {
+              await ctx.vault.createDrawing(path, p.ops);
+              made = path;
+            } catch (err) {
+              if ((err as { code?: string }).code !== "NAME_COLLISION") {
+                throw err;
+              }
+            }
+          }
+          if (!made) {
+            throw new Error("Could not find a free name for the new drawing.");
+          }
+          await ctx.workspace.open(made);
+          set({
+            proposal: null,
+            error: null,
+            kept: `Created "${made}": ${p.headline}.`,
+          });
+        }
+      } catch (err) {
+        set({ error: editError(err) });
+      }
+    },
     async draw() {
       try {
         const n = await insertDiagram(ctx, state.answer);
@@ -366,6 +504,28 @@ export function createSession(ctx: PluginContext): Session {
       set({ task, focus: { tick: state.focus.tick + 1, target } });
     },
   };
+}
+
+function editError(err: unknown): string {
+  const code = (err as { code?: string } | null)?.code;
+  switch (code) {
+    case "DRAWING_CHANGED":
+      return "You switched to another drawing, so nothing was applied. Open the drawing and ask again.";
+    case "READ_ONLY":
+      return "This drawing or vault is read-only, so nothing was changed.";
+    case "NOT_FOUND":
+      return "No drawing is open, so there is nothing to change.";
+    case "PERMISSION":
+      return "The AI assistant needs permission to write drawings. Turn it off and on again in Settings, Plugins.";
+    case "INVALID_ARGUMENT":
+      return "The app could not apply part of the plan, so nothing was changed. Ask again, in other words.";
+    case "TOO_LARGE":
+      return "The drawing would become too large, so nothing was changed.";
+    default:
+      return `Could not apply the change: ${
+        err instanceof Error ? err.message : "unknown problem"
+      }`;
+  }
 }
 
 class StatusError extends Error {

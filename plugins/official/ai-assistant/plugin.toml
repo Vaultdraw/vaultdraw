@@ -7,7 +7,7 @@ min_app = "0.2.0"
 main = "main.js"
 description = "Ask a model you choose about your drawing, with your own key. Off until you turn it on"
 author = "Vaultdraw"
-permissions = ["net", "secret", "vault.read"]
+permissions = ["net", "secret", "vault.read", "vault.write"]
 
 [[contributes.panels]]
 id = "assistant"
@@ -32,6 +32,24 @@ when = ["drawingOpen"]
 id = "summarise"
 title = "AI: Summarise this note"
 when = ["vaultOpen"]
+
+[[contributes.commands]]
+id = "edit"
+title = "AI: Edit this drawing"
+when = ["drawingOpen"]
+
+[[contributes.commands]]
+id = "create"
+title = "AI: Create a new drawing"
+when = ["vaultOpen"]
+
+[[contributes.commands]]
+id = "keep"
+title = "AI: Keep the proposed change"
+
+[[contributes.commands]]
+id = "discard"
+title = "AI: Discard the proposed change"
 
 [[contributes.commands]]
 id = "cancel"
@@ -92,4 +110,22 @@ description = "The drawing is sent as text; anything past this many characters i
 default = 12000
 min = 500
 max = 200000
+scope = ["global"]
+
+[[contributes.settings]]
+key = "edit_max_ops"
+type = "int"
+title = "Most changes in one proposal"
+description = "A proposed edit or new drawing keeps at most this many changes; the rest of the model's reply is left out."
+default = 60
+min = 1
+max = 500
+scope = ["global"]
+
+[[contributes.settings]]
+key = "create_folder"
+type = "string"
+title = "Folder for new AI drawings"
+description = "Where \"AI: Create a new drawing\" saves, after you keep it. Empty is the vault's top folder. The folder must exist."
+default = ""
 scope = ["global"]

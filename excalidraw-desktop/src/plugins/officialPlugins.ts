@@ -502,6 +502,18 @@ export const OFFICIAL_PLUGINS: readonly OfficialPlugin[] = [
         title: "AI: Summarise this note",
         when: ["vaultOpen"],
       },
+      {
+        id: "edit",
+        title: "AI: Edit this drawing",
+        when: ["drawingOpen"],
+      },
+      {
+        id: "create",
+        title: "AI: Create a new drawing",
+        when: ["vaultOpen"],
+      },
+      { id: "keep", title: "AI: Keep the proposed change" },
+      { id: "discard", title: "AI: Discard the proposed change" },
       { id: "cancel", title: "AI: Stop the answer" },
       { id: "clear", title: "AI: Clear the conversation" },
       { id: "set-key", title: "AI: Set API key" },

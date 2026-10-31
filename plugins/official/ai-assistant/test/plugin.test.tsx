@@ -63,12 +63,21 @@ const ask = async (text: string) => {
 describe("manifest", () => {
   it("asks only for what it needs and declares every command", () => {
     const m = manifest();
-    expect(m.permissions).toEqual(["net", "secret", "vault.read"]);
+    expect(m.permissions).toEqual([
+      "net",
+      "secret",
+      "vault.read",
+      "vault.write",
+    ]);
     expect(m.contributes.commands.map((c) => c.id)).toEqual([
       "ask",
       "describe",
       "diagram",
       "summarise",
+      "edit",
+      "create",
+      "keep",
+      "discard",
       "cancel",
       "clear",
       "set-key",
@@ -80,6 +89,8 @@ describe("manifest", () => {
       "base_url",
       "timeout_s",
       "max_context_chars",
+      "edit_max_ops",
+      "create_folder",
     ]);
   });
 });

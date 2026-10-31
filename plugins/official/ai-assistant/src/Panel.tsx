@@ -2,15 +2,26 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { TASK_TITLES, SYSTEM, type Task } from "./prompts";
 
+import Ghosts from "./Ghosts";
+
 import type { Session } from "./session";
 
-const TASKS: Task[] = ["ask", "describe", "diagram", "summarise"];
+const TASKS: Task[] = [
+  "ask",
+  "describe",
+  "edit",
+  "create",
+  "diagram",
+  "summarise",
+];
 
 const PLACEHOLDER: Record<Task, string> = {
   ask: "Ask about this drawing",
   describe: "Describe the selection (add a note if you like)",
   diagram: "Describe the diagram to draw, e.g. login flow with a retry",
   summarise: "Summarise (add a note if you like)",
+  edit: "Say what to change, e.g. make the login box red and add a Logout box",
+  create: "Describe the new drawing, e.g. a three-tier web app",
 };
 
 export default function Panel({ session }: { session: Session }) {
@@ -61,6 +72,7 @@ export default function Panel({ session }: { session: Session }) {
   }, [showSent, s.task, draft, s.status, session]);
 
   const running = s.status === "running";
+  const planTask = s.task === "edit" || s.task === "create";
   const send = () => {
     if (!running) {
       const asked = draft;
@@ -72,7 +84,7 @@ export default function Panel({ session }: { session: Session }) {
           setDraft((d) => (d === "" ? asked : d));
         }
       });
-      if (s.task === "ask") {
+      if (s.task === "ask" || s.task === "edit" || s.task === "create") {
         setDraft("");
       }
     }
@@ -165,10 +177,55 @@ export default function Panel({ session }: { session: Session }) {
         </p>
       ) : null}
 
-      {s.answer || running ? (
+      {s.kept ? (
+        <p className="vd-ai-kept" role="status">
+          {s.kept}
+        </p>
+      ) : null}
+
+      {s.proposal ? (
+        <div className="vd-ai-proposal" aria-label="Proposed change">
+          <strong>{s.proposal.headline}</strong>
+          <span className="vd-ai-via">
+            {s.proposal.kind === "edit"
+              ? "Nothing is changed until you keep it."
+              : "Nothing is saved until you keep it."}
+          </span>
+          <Ghosts ghosts={s.proposal.ghosts} />
+          <ul className="vd-ai-changes" aria-label="Changes">
+            {s.proposal.lines.map((l, i) => (
+              <li key={i}>{l}</li>
+            ))}
+          </ul>
+          {s.proposal.skipped > 0 ? (
+            <span className="vd-ai-via">
+              {s.proposal.skipped} part{s.proposal.skipped === 1 ? "" : "s"} of
+              the reply made no sense and{" "}
+              {s.proposal.skipped === 1 ? "was" : "were"} left out.
+            </span>
+          ) : null}
+          <div className="vd-ai-row">
+            <button
+              className="vd-ai-btn vd-ai-primary"
+              onClick={() => void session.keep()}
+            >
+              Keep
+            </button>
+            <button className="vd-ai-btn" onClick={() => session.discard()}>
+              Discard
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {running || (s.answer && !planTask) ? (
         <div className="vd-ai-answer" aria-live="polite" aria-busy={running}>
-          <pre>{s.answer || "Waiting for the answer…"}</pre>
-          {!running && s.answer ? (
+          <pre>
+            {planTask && running
+              ? "Working out the changes…"
+              : s.answer || "Waiting for the answer…"}
+          </pre>
+          {!running && s.answer && !planTask ? (
             <div className="vd-ai-row">
               <button
                 className="vd-ai-btn"

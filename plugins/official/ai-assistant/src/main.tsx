@@ -36,6 +36,12 @@ export default definePlugin({
       open("summarise");
       void session.run("summarise", "");
     });
+    ctx.commands.register("edit", () => open("edit"));
+    ctx.commands.register("create", () => open("create"));
+    ctx.commands.register("keep", () => {
+      void session.keep();
+    });
+    ctx.commands.register("discard", () => session.discard());
     ctx.commands.register("cancel", () => session.cancel());
     ctx.commands.register("set-key", () => open(session.get().task, "key"));
     ctx.commands.register("remove-key", async () => {

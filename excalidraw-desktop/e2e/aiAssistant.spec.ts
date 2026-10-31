@@ -3,7 +3,7 @@ import { expect, type Page } from "@playwright/test";
 import { test } from "./fixture";
 
 import { openVault, trackErrors } from "./helpers";
-import { seedAndOpen } from "./pageHelpers";
+import { live, seedAndOpen } from "./pageHelpers";
 
 // The AI assistant, reached the way a user does: it is off, so its commands are not in the palette;
 // turn it on in Settings, Plugins (an official plugin needs no consent dialog); ask without a key
@@ -233,5 +233,87 @@ test("AI assistant: Summarise this note reads the note in the open tab, and leav
   expect(
     await page.evaluate(() => (window as any).__noteFiles.textOf("Welcome.md")),
   ).toBe(before);
+  expect(errors).toEqual([]);
+});
+
+test("AI assistant: an edit is proposed first, Discard changes nothing, Keep applies it and one undo removes it", async ({
+  page,
+}) => {
+  const errors = trackErrors(page);
+  await openVault(page, "?plugins=ai-assistant");
+  await page.waitForFunction(() => (window as any).__pluginsReady === true);
+  await seedAndOpen(page, "Plan.excalidraw", {
+    elements: [text("a", 60, "Login page"), text("b", 130, "Checkout page")],
+  });
+  const plan = JSON.stringify({
+    title: "More boxes",
+    ops: [
+      { op: "add", type: "rectangle", text: "Logout", x: 300, y: 60 },
+      { op: "move", id: "b", x: 400, y: 200 },
+    ],
+  });
+  await page.evaluate((reply) => {
+    const net = (window as any).__plugins.backend.net;
+    net.secrets["ai-assistant"] = { "api-key": "sk-ant-e2e-EDIT-2222" };
+    net.respond = () => ({
+      chunks: [
+        `data: {"type":"content_block_delta","delta":{"type":"text_delta","text":${JSON.stringify(
+          `\`\`\`json\n${reply}\n\`\`\``,
+        )}}}\n\n`,
+        'data: {"type":"message_stop"}\n\n',
+      ],
+    });
+  }, plan);
+  const count = async () => (await live(page)).elements.length;
+  expect(await count()).toBe(2);
+
+  const propose = async () => {
+    await run(page, "AI: Edit this", /AI: Edit this drawing/);
+    const input = page.getByLabel(/Say what to change/);
+    await expect(input).toBeFocused();
+    await input.fill("Add a Logout box and move the checkout text");
+    await page.getByRole("button", { name: "Send" }).click();
+    const card = page.getByLabel("Proposed change");
+    await expect(card).toContainText("Adds 1 box, moves 1 text", {
+      timeout: 10_000,
+    });
+    await expect(card.getByRole("listitem")).toHaveText([
+      'Adds box "Logout"',
+      'Moves text "Checkout page"',
+    ]);
+    await expect(
+      card.getByRole("img", { name: "Preview of the change" }),
+    ).toBeVisible();
+    // Shown, not applied.
+    expect(await count()).toBe(2);
+    return card;
+  };
+
+  // Discard: nothing changes.
+  let card = await propose();
+  await card.getByRole("button", { name: "Discard" }).click();
+  await expect(page.getByLabel("Proposed change")).toHaveCount(0);
+  expect(await count()).toBe(2);
+
+  // Keep through its palette command: applied at once as one change.
+  card = await propose();
+  await run(page, "AI: Keep", /AI: Keep the proposed change/);
+  await expect(page.locator(".vd-ai-kept")).toContainText(
+    "Applied: Adds 1 box, moves 1 text",
+  );
+  expect(await count()).toBeGreaterThan(2);
+  const moved = (await live(page)).elements.find((e) => e.id === "b");
+  expect(Math.round(moved!.x)).toBe(400);
+
+  // One undo takes the whole change back.
+  // Focus the editor without clicking (a click would add its own selection change).
+  await page.evaluate(() =>
+    (document.querySelector(".excalidraw") as HTMLElement).focus(),
+  );
+  await page.keyboard.press("Meta+KeyZ");
+  await expect.poll(count).toBe(2);
+  expect(
+    Math.round((await live(page)).elements.find((e) => e.id === "b")!.x),
+  ).toBe(60);
   expect(errors).toEqual([]);
 });
