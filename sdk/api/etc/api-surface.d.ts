@@ -245,6 +245,7 @@ export interface MenuContribution {
     command: string;
     title: string | null;
     kinds: ("drawing" | "note" | "folder")[];
+    when?: string[];
 }
 export interface ToolbarContribution {
     command: string;

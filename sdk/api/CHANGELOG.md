@@ -18,6 +18,7 @@ An addition for the official AI assistant plugin. Nothing a 1.0 plugin uses chan
 ### Added
 
 - **`PluginErrorCode` lists every code a call can reject with.** New: `INTERNAL` (something failed inside the app, not in the call) and the `ctx.net` codes `ABORTED`, `INVALID_URL`, `NETWORK_DISABLED`, `NETWORK_TIMEOUT`, `PRIVATE_ADDRESS`, `SECRET_MISSING` and `TOO_MANY_STREAMS`. The app already sent them; the type now says so. A `switch (e.code)` with a default branch keeps working; one without it can now handle these codes by name.
+- **`MenuContribution.when`**: context keys that must all hold for a menu item to be listed (`!key` negates), as in a command's `when`. Absent or empty: always listed.
 
 ## 1.2.0
 
