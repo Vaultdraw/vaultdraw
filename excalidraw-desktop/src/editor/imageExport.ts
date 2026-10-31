@@ -6,6 +6,7 @@
  */
 
 import { exportToBlob, exportToSvg } from "@excalidraw/excalidraw";
+import { beginExportTextRuns } from "@excalidraw/element";
 import { SVG_DOCUMENT_PREAMBLE } from "@excalidraw/common";
 
 import {
@@ -47,6 +48,11 @@ export const exportFileName = (
 export type ImageExportExtras = {
   /** Space around the content in px; the editor's default (10) when absent. */
   padding?: number;
+  /**
+   * Draw text the way the canvas shows it (Markdown words, [[links]]): only
+   * for the open drawing while its canvas does. Off: the plain text, as before.
+   */
+  styledText?: boolean;
 };
 
 export const renderImageExport = async (
@@ -92,6 +98,7 @@ export const renderImageBlob = (
   };
   // Exports never contain the theme's on-screen colours (the transform is
   // global), so the whole render runs with canvas sync suspended.
+  const endStyled = extras.styledText ? beginExportTextRuns() : null;
   return withStandardCanvasColors(async () => {
     if (svg) {
       const element = await exportToSvg({
@@ -126,5 +133,5 @@ export const renderImageBlob = (
       fileName: exportFileName(request.name, "png", embedScene),
       mime: "image/png" as const,
     };
-  });
+  }).finally(() => endStyled?.());
 };

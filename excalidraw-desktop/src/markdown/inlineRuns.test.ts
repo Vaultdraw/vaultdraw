@@ -53,6 +53,10 @@ describe("parseInline: CommonMark inline rules", () => {
     ["**a `b` c**", "<b>a <c>b</c> c</b>"],
     ["\\*not italic\\*", "*not italic*"],
     ["a \\`b\\` c", "a `b` c"],
+    ["a \\\\ b", "a \\ b"],
+    ["C:\\\\dir", "C:\\dir"],
+    ["\\\\*it*", "\\<i>it</i>"],
+    ["lone \\ stays", "lone \\ stays"],
     ["中文**粗体**字", "中文<b>粗体</b>字"],
     ["emoji **🎉 party**", "emoji <b>🎉 party</b>"],
   ])("%j draws as %j", (typed, drawn) => {

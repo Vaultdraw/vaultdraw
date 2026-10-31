@@ -27,6 +27,7 @@ import {
   fullscreenIcon,
   settingsIcon,
 } from "@excalidraw/excalidraw/components/icons";
+import { beginExportTextRuns } from "@excalidraw/element";
 
 import type {
   BinaryFiles,
@@ -331,6 +332,7 @@ const VaultEditorComponent = ({
   });
   const getMarkdownForSave = markdown.getForSave;
   const loadMarkdown = markdown.load;
+  const getMarkdownDrawsInline = markdown.getDrawsInline;
 
   // The "move canvas" hint disappears after the user's first pan (persisted).
   useLayoutEffect(() => {
@@ -690,7 +692,15 @@ const VaultEditorComponent = ({
       // The dialog's live preview must show standard colours, not theme sync.
       const previewing = appState.openDialog?.name === "imageExport";
       if (previewing && !releasePreview.current) {
-        releasePreview.current = suspendCanvasSync();
+        const endCanvas = suspendCanvasSync();
+        // the preview draws Markdown words like the file will
+        const endStyled = getMarkdownDrawsInline()
+          ? beginExportTextRuns()
+          : null;
+        releasePreview.current = () => {
+          endStyled?.();
+          endCanvas();
+        };
       } else if (!previewing && releasePreview.current) {
         releasePreview.current();
         releasePreview.current = null;
@@ -716,6 +726,7 @@ const VaultEditorComponent = ({
     },
     [
       scheduleSave,
+      getMarkdownDrawsInline,
       getOverridesVersion,
       onAppState,
       onPenAppState,
@@ -934,35 +945,40 @@ const VaultEditorComponent = ({
 
   // Every image export (dialog, shortcuts, context menu copy) lands here.
   // Throwing makes the editor show its own error.
-  const handleExportImage = useCallback(async (request: ImageExportRequest) => {
-    const win = host.current?.ownerDocument.defaultView;
-    if (!win) {
-      throw new Error("Editor window is not mounted");
-    }
-    const started = performance.now();
-    const image = await renderImageExport(request, win);
-    const rendered = performance.now();
-    if (request.type === "clipboard" || request.type === "clipboard-svg") {
-      await copyToClipboard(
-        request.type === "clipboard" ? "png" : "svg",
-        image.bytes,
-        win,
+  const handleExportImage = useCallback(
+    async (request: ImageExportRequest) => {
+      const win = host.current?.ownerDocument.defaultView;
+      if (!win) {
+        throw new Error("Editor window is not mounted");
+      }
+      const started = performance.now();
+      const image = await renderImageExport(request, win, {
+        styledText: getMarkdownDrawsInline(),
+      });
+      const rendered = performance.now();
+      if (request.type === "clipboard" || request.type === "clipboard-svg") {
+        await copyToClipboard(
+          request.type === "clipboard" ? "png" : "svg",
+          image.bytes,
+          win,
+        );
+      } else if (exportRef.current) {
+        // false = the user cancelled the save dialog, not an error.
+        await exportRef.current(image.fileName, image.bytes);
+      } else {
+        throw new Error("Exporting files is not available.");
+      }
+      // eslint-disable-next-line no-console
+      console.debug(
+        `[export] ${request.type} render ${Math.round(
+          rendered - started,
+        )} ms, ipc ${Math.round(performance.now() - rendered)} ms, ${
+          image.bytes.byteLength
+        } bytes`,
       );
-    } else if (exportRef.current) {
-      // false = the user cancelled the save dialog, not an error.
-      await exportRef.current(image.fileName, image.bytes);
-    } else {
-      throw new Error("Exporting files is not available.");
-    }
-    // eslint-disable-next-line no-console
-    console.debug(
-      `[export] ${request.type} render ${Math.round(
-        rendered - started,
-      )} ms, ipc ${Math.round(performance.now() - rendered)} ms, ${
-        image.bytes.byteLength
-      } bytes`,
-    );
-  }, []);
+    },
+    [getMarkdownDrawsInline],
+  );
 
   // Excalidraw's memo bails out only when `children` is the same element tree,
   // so rebuild it only when something it shows changes (not on every

@@ -158,6 +158,8 @@ export function useMarkdownMode({
     () => getPreferences(getWindow()).markdownLivePreview,
   );
   const drawInline = on && livePreview;
+  const drawInlineRef = useRef(drawInline);
+  drawInlineRef.current = drawInline;
   useEffect(() => {
     if (!drawInline) {
       return;
@@ -227,5 +229,15 @@ export function useMarkdownMode({
   /** For the save: the drawing's own switch (null = none to store). */
   const getForSave = useCallback(() => drawingRef.current, []);
 
-  return { on, toggle, load, getForSave, textEditorExtension };
+  /** Whether the canvas draws Markdown words styled; exports then do too. */
+  const getDrawsInline = useCallback(() => drawInlineRef.current, []);
+
+  return {
+    on,
+    toggle,
+    load,
+    getForSave,
+    textEditorExtension,
+    getDrawsInline,
+  };
 }

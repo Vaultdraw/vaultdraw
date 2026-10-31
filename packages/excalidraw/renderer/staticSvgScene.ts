@@ -20,7 +20,11 @@ import {
   STICKY_NOTE_SHADOW_OPACITY,
 } from "@excalidraw/common";
 import { normalizeLink, toValidURL } from "@excalidraw/common";
-import { hashString } from "@excalidraw/element";
+import {
+  getExportTextRuns,
+  hashString,
+  splitLineByRuns,
+} from "@excalidraw/element";
 import { getUncroppedWidthAndHeight } from "@excalidraw/element";
 import {
   createPlaceholderEmbeddableLabel,
@@ -54,6 +58,8 @@ import type {
   ExcalidrawTextElementWithContainer,
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
+
+import type { LinePiece } from "@excalidraw/element";
 
 import type { RenderableElementsMap, SVGRenderConfig } from "../scene/types";
 import type { AppState, BinaryFiles } from "../types";
@@ -831,9 +837,23 @@ const renderElementToSvg = (
             : element.textAlign === "right" || direction === "rtl"
             ? "end"
             : "start";
+        // Markdown words and [[links]]: the host opted in (textRuns.ts)
+        const runs =
+          direction === "ltr"
+            ? getExportTextRuns(element, renderConfig.theme === THEME.DARK)
+            : null;
+        let lineStart = 0;
         for (let i = 0; i < lines.length; i++) {
           const text = svgRoot.ownerDocument.createElementNS(SVG_NS, "text");
-          text.textContent = lines[i];
+          const pieces = runs && splitLineByRuns(lines[i], lineStart, runs);
+          lineStart += lines[i].length + 1;
+          if (pieces) {
+            for (const piece of pieces) {
+              text.appendChild(textPieceToSvg(svgRoot.ownerDocument, piece));
+            }
+          } else {
+            text.textContent = lines[i];
+          }
           text.setAttribute("x", `${horizontalOffset}`);
           text.setAttribute("y", `${i * lineHeightPx + verticalOffset}`);
           text.setAttribute("font-family", getFontFamilyString(element));
@@ -870,6 +890,38 @@ const renderElementToSvg = (
       }
     }
   }
+};
+
+const FONT_PARTS = /^((?:(?:italic|bold) )*)[\d.]+px (.+)$/;
+
+/** A run's piece of a line as a `tspan` with real font attributes. */
+const textPieceToSvg = (doc: Document, piece: LinePiece) => {
+  const tspan = doc.createElementNS(SVG_NS, "tspan");
+  tspan.textContent = piece.text;
+  const font = piece.font && FONT_PARTS.exec(piece.font);
+  if (font) {
+    tspan.setAttribute("font-family", font[2]);
+    tspan.setAttribute(
+      "font-weight",
+      font[1].includes("bold") ? "bold" : "normal",
+    );
+    tspan.setAttribute(
+      "font-style",
+      font[1].includes("italic") ? "italic" : "normal",
+    );
+  }
+  if (piece.color) {
+    tspan.setAttribute("fill", piece.color);
+  }
+  if (piece.underline) {
+    tspan.setAttribute(
+      "style",
+      `text-decoration: underline${
+        piece.underline === "dashed" ? " dashed" : ""
+      };`,
+    );
+  }
+  return tspan;
 };
 
 export const renderSceneToSvg = (

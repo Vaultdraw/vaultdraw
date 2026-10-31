@@ -1,6 +1,7 @@
 // Vaultdraw: host hook to style runs of a text element on the on-screen
 // canvas (e.g. `[[links]]`: colour + underline). Display only: the scene data
-// is untouched and exports never call it (they draw with `isExporting`).
+// is untouched. Exports call it only inside `beginExportTextRuns` (the host
+// opts in per export, for the drawing it shows), see `getExportTextRuns`.
 //
 // Cost model: the styler is called only when an element's bitmap is
 // (re)rasterised, never per frame. Per frame the cache check compares two
@@ -91,6 +92,89 @@ export const getTextRuns = (
     }
   }
   return !parts ? null : parts.length === 1 ? parts[0] : mergeParts(parts);
+};
+
+let exportScopes = 0;
+
+/**
+ * Lets PNG/SVG exports draw runs until the returned function is called. Without
+ * a scope exports are exactly as before (one integer compare per text).
+ */
+export const beginExportTextRuns = (): (() => void) => {
+  exportScopes++;
+  let done = false;
+  return () => {
+    if (!done) {
+      done = true;
+      exportScopes--;
+    }
+  };
+};
+
+/** Runs for an export render: null outside `beginExportTextRuns`. */
+export const getExportTextRuns = (
+  element: ExcalidrawTextElement,
+  isDarkMode: boolean,
+): readonly TextRun[] | null =>
+  exportScopes > 0 ? getTextRuns(element, isDarkMode) : null;
+
+/** A piece of one line with its own look (SVG `tspan`s need no measuring). */
+export type LinePiece = {
+  text: string;
+  color?: string;
+  underline?: "solid" | "dashed";
+  font?: string;
+};
+
+/**
+ * Splits a line at every run edge, drops hidden marks and merges the runs on
+ * each piece like the canvas does (colour and underline of the first that has
+ * one, font of the last). Null when no run touches the line.
+ */
+export const splitLineByRuns = (
+  line: string,
+  lineStart: number,
+  runs: readonly TextRun[],
+): LinePiece[] | null => {
+  const lineEnd = lineStart + line.length;
+  const local: LocalRun[] = [];
+  for (const run of runs) {
+    const start = Math.max(run.start, lineStart) - lineStart;
+    const end = Math.min(run.end, lineEnd) - lineStart;
+    if (start < end) {
+      local.push({ start, end, run });
+    }
+  }
+  if (local.length === 0) {
+    return null;
+  }
+  const edges = new Set<number>([0, line.length]);
+  for (const { start, end } of local) {
+    edges.add(start);
+    edges.add(end);
+  }
+  const cuts = [...edges].sort((a, b) => a - b);
+  const pieces: LinePiece[] = [];
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const from = cuts[i];
+    const to = cuts[i + 1];
+    let hidden = false;
+    let font: string | undefined;
+    let color: string | undefined;
+    let underline: TextRun["underline"];
+    for (const { start, end, run } of local) {
+      if (start <= from && end >= to) {
+        hidden ||= !!run.hidden;
+        font = run.font ?? font;
+        color ??= run.color;
+        underline ??= run.underline;
+      }
+    }
+    if (!hidden) {
+      pieces.push({ text: line.slice(from, to), color, underline, font });
+    }
+  }
+  return pieces;
 };
 
 type Segment = {

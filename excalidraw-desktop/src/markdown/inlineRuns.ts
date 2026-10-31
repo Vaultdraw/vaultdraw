@@ -12,7 +12,8 @@
  *   opens or closes inside a word, so `snake_case` stays text;
  * - the rule of 3 and the opener-bottom search, so `***x***`, `**a *b***` and
  *   `*a **b***` nest like everywhere else;
- * - `\*`, `\_` and `` \` `` are literal marks (the backslash is hidden);
+ * - `\*`, `\_` and `` \` `` are literal marks and `\\` is one backslash
+ *   (the escaping backslash is hidden);
  * - spans never cross a line the user typed (each is its own block in
  *   Markdown mode); they do cross a line the box wrapped.
  * Pure functions, no DOM.
@@ -33,7 +34,7 @@ export type InlineParse = {
   hidden: [number, number][];
 };
 
-const MARK = /[*_`]/;
+const MARK = /[*_`\\]/;
 const ESCAPABLE = new Set(["*", "_", "`", "\\"]);
 
 /** Unicode whitespace (a wrap break counts as one) or the text's edge. */
@@ -257,9 +258,7 @@ export const parseInline = (
   const escaped = new Set<number>();
   for (let i = 0; i < text.length - 1; i++) {
     if (text[i] === "\\" && ESCAPABLE.has(text[i + 1])) {
-      if (text[i + 1] !== "\\") {
-        hidden.push([i, i + 1]);
-      }
+      hidden.push([i, i + 1]);
       escaped.add(i + 1);
       i++;
     }

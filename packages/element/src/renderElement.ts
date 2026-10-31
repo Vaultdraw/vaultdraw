@@ -80,6 +80,7 @@ import { ShapeCache } from "./shape";
 import { ElementCanvasCache } from "./elementCanvasCache";
 import {
   fillTextLineWithRuns,
+  getExportTextRuns,
   getTextRuns,
   getTextRunStylerEpoch,
   getTextRunsVersion,
@@ -709,9 +710,15 @@ const drawElementOnCanvas = (
           lineHeightPx,
         );
 
+        // exports draw runs only when the host opted in (textRuns.ts)
+        const runs =
+          textRuns ??
+          (renderConfig.isExporting
+            ? getExportTextRuns(element, renderConfig.theme === THEME.DARK)
+            : null);
         let lineStart = 0;
         for (let index = 0; index < lines.length; index++) {
-          if (textRuns && !rtl) {
+          if (runs && !rtl) {
             fillTextLineWithRuns(
               context,
               lines[index],
@@ -719,7 +726,7 @@ const drawElementOnCanvas = (
               horizontalOffset,
               index * lineHeightPx + verticalOffset,
               element.fontSize,
-              textRuns,
+              runs,
               textRunLayout ?? undefined,
             );
             lineStart += lines[index].length + 1;
