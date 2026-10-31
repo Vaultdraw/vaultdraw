@@ -196,6 +196,11 @@ mod tests {
     }
 
     #[test]
+    fn a_tag_in_bold_italic_or_strike_is_renamed() {
+        assert_eq!(renamed("**#project** *#project* ~~#project~~\n", "project", "work"), "**#work** *#work* ~~#work~~\n");
+    }
+
+    #[test]
     fn other_tags_and_look_alikes_stay() {
         let src = "#projects #proj #ff00aa a#project https://x/#project #project-x\n";
         assert_eq!(renamed(src, "project", "work"), src);

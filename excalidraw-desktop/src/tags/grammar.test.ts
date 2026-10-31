@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import table from "../../src-tauri/crates/vaultdraw-core/src/contract/tag_grammar_cases.json";
+
 import { findTags, keyUnder, tagKey } from "./grammar";
 
 const tags = (s: string) => findTags(s).map((m) => m.display);
+
+describe("findTags: the table shared with search/tags.rs (twins)", () => {
+  it.each(table.cases)("$text", ({ text, tags }) => {
+    expect(findTags(text).map((m) => m.display)).toEqual(tags);
+  });
+});
 
 describe("findTags", () => {
   it("finds basic and nested tags", () => {

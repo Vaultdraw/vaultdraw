@@ -1,0 +1,19 @@
+{
+  "about": "Which #text is a tag in plain text (a drawing's text box, a frame name, a raw note line): the expected tag bodies in order. Copies that must agree: src-tauri/crates/vaultdraw-core/src/search/tags.rs find_tags (the index, tag rename; test tag_grammar_contract) and sdk/api/shared/tagGrammar.ts findTags (chips, the editor, plugins; src/tags/grammar.test.ts). Note bodies parsed as Markdown are in note_tag_cases.json.",
+  "cases": [
+    { "text": "#one", "tags": ["one"] },
+    { "text": "a #one b #two", "tags": ["one", "two"] },
+    { "text": "**#one** and *#two*", "tags": ["one", "two"] },
+    { "text": "***#one***", "tags": ["one"] },
+    { "text": "~~#one~~", "tags": ["one"] },
+    { "text": "(#one) [#two] {#three} \"#four\" '#five' <#six>", "tags": ["one", "two", "three", "four", "five", "six"] },
+    { "text": "a,#one;#two:#three", "tags": ["one", "two", "three"] },
+    { "text": "a#one", "tags": [] },
+    { "text": "https://x.com/#one", "tags": [] },
+    { "text": "&#123; ##one # one", "tags": [] },
+    { "text": "[[Note#one]]", "tags": [] },
+    { "text": "#123 #2024/10 #ff00aa #1e1e1e #bad", "tags": ["bad"] },
+    { "text": "#a/b/c #a//b #x- #y/", "tags": ["a/b/c", "a", "x", "y"] },
+    { "text": "#café #日本 #snake_case #with-dash", "tags": ["café", "日本", "snake_case", "with-dash"] }
+  ]
+}

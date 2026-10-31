@@ -14,7 +14,20 @@ export type TagMatch = {
   display: string;
 };
 
-export const OPENERS = new Set(["(", "[", "{", '"', "'", "<", ",", ";", ":"]);
+/** What may stand before `#`: brackets, quotes, separators, and bold/italic/strike marks (`**#tag**`). */
+export const OPENERS = new Set([
+  "(",
+  "[",
+  "{",
+  '"',
+  "'",
+  "<",
+  ",",
+  ";",
+  ":",
+  "*",
+  "~",
+]);
 /** One character of a tag's body; the first one must also match `TAG_START`. */
 export const TAG_BODY_CHAR = /[\p{Alphabetic}\p{N}_\-/̀-ͯ]/u;
 export const TAG_START = /^[\p{Alphabetic}\p{N}_]/u;

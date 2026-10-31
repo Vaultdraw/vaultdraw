@@ -21,6 +21,7 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 
 ### Fixed
 
+- **`**#tag**` is a tag in drawings too, as in Obsidian.** A tag right after a bold, italic or strike mark (`**#idea**`, `*#idea*`, `~~#idea~~`) in a text box was not found by tag search, the tags pane or Rename tag; notes already counted it. One case table now pins the app's two copies of the tag rule.
 - **Renaming a tag renames it in notes too.** A tag only notes carried showed "0 occurrences in 0 drawings", Rename reported success and the tag stayed. Now `#tag` in a note's text and its frontmatter `tags` change as in Obsidian's Tag Wrangler (code, links and images stay as written), the dialog and the tags pane count files, and Rename is disabled when nothing would change.
 - **Run setup again tells the truth about the AI assistant.** With the AI assistant on, the Extras screen and the summary said it was off; both now read the setting.
 - **Browser build: theme and list downloads refuse the same private addresses as the desktop app.** The page's own check let through some IPv6 forms that carry a private address and refused public `::ffff:` addresses; it now shares one copy of the rule with the plugin test kit, and one case table pins it against the desktop app's.

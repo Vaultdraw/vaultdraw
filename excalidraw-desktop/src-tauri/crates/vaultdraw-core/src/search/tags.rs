@@ -1,8 +1,10 @@
 //! Tag grammar and extraction (F6). A tag is `#word` inside a text element or frame name.
 //!
 //! Grammar (documented for users in the README):
-//! - `#` starts a tag only at the start of the text or after whitespace or an opening
-//!   quote/bracket (`( [ { " ' <`) or `, ; :`; so `a#b`, `https://x/#frag`, `&#123;` and `##x` are not tags.
+//! - `#` starts a tag only at the start of the text or after whitespace, an opening
+//!   quote/bracket (`( [ { " ' <`), `, ; :`, or a bold/italic/strike mark (`*`, `~`: `**#tag**` is a
+//!   tag, as in Obsidian); so `a#b`, `https://x/#frag`, `&#123;` and `##x` are not tags.
+//!   Pinned with the TypeScript copy by `contract/tag_grammar_cases.json`.
 //! - Body: Unicode letters/digits/combining marks, `_`, `-`, and `/` as the nesting separator.
 //!   It must start with a letter, digit or `_`; trailing `-`, `/` are trimmed and the tag ends
 //!   at an empty segment (`a//b` is `a`).
@@ -25,7 +27,7 @@ pub struct TagMatch<'a> {
 fn opens_tag(prev: Option<char>) -> bool {
     match prev {
         None => true,
-        Some(c) => c.is_whitespace() || matches!(c, '(' | '[' | '{' | '"' | '\'' | '<' | ',' | ';' | ':'),
+        Some(c) => c.is_whitespace() || matches!(c, '(' | '[' | '{' | '"' | '\'' | '<' | ',' | ';' | ':' | '*' | '~'),
     }
 }
 
@@ -206,4 +208,19 @@ pub fn split_tag_filters(q: &str) -> (String, Vec<String>) {
         }
     }
     (text.join(" "), filters)
+}
+
+#[cfg(test)]
+mod tag_grammar_contract {
+    /// One table for this grammar and its TypeScript copy (sdk/api/shared/tagGrammar.ts).
+    #[test]
+    fn find_tags_matches_the_shared_table() {
+        let t: serde_json::Value = serde_json::from_str(include_str!("../contract/tag_grammar_cases.json")).unwrap();
+        for c in t["cases"].as_array().unwrap() {
+            let text = c["text"].as_str().unwrap();
+            let want: Vec<&str> = c["tags"].as_array().unwrap().iter().map(|x| x.as_str().unwrap()).collect();
+            let got: Vec<&str> = super::find_tags(text).iter().map(|m| m.display).collect();
+            assert_eq!(got, want, "{text}");
+        }
+    }
 }
