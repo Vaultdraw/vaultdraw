@@ -142,6 +142,9 @@ if (tier === "fast") {
       "related",
       "--run",
       "--passWithNoTests",
+      // Load cap: test:fast runs beside other teams and the owner's app (2026-10-31: uncapped, one run drove the load to 39).
+      "--maxWorkers=4",
+      "--minWorkers=1",
       // Wall-clock benchmarks fail under load: they belong to the perf tier (2026-10-30).
       "--exclude",
       "**/*.bench.test.ts",
@@ -158,6 +161,9 @@ if (tier === "fast") {
       "related",
       "--run",
       "--passWithNoTests",
+      // Load cap: test:fast runs beside other teams and the owner's app (2026-10-31: uncapped, one run drove the load to 39).
+      "--maxWorkers=4",
+      "--minWorkers=1",
       // Wall-clock benchmarks fail under load: they belong to the perf tier (2026-10-30).
       "--exclude",
       "**/*.bench.test.ts",
@@ -169,6 +175,9 @@ if (tier === "fast") {
       "related",
       "--run",
       "--passWithNoTests",
+      // Load cap: test:fast runs beside other teams and the owner's app (2026-10-31: uncapped, one run drove the load to 39).
+      "--maxWorkers=4",
+      "--minWorkers=1",
       // Wall-clock benchmarks fail under load: they belong to the perf tier (2026-10-30).
       "--exclude",
       "**/*.bench.test.ts",
