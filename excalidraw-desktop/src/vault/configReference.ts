@@ -693,6 +693,17 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
     },
   },
   {
+    table: "secrets",
+    intro:
+      "Where plugin keys, such as the AI assistant's provider key, are kept. See [Keys and the keychain](#keys-and-the-keychain).",
+    keys: {
+      store: {
+        doc: '`"auto"` keeps keys in the system keychain (the macOS Keychain; on Linux the Secret Service through `secret-tool`) and uses a protected file only when there is no usable keychain. `"keychain"` never uses a file and says so when the keychain cannot be used. `"file"` keeps keys in a protected file in the state folder and never touches the keychain. Read only from `config.toml`: Settings, `vaultdraw config set` and the page never write it. Existing keys move to the keychain the next time they are used, and the file goes only after the keychain returned what was saved.',
+        default: '"auto"',
+      },
+    },
+  },
+  {
     table: "onboarding",
     intro: "The first-run setup. See [First-run setup](#first-run-setup).",
     keys: {

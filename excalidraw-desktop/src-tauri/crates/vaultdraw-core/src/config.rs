@@ -467,6 +467,12 @@ autosave_delay_ms = 500
 # api.github.com, codeload.github.com). Read only from this file, never from overrides.toml
 # allowed_hosts = []
 
+[secrets]
+# Where plugin keys (such as the AI assistant's key) are kept: "auto" = the system keychain, and a
+# protected file only when there is none; "keychain" = never a file; "file" = a protected file,
+# never the keychain. Read only from this file, never from overrides.toml
+# store = "auto"
+
 [onboarding]
 # The first-run setup was finished or skipped; false shows it again at the next start
 # completed = false

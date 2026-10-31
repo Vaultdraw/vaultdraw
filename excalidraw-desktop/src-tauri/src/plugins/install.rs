@@ -97,7 +97,7 @@ pub(crate) fn install_folder_with_fresh_consent(
     let info = install_folder(user_root, src, app_version, official)?;
     super::consent::forget(state_dir, &info.manifest.id)?;
     // different code under an old id must not inherit the keys saved for the old one (toimprove 279)
-    super::net::forget_secrets(state_dir, &info.manifest.id)?;
+    super::net::forget_secrets(state_dir, super::secret_store::Mode::Auto, &info.manifest.id)?;
     Ok(info)
 }
 

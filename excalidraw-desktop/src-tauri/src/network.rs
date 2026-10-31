@@ -404,9 +404,10 @@ pub(crate) fn hosts_from_config_toml(layers: &[config::LayerInfo]) -> Vec<String
         .unwrap_or_default()
 }
 
-/// The settings that say where a community list is downloaded from. Like `allowed_hosts` they are
-/// read from `config.toml` only, so a script in the page cannot point the download elsewhere.
-const LIST_ADDRESS_KEYS: [(&str, &str); 2] = [("plugins", "registry_url"), ("themes", "index_url")];
+/// The settings that say where a community list is downloaded from, and where plugin keys are
+/// kept (`secrets.store`: a script in the page must not move them to a plain file). Like
+/// `allowed_hosts` they are edited by hand in `config.toml`; the page's writes are refused.
+const LIST_ADDRESS_KEYS: [(&str, &str); 3] = [("plugins", "registry_url"), ("themes", "index_url"), ("secrets", "store")];
 
 /// `[section] key` as a text from `config.toml` only (never `overrides.toml`); `None` when unset or blank.
 pub(crate) fn list_address(layers: &[config::LayerInfo], section: &str, key: &str) -> Option<String> {

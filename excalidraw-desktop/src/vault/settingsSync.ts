@@ -370,6 +370,7 @@ type ConfigField =
   | "activityBar"
   | "pluginsEnabled"
   | "networkAllowedHosts"
+  | "secretsStore"
   | "pluginsDisabled"
   | "pluginImporters"
   | "pluginsStorageLimitKb"
@@ -546,6 +547,12 @@ const CORE_MAPPING: readonly ConfigMapping[] = [
     expected: 'a list of host names like ["themes.example.org"]',
     valid: (v) =>
       isStringList(v) && (v as string[]).every((x) => x.trim() !== ""),
+  },
+  {
+    field: "secretsStore",
+    key: "secrets.store",
+    expected: '"auto", "keychain" or "file"',
+    valid: (v) => v === "auto" || v === "keychain" || v === "file",
   },
   {
     field: "pluginsRegistryUrl",

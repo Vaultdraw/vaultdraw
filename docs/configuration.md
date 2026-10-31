@@ -1457,10 +1457,26 @@ max_context_chars = 12000     # most drawing text sent, 500 to 200000
 | `ollama` | `http://localhost:11434` | none |
 
 - **Commands** (palette, rebindable): `ai-assistant.ask` ("AI: Ask about this drawing"), `ai-assistant.describe` ("AI: Describe the selection"), `ai-assistant.diagram` ("AI: Generate a diagram from text"; the model writes a Mermaid diagram and **Draw it** turns it into shapes in one undo step), `ai-assistant.summarise` ("AI: Summarise this note": the note in the active tab, or the selected text, or all text in the drawing), `ai-assistant.cancel` ("AI: Stop the answer"), `ai-assistant.clear`, `ai-assistant.set-key` and `ai-assistant.remove-key`. The panel (also on the activity bar) has the question box, **Stop**, **Copy** and **Show what is sent**, which lists the exact instructions and drawing text of the next request.
-- **The key** is entered in the panel (or with "AI: Set API key"), kept by the app in `plugin-secrets/ai-assistant.json` in the state folder (readable by your user only, **not encrypted**), and never written to `config.toml`, a vault or a drawing. The page cannot read it back; the app adds it to the request itself. "AI: Remove API key" deletes it.
+- **The key** is entered in the panel (or with "AI: Set API key"), kept by the app in your system keychain (see [Keys and the keychain](#keys-and-the-keychain)), and never written to `config.toml`, a vault or a drawing. The page cannot read it back; the app adds it to the request itself. "AI: Remove API key" deletes it.
 - **Offline mode** stops every request to another computer and says so in plain words. A request to this computer (`localhost`, `127.0.0.1`, `::1`, for example Ollama) still works, because nothing leaves the machine. Other computers on your network are not reachable (private addresses are refused), and there are no redirects.
 - **Limits:** the drawing is sent as text (element kinds, labels, positions), not as a picture; Summarise reads a note from its file on disk (a note you just typed in is saved a moment after each edit, so give it a second), or the text in a drawing. The plugin asks to read your vault for this and never changes a note. Answers stop at 8 MiB.
 - Turn the plugin off in Settings, Plugins; it is not in the default `plugins.enabled`, and Restore defaults leaves it off.
+
+## Keys and the keychain
+
+Plugins that need a key (the AI assistant's provider key) keep it with the app, never in `config.toml`, a vault or a drawing, and a plugin can never read it back: the app adds it to the request itself. `[secrets] store` chooses where it is kept:
+
+| `store` | Where keys are kept |
+| --- | --- |
+| `"auto"` (default) | The system keychain: the macOS Keychain, or on Linux the Secret Service (GNOME Keyring, KWallet) through the `secret-tool` command (package `libsecret-tools`). A protected file only when there is no usable keychain, such as Windows or a Linux session without a Secret Service. |
+| `"keychain"` | Only the keychain. When it cannot be used the save fails and says why; no file is written. |
+| `"file"` | A protected file, `plugin-secrets/<plugin>.json` in the state folder, readable by your user only and **not encrypted**. The keychain is never touched. |
+
+- **Nothing is lost when you switch on.** A key saved in the file by an earlier version moves to the keychain the next time the plugin uses it: it is written, read back and compared, and only then is the file removed. If the keychain refuses (a locked keychain, **Deny** in its prompt), the key stays where it was and keeps working.
+- The macOS Keychain may ask once whether Vaultdraw may use the item; **Always Allow** stops the question. This build is not signed with a developer certificate, so a new build can ask again.
+- "Delete data" for a plugin removes its keys from the file and from the keychain.
+- Set it by hand in `config.toml`; Settings, `vaultdraw config set` and the page never write it, so a script cannot move your keys to a plain file.
+- Keys are never written to the log or shown in an error message.
 
 ## Templates
 
@@ -2330,6 +2346,14 @@ The internet is on by default and used only when you use a feature that needs it
 | `allow_ai` | true | true or false |  | `false` turns AI requests off: the AI assistant plugin sends nothing, and says so. A model on this computer (Ollama) is not affected. Absent or `true` allows them. No Settings switch: use Offline mode to turn off every internet feature. |
 | `allow_updates` | true | true or false |  | `false` turns the update check off. Absent or `true` allows it. |
 | `allowed_hosts` | [] | a list of host names like ["themes.example.org"] |  | Extra hosts a download may contact, besides GitHub's own (`raw.githubusercontent.com`, `github.com`, `api.github.com`, `codeload.github.com`). Exact host names. Read only from `config.toml`: Settings, `vaultdraw config set` and the page never write it, so a script cannot add a host. |
+
+### `[secrets]`
+
+Where plugin keys, such as the AI assistant's provider key, are kept. See [Keys and the keychain](#keys-and-the-keychain).
+
+| Key | Default | Accepts | Per vault | What it does |
+| --- | --- | --- | --- | --- |
+| `store` | "auto" | "auto", "keychain" or "file" |  | `"auto"` keeps keys in the system keychain (the macOS Keychain; on Linux the Secret Service through `secret-tool`) and uses a protected file only when there is no usable keychain. `"keychain"` never uses a file and says so when the keychain cannot be used. `"file"` keeps keys in a protected file in the state folder and never touches the keychain. Read only from `config.toml`: Settings, `vaultdraw config set` and the page never write it. Existing keys move to the keychain the next time they are used, and the file goes only after the keychain returned what was saved. |
 
 ### `[onboarding]`
 

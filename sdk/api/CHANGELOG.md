@@ -8,7 +8,6 @@ The history of `@vaultdraw/api` (the types), the manifest and the `vaultdraw-plu
 
 - **`ctx.vault.readNote(path)`**: the text and revision of a Markdown note, read only. Needs `vault.read`. The path rules are those of drawings, with `.md` instead of `.excalidraw` (never `.excalidraw.md`, no dot folders). Files over 16 MiB and files that are not UTF-8 text are refused.
 - **`ctx.workspace.activeNotePath()`**: the path of the note shown in the active tab, or `null`. Free.
-- **Menu entries take `when`** (`contributes.menus`): context keys that must hold for the entry to be listed, as in a command. This was added after 1.2.0 without a snapshot entry; it is recorded here.
 
 ## 1.1.0
 

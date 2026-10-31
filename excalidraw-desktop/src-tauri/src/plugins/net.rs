@@ -4,8 +4,10 @@
 //! `net.open` sends the request and returns `{"id","status"}` once the response headers arrive;
 //! a thread then reads the body and queues chunks, and `net.read` pulls them (first byte tag:
 //! 0 data, 1 ended, 2 nothing yet, 3 error JSON). `net.close` cancels. Secrets live in
-//! `<state dir>/plugin-secrets/<id>.json` (0600); there is deliberately no way to read one back.
+//! the system keychain or `<state dir>/plugin-secrets/<id>.json` (0600), see `secret_store.rs`; there
+//! is deliberately no way to read one back.
 use super::manifest::is_valid_id;
+use super::secret_store::{self, Mode, Store};
 use crate::network::{self, ForbiddenAddress};
 use crate::{err, ioerr, Result};
 use serde::Deserialize;
@@ -46,14 +48,14 @@ const TAG_ERROR: u8 = 3;
 
 /// Runs a `net.*` or `secret.*` row. `config` loads the parsed `config.toml` and is called only
 /// for a request that leaves the computer.
-pub(crate) fn call(state_dir: &Path, config: impl FnOnce() -> Result<Option<Value>>, plugin_id: &str, method: &str, body: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn call(state_dir: &Path, config: impl Fn() -> Result<Option<Value>> + Copy, plugin_id: &str, method: &str, body: &[u8]) -> Result<Vec<u8>> {
     match method {
         "net.open" => open(state_dir, config, plugin_id, body),
         "net.read" => read(plugin_id, body),
         "net.close" => close(plugin_id, body),
-        "secret.set" => secret_set(state_dir, plugin_id, body),
-        "secret.has" => secret_has(state_dir, plugin_id, body),
-        "secret.delete" => secret_delete(state_dir, plugin_id, body),
+        "secret.set" => secret_set(state_dir, mode_from(config)?, plugin_id, body),
+        "secret.has" => secret_has(state_dir, mode_from(config)?, plugin_id, body),
+        "secret.delete" => secret_delete(state_dir, mode_from(config)?, plugin_id, body),
         _ => Err(err("NOT_FOUND", format!("Plugins cannot call \"{method}\""))),
     }
 }
@@ -119,7 +121,7 @@ fn check_url(text: &str) -> Result<Url> {
 
 /// Offline mode and `network.allow_ai` apply to requests that leave the computer. A loopback
 /// request (a model running locally) never leaves it, so it is allowed even in Offline mode.
-fn check_policy(url: &Url, config: impl FnOnce() -> Result<Option<Value>>) -> Result<()> {
+fn check_policy(url: &Url, config: impl Fn() -> Result<Option<Value>> + Copy) -> Result<()> {
     if network::is_loopback(url) {
         return Ok(());
     }
@@ -149,7 +151,7 @@ fn check_header(name: &str, value: &str) -> Result<()> {
     Ok(())
 }
 
-fn prepare(state_dir: &Path, plugin_id: &str, req: OpenRequest, config: impl FnOnce() -> Result<Option<Value>>) -> Result<Prepared> {
+fn prepare(state_dir: &Path, plugin_id: &str, req: OpenRequest, config: impl Fn() -> Result<Option<Value>> + Copy) -> Result<Prepared> {
     let url = check_url(&req.url)?;
     check_policy(&url, config)?;
     let post = match req.method.as_deref() {
@@ -172,7 +174,7 @@ fn prepare(state_dir: &Path, plugin_id: &str, req: OpenRequest, config: impl FnO
         headers.push((k, v));
     }
     if let Some(auth) = req.auth {
-        let value = format!("{}{}", auth.prefix.unwrap_or_default(), secret_value(state_dir, plugin_id, &auth.secret)?);
+        let value = format!("{}{}", auth.prefix.unwrap_or_default(), secret_value(state_dir, mode_from(config)?, plugin_id, &auth.secret)?);
         check_header(&auth.header, &value).map_err(|_| err("INVALID_ARGUMENT", "The auth header or the saved key has characters that cannot be sent"))?;
         headers.retain(|(k, _)| !k.eq_ignore_ascii_case(&auth.header));
         headers.push((auth.header, value));
@@ -231,7 +233,7 @@ fn send(p: &Prepared) -> Result<ureq::http::Response<ureq::Body>> {
     result.map_err(network::net_error)
 }
 
-fn open(state_dir: &Path, config: impl FnOnce() -> Result<Option<Value>>, plugin_id: &str, body: &[u8]) -> Result<Vec<u8>> {
+fn open(state_dir: &Path, config: impl Fn() -> Result<Option<Value>> + Copy, plugin_id: &str, body: &[u8]) -> Result<Vec<u8>> {
     let prepared = prepare(state_dir, plugin_id, parse(body)?, config)?;
     if streams_of(plugin_id) >= MAX_STREAMS {
         return Err(too_many());
@@ -397,7 +399,7 @@ fn check_secret_name(name: &str) -> Result<()> {
     }
 }
 
-fn secrets_path(state_dir: &Path, plugin_id: &str) -> Result<PathBuf> {
+pub(super) fn secrets_path(state_dir: &Path, plugin_id: &str) -> Result<PathBuf> {
     if !is_valid_id(plugin_id) {
         return Err(err("INVALID_ARGUMENT", "Invalid plugin id"));
     }
@@ -411,29 +413,45 @@ fn secrets_path(state_dir: &Path, plugin_id: &str) -> Result<PathBuf> {
     Ok(file)
 }
 
-/// Removes every key the plugin saved (Delete data, new code under the same id): a key goes with
-/// the plugin's data, as in Obsidian, and never passes to different code (toimprove 279).
-pub(crate) fn forget_secrets(state_dir: &Path, plugin_id: &str) -> Result<()> {
-    let path = secrets_path(state_dir, plugin_id)?;
+/// Runs `f` on the plugin's keys (file or keychain, by `secrets.store`), with the keys locked.
+fn with_store<T>(state_dir: &Path, mode: Mode, plugin_id: &str, f: impl FnOnce(&Store) -> Result<T>) -> Result<T> {
+    secrets_path(state_dir, plugin_id)?;
     let _g = secrets_guard();
-    match fs::remove_file(&path) {
+    secret_store::with_os_keychain(|kc| f(&Store::new(state_dir, plugin_id, mode, kc)))
+}
+
+fn mode_from(config: impl Fn() -> Result<Option<Value>>) -> Result<Mode> {
+    Ok(secret_store::mode_of(config()?.as_ref()))
+}
+
+/// Removes every key the plugin saved, from the file and the keychain (Delete data, new code under
+/// the same id): a key goes with the plugin's data, as in Obsidian, and never passes to different
+/// code (toimprove 279).
+pub(crate) fn forget_secrets(state_dir: &Path, mode: Mode, plugin_id: &str) -> Result<()> {
+    with_store(state_dir, mode, plugin_id, |s| s.forget())
+}
+
+/// `secrets.store` for a caller that has the config loader; an unreadable config reads as `auto`.
+pub(crate) fn mode_or_auto(config: impl Fn() -> Result<Option<Value>>) -> Mode {
+    mode_from(config).unwrap_or(Mode::Auto)
+}
+
+/// The plugin's keys in the file. A missing or damaged file reads as empty (the next save replaces it).
+pub(super) fn file_load(path: &Path) -> Map<String, Value> {
+    fs::read(path).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).and_then(|v| if let Value::Object(m) = v { Some(m) } else { None }).unwrap_or_default()
+}
+
+pub(super) fn file_remove(path: &Path) -> Result<()> {
+    match fs::remove_file(path) {
         Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(ioerr(e)),
     }
 }
 
-/// The plugin's keys. A missing or damaged file reads as empty (the next `secret.set` replaces it).
-fn load_secrets(path: &Path) -> Map<String, Value> {
-    fs::read(path).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).and_then(|v| if let Value::Object(m) = v { Some(m) } else { None }).unwrap_or_default()
-}
-
-fn save_secrets(path: &Path, map: &Map<String, Value>) -> Result<()> {
+pub(super) fn file_save(path: &Path, map: &Map<String, Value>) -> Result<()> {
     if map.is_empty() {
-        return match fs::remove_file(path) {
-            Err(e) if e.kind() != io::ErrorKind::NotFound => Err(ioerr(e)),
-            _ => Ok(()),
-        };
+        return file_remove(path);
     }
     let dir = path.parent().ok_or_else(|| err("INTERNAL", "Keys path has no parent"))?;
     create_private_dir(dir)?;
@@ -477,49 +495,45 @@ fn secrets_guard() -> std::sync::MutexGuard<'static, ()> {
     SECRETS_LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn secret_set(state_dir: &Path, plugin_id: &str, body: &[u8]) -> Result<Vec<u8>> {
+fn secret_set(state_dir: &Path, mode: Mode, plugin_id: &str, body: &[u8]) -> Result<Vec<u8>> {
     let SetBody { name, value } = parse(body)?;
     check_secret_name(&name)?;
     if !(1..=MAX_SECRET_CHARS).contains(&value.chars().count()) {
         return Err(err("INVALID_ARGUMENT", "A key is 1 to 4096 characters"));
     }
-    let path = secrets_path(state_dir, plugin_id)?;
-    let _g = secrets_guard();
-    let mut map = load_secrets(&path);
-    map.insert(name, Value::String(value));
-    save_secrets(&path, &map)?;
+    with_store(state_dir, mode, plugin_id, |s| {
+        let mut map = s.load()?;
+        map.insert(name, Value::String(value));
+        s.save(&map)
+    })?;
     Ok(Vec::new())
 }
 
-fn secret_has(state_dir: &Path, plugin_id: &str, body: &[u8]) -> Result<Vec<u8>> {
+fn secret_has(state_dir: &Path, mode: Mode, plugin_id: &str, body: &[u8]) -> Result<Vec<u8>> {
     let NameBody { name } = parse(body)?;
     check_secret_name(&name)?;
-    let path = secrets_path(state_dir, plugin_id)?;
-    let _g = secrets_guard();
-    Ok(vec![u8::from(load_secrets(&path).contains_key(&name))])
+    with_store(state_dir, mode, plugin_id, |s| Ok(vec![u8::from(s.load()?.contains_key(&name))]))
 }
 
-fn secret_delete(state_dir: &Path, plugin_id: &str, body: &[u8]) -> Result<Vec<u8>> {
+fn secret_delete(state_dir: &Path, mode: Mode, plugin_id: &str, body: &[u8]) -> Result<Vec<u8>> {
     let NameBody { name } = parse(body)?;
     check_secret_name(&name)?;
-    let path = secrets_path(state_dir, plugin_id)?;
-    let _g = secrets_guard();
-    let mut map = load_secrets(&path);
-    if map.remove(&name).is_some() {
-        save_secrets(&path, &map)?;
-    }
-    Ok(Vec::new())
+    with_store(state_dir, mode, plugin_id, |s| {
+        let mut map = s.load()?;
+        if map.remove(&name).is_some() {
+            s.save(&map)?;
+        }
+        Ok(Vec::new())
+    })
 }
 
 /// For `net.open` auth only: the plugin never gets this value back.
-fn secret_value(state_dir: &Path, plugin_id: &str, name: &str) -> Result<String> {
+fn secret_value(state_dir: &Path, mode: Mode, plugin_id: &str, name: &str) -> Result<String> {
     check_secret_name(name)?;
-    let path = secrets_path(state_dir, plugin_id)?;
-    let _g = secrets_guard();
-    match load_secrets(&path).remove(name) {
-        Some(Value::String(s)) => Ok(s),
+    with_store(state_dir, mode, plugin_id, |s| match s.load()?.remove(name) {
+        Some(Value::String(v)) => Ok(v),
         _ => Err(err("SECRET_MISSING", "No API key is saved")),
-    }
+    })
 }
 
 #[cfg(test)]
@@ -712,8 +726,8 @@ mod tests {
         for id in ["t-forget", "t-keep"] {
             call_net(dir.path(), id, "secret.set", json!({"name": "api-key", "value": "sk-1"})).unwrap();
         }
-        forget_secrets(dir.path(), "t-forget").unwrap();
-        forget_secrets(dir.path(), "t-never-had-one").unwrap();
+        forget_secrets(dir.path(), Mode::Auto, "t-forget").unwrap();
+        forget_secrets(dir.path(), Mode::Auto, "t-never-had-one").unwrap();
         let has = |id: &str| call_net(dir.path(), id, "secret.has", json!({"name": "api-key"})).unwrap();
         assert_eq!(has("t-forget"), vec![0]);
         assert_eq!(has("t-keep"), vec![1]);

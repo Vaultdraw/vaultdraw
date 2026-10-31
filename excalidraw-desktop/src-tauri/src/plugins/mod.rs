@@ -10,6 +10,7 @@ mod gateway;
 pub(crate) use gateway::GatewayError;
 mod install;
 mod net;
+mod secret_store;
 mod manifest;
 pub(crate) use manifest::is_valid_id as is_valid_plugin_id;
 mod scan;
@@ -234,7 +235,8 @@ pub(crate) async fn plugins_data_delete(id: String) -> Result<bool> {
     blocking(move || {
         // the plugin's saved keys (ctx.secret) are part of its data (toimprove 279)
         let state = config::resolve_dirs()?.state;
-        net::forget_secrets(&state, &id)?;
+        let dirs = config::resolve_dirs()?;
+        net::forget_secrets(&state, net::mode_or_auto(|| crate::network::config_value(&dirs)), &id)?;
         storage::delete(&state, &id)
     })
     .await

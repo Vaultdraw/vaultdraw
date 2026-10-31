@@ -15,6 +15,6 @@ Providers: Anthropic, OpenAI (or any OpenAI-style address), Ollama. Choose provi
 
 - Summarise reads the note from the file on disk (read only; the plugin never changes a note). That is why the plugin asks to read your vault.
 - The panel can show exactly what is sent ("Show what is sent").
-- The key is kept in a protected file in the app's state folder, outside `config.toml` and your vault. It is not encrypted, and nothing can read it back.
+- The key is kept in your system keychain (the macOS Keychain, or the Secret Service on Linux), outside `config.toml` and your vault, and nothing can read it back. `[secrets] store = "file"` keeps it in a protected file instead (not encrypted).
 - Offline mode stops every request except one to this computer (a local Ollama).
 - No Vaultdraw server is involved: requests go straight from the app to the provider.

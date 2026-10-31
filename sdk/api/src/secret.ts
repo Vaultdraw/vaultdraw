@@ -1,7 +1,8 @@
 /**
- * Secrets such as API keys. Needs the permission `secret`. They are kept in a protected file in the
- * app's state folder (readable by this user only; not encrypted), never in `config.toml` or a
- * vault. There is no way to read one back: the app uses it for you (`NetRequest.auth`).
+ * Secrets such as API keys. Needs the permission `secret`. They are kept in the system keychain
+ * (macOS Keychain, Linux Secret Service), or in a protected file in the app's state folder
+ * (readable by this user only; not encrypted) when the user chose `[secrets] store = "file"` or
+ * the system has no keychain, never in `config.toml` or a vault. There is no way to read one back: the app uses it for you (`NetRequest.auth`).
  *
  * @experimental
  * @since 1.1.0

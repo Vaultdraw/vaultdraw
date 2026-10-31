@@ -247,6 +247,8 @@ interface VaultPreferencesBase {
   onboardingCompleted: boolean;
   /** Extra hosts downloads may contact (`network.allowed_hosts`); Rust reads config.toml only. */
   networkAllowedHosts: string[];
+  /** Where plugin keys are kept (`secrets.store`); Rust reads it, the page never writes it. */
+  secretsStore: "auto" | "keychain" | "file";
   /** Where the community plugins list comes from (`plugins.registry_url`, https only). */
   pluginsRegistryUrl: string;
   /** Hours the cached plugins list is used before Browse fetches again (`plugins.registry_ttl_hours`). */
@@ -476,6 +478,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   networkAllowAi: undefined,
   networkAllowUpdates: undefined,
   networkAllowedHosts: [],
+  secretsStore: "auto",
   pluginsRegistryUrl: DEFAULT_PLUGINS_REGISTRY_URL,
   pluginsRegistryTtlHours: 24,
   themeInstallMaxKb: 64,
@@ -940,6 +943,12 @@ export function normalizePreferences(input: unknown): VaultPreferences {
       parsed.networkAllowedHosts,
       isStringArray,
       d.networkAllowedHosts,
+    ),
+    secretsStore: pick(
+      parsed.secretsStore,
+      (v): v is VaultPreferences["secretsStore"] =>
+        v === "auto" || v === "keychain" || v === "file",
+      d.secretsStore,
     ),
     pluginsRegistryUrl: pick(
       parsed.pluginsRegistryUrl,
