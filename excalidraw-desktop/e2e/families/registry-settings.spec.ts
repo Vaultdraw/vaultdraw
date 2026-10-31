@@ -162,7 +162,10 @@ test("every setting: changed through Settings, saved, reset", async ({
         seen.add(r.id);
         continue;
       }
-      if (process.env.TN2_ONLY && !process.env.TN2_ONLY.split(",").includes(r.id)) {
+      if (
+        process.env.TN2_ONLY &&
+        !process.env.TN2_ONLY.split(",").includes(r.id)
+      ) {
         seen.add(r.id);
         continue;
       }
@@ -199,7 +202,11 @@ test("every setting: changed through Settings, saved, reset", async ({
         problems.push(`${r.id} (${pg.label} > ${r.label}): ${m}`);
       if (process.env.TN2_ONLY) {
         // eslint-disable-next-line no-console
-        console.log(`PROBE ${r.id} ${kind} before=${before} after=${await overrides(page)}`);
+        console.log(
+          `PROBE ${r.id} ${kind} before=${before} after=${await overrides(
+            page,
+          )}`,
+        );
       }
       if (!(await answers(page))) {
         add("the window stopped answering");
@@ -232,7 +239,10 @@ test("every setting: changed through Settings, saved, reset", async ({
       if (!(await reset.count()) && kind === "switch") {
         // No Reset on this row: flip it back so the next row starts from the default (a
         // master switch like Offline mode otherwise disables the rows below it).
-        await row.locator('input[role="switch"]').first().click({ force: true });
+        await row
+          .locator('input[role="switch"]')
+          .first()
+          .click({ force: true });
         await page.waitForTimeout(200);
       }
       if (!(await dlg.isVisible())) {
