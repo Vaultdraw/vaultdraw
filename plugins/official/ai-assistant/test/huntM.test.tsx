@@ -68,7 +68,8 @@ describe("a refused Send keeps the question (toimprove M-15)", () => {
       expect(screen.getByRole("alert").textContent).toContain("No API key"),
     );
     expect(p!.net.requests.length).toBe(0);
-    expect(box().value).toBe("What is on it?");
+    // The question comes back after the refusal settles, a tick after the alert (flaky under load).
+    await waitFor(() => expect(box().value).toBe("What is on it?"));
   });
 
   it("Offline mode: the message says so and the question stays", async () => {
@@ -78,7 +79,7 @@ describe("a refused Send keeps the question (toimprove M-15)", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toContain("Offline mode"),
     );
-    expect(box().value).toBe("What is on it?");
+    await waitFor(() => expect(box().value).toBe("What is on it?"));
   });
 });
 
