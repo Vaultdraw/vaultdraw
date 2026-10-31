@@ -103,8 +103,14 @@ const PlanView = ({ plan }: { plan: TagRenamePlan }) => (
   <div className="vault-rename-tag__plan" data-testid="rename-tag-plan">
     <div>
       {plan.occurrences} {plan.occurrences === 1 ? "occurrence" : "occurrences"}{" "}
-      in {plan.files} {plan.files === 1 ? "drawing" : "drawings"}
+      in {plan.files} {plan.files === 1 ? "file" : "files"}
     </div>
+    {plan.occurrences === 0 && (
+      <div className="vault-rename-tag__warn">
+        Nothing to rename: no drawing or note writes #{plan.from} where it can
+        be changed.
+      </div>
+    )}
     {plan.merges && (
       <div role="alert" className="vault-rename-tag__warn">
         Merges with existing #{plan.keys[0]?.to ?? plan.to}
@@ -173,7 +179,8 @@ const RenameStep = ({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!to || !changed || busy) {
+    // A plan that changes nothing is never "renamed" (toimprove 192).
+    if (!to || !changed || busy || plan?.occurrences === 0) {
       return;
     }
     setBusy(true);
@@ -207,7 +214,7 @@ const RenameStep = ({
           <button
             type="submit"
             className="vault-btn vault-btn--primary"
-            disabled={busy || !changed}
+            disabled={busy || !changed || plan?.occurrences === 0}
           >
             {busy ? "Renaming…" : "Rename"}
           </button>

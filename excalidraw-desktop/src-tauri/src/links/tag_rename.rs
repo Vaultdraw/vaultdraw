@@ -3,7 +3,8 @@
 //! with the rewriter in tag mode: whole `#tag` tokens under the old tag change, nothing else.
 //!
 //! Commands (wrappers in `mod.rs`):
-//! - `tags_plan_rename(handle, from, to) -> TagRenamePlan`: pure query on the search index.
+//! - `tags_plan_rename(handle, from, to) -> TagRenamePlan`: a query on the search index; the notes
+//!   that carry the tag are read to count their tokens (notes are renamed too, toimprove 192).
 //! - `rename_tag(handle, from, to, openPath?) -> MoveResult`: the open drawing is not written;
 //!   its edits come back in `openDrawingEdits` (field `text`, or `name` for a frame name).
 //!
@@ -60,8 +61,16 @@ fn whole_tag(raw: &str) -> Result<&str> {
     }
 }
 
+/// Reads a note's text by vault path (None when it cannot be read).
+pub(crate) type NoteReader<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+/// A reader of the notes of `v`.
+pub(crate) fn note_reader(v: &Vault) -> impl Fn(&str) -> Option<String> + '_ {
+    move |p| vaultdraw_core::note_file::read_note_file(&v.root, p).ok().map(|n| n.content)
+}
+
 /// Plans renaming `from` (and its children) to `to`. Reads only the documents that carry the tag.
-pub(crate) fn plan(index: &Index, from: &str, to: &str) -> Result<TagPlan> {
+pub(crate) fn plan(index: &Index, from: &str, to: &str, read_note: NoteReader) -> Result<TagPlan> {
     let (from_body, to_body) = (whole_tag(from)?, whole_tag(to)?);
     let (from_key, to_key) = (tag_key(from_body), tag_key(to_body));
     let rule = TagRule { from_key: from_key.clone(), to: to_body.to_string(), skip_under: None };
@@ -73,10 +82,6 @@ pub(crate) fn plan(index: &Index, from: &str, to: &str) -> Result<TagPlan> {
     let mut keys: BTreeSet<&str> = BTreeSet::new();
     let mut doc_keys: Vec<&str> = Vec::new();
     for (path, tags) in index.tag_docs() {
-        // Notes are not edited by a tag rename (their tags sit in prose, code and frontmatter).
-        if vaultdraw_core::search::notes::is_note_name(path) {
-            continue;
-        }
         doc_keys.clear();
         for t in tags {
             if key_under(&t.key, &from_key) {
@@ -90,7 +95,12 @@ pub(crate) fn plan(index: &Index, from: &str, to: &str) -> Result<TagPlan> {
         if doc_keys.is_empty() {
             continue;
         }
-        let changes: u32 = index.get(path).map_or(0, |d| d.items.iter().map(|i| tag_edits(&i.text, &rule).len() as u32).sum());
+        let changes: u32 = if vaultdraw_core::search::notes::is_note_name(path) {
+            // Body tokens and frontmatter values, never code: read the note itself.
+            read_note(path).map_or(0, |t| super::note_tags::note_tag_edits(&t, &rule).len() as u32)
+        } else {
+            index.get(path).map_or(0, |d| d.items.iter().map(|i| tag_edits(&i.text, &rule).len() as u32).sum())
+        };
         if changes > 0 {
             keys.extend(doc_keys.iter().copied());
             files.push((path.to_string(), changes));
@@ -119,7 +129,7 @@ pub(crate) fn rename_tag_with(v: &Arc<Vault>, (from, to): (&str, &str), open_pat
     // A second rename plans against the index only once the first one's rewrite has landed.
     wait_for(MAX_JOB_WAIT, || state.running.load(Ordering::SeqCst) == 0);
     wait_for(MAX_READY_WAIT, || vi.is_ready());
-    let plan = plan(&vi.read(), from, to)?;
+    let plan = plan(&vi.read(), from, to, &note_reader(v))?;
     let mut result = MoveResult::default();
     if plan.files.is_empty() {
         return Ok((result, None));

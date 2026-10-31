@@ -66,7 +66,7 @@ interface TagsPanelProps {
 }
 
 const countLabel = (count: number) =>
-  `${count} ${count === 1 ? "drawing" : "drawings"}`;
+  `${count} ${count === 1 ? "file" : "files"}`;
 
 const rowId = (listId: string, key: string) => `${listId}:${key}`;
 

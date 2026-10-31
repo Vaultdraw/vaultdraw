@@ -96,7 +96,7 @@ test("renaming a parent tag renames children, the open drawing (undoable) and cl
   await expect(
     page
       .getByRole("region", { name: "Notifications" })
-      .filter({ hasText: "Renamed #dsa to #algo in 3 drawings" }),
+      .filter({ hasText: "Renamed #dsa to #algo in 3 files" }),
   ).toBeVisible();
 
   // Closed drawings were rewritten on disk; #dsa2 is untouched.
@@ -116,7 +116,7 @@ test("renaming a parent tag renames children, the open drawing (undoable) and cl
   await refreshIndex(page);
   await expect(tagRow(page, "algo")).toHaveAttribute(
     "aria-label",
-    "Tag algo, 3 drawings",
+    "Tag algo, 3 files",
   );
   await expect(tagRow(page, "algo/graphs")).toBeVisible();
   await expect(tagRow(page, "dsa2")).toBeVisible();

@@ -17,6 +17,7 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 
 ### Fixed
 
+- **Renaming a tag renames it in notes too.** A tag only notes carried showed "0 occurrences in 0 drawings", Rename reported success and the tag stayed. Now `#tag` in a note's text and its frontmatter `tags` change as in Obsidian's Tag Wrangler (code, links and images stay as written), the dialog and the tags pane count files, and Rename is disabled when nothing would change.
 - **Run setup again tells the truth about the AI assistant.** With the AI assistant on, the Extras screen and the summary said it was off; both now read the setting.
 - **Browser build: theme and list downloads refuse the same private addresses as the desktop app.** The page's own check let through some IPv6 forms that carry a private address and refused public `::ffff:` addresses; it now shares one copy of the rule with the plugin test kit, and one case table pins it against the desktop app's.
 - **Plugin API 1.3.0: `PluginErrorCode` lists every code a call can reject with.** `INTERNAL` and the seven `ctx.net` codes (`ABORTED`, `INVALID_URL`, `NETWORK_DISABLED`, `NETWORK_TIMEOUT`, `PRIVATE_ADDRESS`, `SECRET_MISSING`, `TOO_MANY_STREAMS`) reached plugins but were missing from the type.

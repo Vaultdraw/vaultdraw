@@ -905,29 +905,29 @@ mod tag_rename_tests {
             ("c.excalidraw", &["#dsa2 and #other"]),
             ("d.excalidraw", &["#Algo exists"]),
         ]);
-        let p = plan(&ix, "#dsa", "#Algo").unwrap().response;
+        let p = plan(&ix, "#dsa", "#Algo", &|_| None).unwrap().response;
         assert_eq!((p.from.as_str(), p.to.as_str(), p.files, p.occurrences, p.merges), ("dsa", "Algo", 2, 4, true));
         let keys: Vec<_> = p.keys.iter().map(|k| (k.from.as_str(), k.to.as_str())).collect();
         assert_eq!(keys, vec![("dsa", "algo"), ("dsa/graphs", "algo/graphs"), ("dsa/graphs/bfs", "algo/graphs/bfs")]);
-        let fresh = plan(&ix, "DSA", "Fresh").unwrap().response;
+        let fresh = plan(&ix, "DSA", "Fresh", &|_| None).unwrap().response;
         assert!(!fresh.merges);
         assert_eq!(serde_json::to_value(&fresh).unwrap()["keys"][0], serde_json::json!({"from":"dsa","to":"fresh"}));
         // same spelling: nothing to do; spelling-only change is a rename without a merge
-        assert_eq!(plan(&ix, "dsa", "#dsa").unwrap().response.files, 0);
-        let case = plan(&ix, "algo", "ALGO").unwrap().response;
+        assert_eq!(plan(&ix, "dsa", "#dsa", &|_| None).unwrap().response.files, 0);
+        let case = plan(&ix, "algo", "ALGO", &|_| None).unwrap().response;
         assert_eq!((case.files, case.merges, case.keys.len()), (1, false, 0));
         // `to` nested under `from` is not a merge
-        assert!(!plan(&ix, "dsa", "dsa/new").unwrap().response.merges);
+        assert!(!plan(&ix, "dsa", "dsa/new", &|_| None).unwrap().response.merges);
     }
 
     #[test]
     fn plan_rejects_invalid_tags() {
         let ix = tag_index(&[("a.excalidraw", &["#dsa"])]);
         for bad in ["", "#", "two words", "a-", "#a//b", "123", "#ff00aa", "a b#c", "x/", &"a".repeat(65)] {
-            assert_eq!(plan(&ix, "dsa", bad).err().map(|e| e.code).as_deref(), Some("INVALID_TAG"), "to={bad:?}");
+            assert_eq!(plan(&ix, "dsa", bad, &|_| None).err().map(|e| e.code).as_deref(), Some("INVALID_TAG"), "to={bad:?}");
         }
-        assert_eq!(plan(&ix, "no way", "ok").err().map(|e| e.code).as_deref(), Some("INVALID_TAG"));
-        assert!(plan(&ix, "dsa", "#ok/fine_2").is_ok());
+        assert_eq!(plan(&ix, "no way", "ok", &|_| None).err().map(|e| e.code).as_deref(), Some("INVALID_TAG"));
+        assert!(plan(&ix, "dsa", "#ok/fine_2", &|_| None).is_ok());
     }
 
     // ---- job ----
@@ -976,6 +976,30 @@ mod tag_rename_tests {
         // nothing left to do now
         let again = run_wait(&e, "dsa", "Algo", None);
         assert_eq!((again.job_id, again.planned_files, again.planned_links), (None, 0, 0));
+    }
+
+    #[test]
+    fn notes_are_renamed_too_and_counted_in_the_plan() {
+        // toimprove 192: a tag only notes carry was "0 occurrences in 0 drawings" and stayed.
+        let note = "---\ntags: [dsa, other]\n---\nRead #dsa and #DSA/graphs, not `#dsa`.\n";
+        let e = env(&[("n/Note.md", note.to_string()), ("a.excalidraw", scene(&[text_el("t", "#dsa")])), ("Other.md", "#other only\n".to_string())]);
+        let p = plan(&e.search.vault("h").unwrap().read(), "dsa", "Algo", &super::super::tag_rename::note_reader(&e.v)).unwrap().response;
+        assert_eq!((p.files, p.occurrences), (2, 4));
+        let r = run_wait(&e, "dsa", "Algo", None);
+        assert_eq!((r.planned_files, r.planned_links), (2, 4));
+        assert_eq!(read(&e.root, "n/Note.md"), "---\ntags: [Algo, other]\n---\nRead #Algo and #Algo/graphs, not `#dsa`.\n");
+        assert_eq!(read(&e.root, "Other.md"), "#other only\n");
+        assert!(read(&e.root, "a.excalidraw").contains("#Algo"));
+        let done = e.done.lock().unwrap().clone();
+        assert_eq!((done[0].rewritten, done[0].failed.len()), (2, 0));
+        let keys = tag_keys(&e);
+        assert!(!keys.contains(&"dsa".to_string()) && keys.contains(&"algo".to_string()), "{keys:?}");
+        // A notes-only tag: the plan sees it, and the rename really changes it.
+        let e = env(&[("Only.md", "#project here\n".to_string())]);
+        let p = plan(&e.search.vault("h").unwrap().read(), "project", "work", &super::super::tag_rename::note_reader(&e.v)).unwrap().response;
+        assert_eq!((p.files, p.occurrences), (1, 1));
+        run_wait(&e, "project", "work", None);
+        assert_eq!(read(&e.root, "Only.md"), "#work here\n");
     }
 
     #[test]

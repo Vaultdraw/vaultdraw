@@ -7,7 +7,7 @@ import type { TagSort } from "../../../tags/types";
 
 const SORTS: readonly { val: TagSort; label: string }[] = [
   { val: "name", label: "By name" },
-  { val: "count", label: "By number of drawings" },
+  { val: "count", label: "By number of files" },
 ];
 
 const AutocompleteSetting = () => {

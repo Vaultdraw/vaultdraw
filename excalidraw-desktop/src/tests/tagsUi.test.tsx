@@ -65,13 +65,13 @@ describe("TagsPanel", () => {
     setup(TAGGED);
     const panel = within(await screen.findByRole("region", { name: "Tags" }));
     expect(
-      panel.getByRole("button", { name: "Tag dsa, 2 drawings" }),
+      panel.getByRole("button", { name: "Tag dsa, 2 files" }),
     ).toBeTruthy();
     expect(
-      panel.getByRole("button", { name: "Tag dsa/graphs, 2 drawings" }),
+      panel.getByRole("button", { name: "Tag dsa/graphs, 2 files" }),
     ).toBeTruthy();
     expect(
-      panel.getByRole("button", { name: "Tag misc, 1 drawing" }),
+      panel.getByRole("button", { name: "Tag misc, 1 file" }),
     ).toBeTruthy();
     fireEvent.click(panel.getByRole("button", { name: "Collapse dsa" }));
     expect(panel.queryByRole("button", { name: /Tag dsa\/graphs/ })).toBeNull();

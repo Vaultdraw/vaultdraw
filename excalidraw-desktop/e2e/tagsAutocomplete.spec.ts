@@ -147,7 +147,7 @@ test("accepted tag survives commit and shows in the Tags pane", async ({
   await expect(tagRow(page, "fresh/idea")).toBeVisible();
   await expect(tagRow(page, "dsa/graphs")).toHaveAttribute(
     "aria-label",
-    "Tag dsa/graphs, 2 drawings",
+    "Tag dsa/graphs, 2 files",
   );
   expect(await paneTagNames(page)).toContain("fresh");
   expect(errors).toEqual([]);

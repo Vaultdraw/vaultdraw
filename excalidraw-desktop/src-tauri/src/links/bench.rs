@@ -518,7 +518,7 @@ fn bench_tag_rename() {
         let mut last = None;
         for _ in 0..200 {
             let t = Instant::now();
-            let p = super::tag_rename::plan(&ix, "dsa", "Algorithms").unwrap();
+            let p = super::tag_rename::plan(&ix, "dsa", "Algorithms", &|_| None).unwrap();
             times.push(t.elapsed().as_secs_f64() * 1e3);
             last = Some(p.response);
         }

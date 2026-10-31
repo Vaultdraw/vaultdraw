@@ -8,6 +8,7 @@
 mod journal;
 mod layout_store;
 mod note_rewrite;
+mod note_tags;
 mod plan;
 mod rewrite;
 mod tag_rename;
@@ -162,14 +163,18 @@ fn rewrite_file(v: &Vault, f: &FilePlan, tag: Option<&TagRule>, hooks: &Hooks, p
 fn rewrite_note_file(v: &Vault, f: &FilePlan, tag: Option<&TagRule>, hooks: &Hooks) -> std::result::Result<Option<(u32, Vec<String>)>, RewriteFailure> {
     use vaultdraw_core::note_file::{read_note_file, write_note_file};
     let fail = |e: crate::NativeError| failure(&f.to_path, if e.code == "CONFLICT" { "CONFLICT" } else if e.code == "INVALID_FILE" || e.code == "INVALID_PATH" { "INVALID_FILE" } else { "IO" }, e.message);
-    if tag.is_some() {
-        return Ok(None);
-    }
     let note = match read_note_file(&v.root, &f.to_path) {
         Ok(n) => n,
         Err(e) if e.code == "NOT_FOUND" => return Ok(None),
         Err(e) => return Err(fail(e)),
     };
+    if let Some(rule) = tag {
+        // A tag rename edits notes too, as Obsidian's Tag Wrangler does (toimprove 192).
+        let Some((text, n)) = note_tags::rename_in_note(&note.content, rule) else { return Ok(None) };
+        let w = write_note_file(v, &f.to_path, &text, Some(&note.revision)).map_err(fail)?;
+        (hooks.indexed)(&f.to_path, (w.bytes, w.mtime_ms), text.as_bytes());
+        return Ok(Some((n, Vec::new())));
+    }
     let Some(out) = note_rewrite::rewrite_note(&note.content, f) else { return Ok(None) };
     let w = write_note_file(v, &f.to_path, &out.text, Some(&note.revision)).map_err(fail)?;
     (hooks.indexed)(&f.to_path, (w.bytes, w.mtime_ms), out.text.as_bytes());
@@ -361,10 +366,13 @@ pub(crate) fn move_command(app: &AppHandle, v: &Arc<Vault>, from: &str, to: &str
 
 #[tauri::command]
 #[cfg_attr(test, allow(dead_code))]
-pub(crate) async fn tags_plan_rename(handle: String, from: String, to: String, search: State<'_, SearchService>) -> Result<tag_rename::TagRenamePlan> {
+pub(crate) async fn tags_plan_rename(handle: String, from: String, to: String, state: State<'_, crate::Service>, search: State<'_, SearchService>) -> Result<tag_rename::TagRenamePlan> {
+    let v = crate::vault_for(&state, &handle)?;
     let vi = vault_index(&search, &handle)?;
+    let read_note = tag_rename::note_reader(&v);
     let g = vi.read();
-    tag_rename::plan(&g, &from, &to).map(|p| p.response)
+    let plan = tag_rename::plan(&g, &from, &to, &read_note).map(|p| p.response);
+    plan
 }
 
 #[tauri::command]

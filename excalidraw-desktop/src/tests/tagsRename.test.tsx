@@ -79,7 +79,7 @@ describe("RenameTagDialog", () => {
     fireEvent.change(field(), { target: { value: "Al" } });
     fireEvent.change(field(), { target: { value: "Algo" } });
     expect(await screen.findByTestId("rename-tag-plan")).toHaveTextContent(
-      "3 occurrences in 2 drawings",
+      "3 occurrences in 2 files",
     );
     expect(api.planCalls.at(-1)).toEqual({
       handle: "h",
@@ -245,7 +245,7 @@ describe("runTagRename", () => {
       await completed;
     });
     expect(notify).toHaveBeenCalledWith(
-      "Renamed #DSA to #Algo in 3 drawings",
+      "Renamed #DSA to #Algo in 3 files",
       "info",
     );
     expect(isTagJob("h", 7)).toBe(false);
@@ -261,7 +261,7 @@ describe("runTagRename", () => {
     };
     await runTagRename(deps, "dsa", "Algo", "DSA");
     expect(notify).toHaveBeenCalledWith(
-      "Renamed #DSA to #Algo in 1 drawing",
+      "Renamed #DSA to #Algo in 1 file",
       "info",
     );
   });
@@ -279,7 +279,7 @@ describe("runTagRename", () => {
       await completed;
     });
     expect(notify).toHaveBeenCalledWith(
-      "Renamed #DSA to #Algo in 1 drawing; skipped: a.excalidraw (changed on disk)",
+      "Renamed #DSA to #Algo in 1 file; skipped: a.excalidraw (changed on disk)",
       "error",
     );
   });

@@ -133,7 +133,7 @@ describe("toastRewriteDone vs a tag rename", () => {
     const { completed } = await runTagRename(deps, "dsa", "Algo", "DSA");
     await completed;
     expect(notify.mock.calls).toEqual([
-      ["Renamed #DSA to #Algo in 2 drawings", "info"],
+      ["Renamed #DSA to #Algo in 2 files", "info"],
     ]);
   });
 
@@ -145,7 +145,7 @@ describe("toastRewriteDone vs a tag rename", () => {
     const { completed } = await runTagRename(deps, "dsa", "Algo", "DSA");
     await completed; // would hang if the early event were missed
     expect(notify.mock.calls).toEqual([
-      ["Renamed #DSA to #Algo in 2 drawings", "info"],
+      ["Renamed #DSA to #Algo in 2 files", "info"],
     ]);
     expect(listeners).toHaveLength(1); // the flow unsubscribed
     expect(isTagJob("h", 7)).toBe(false);
@@ -158,7 +158,7 @@ describe("toastRewriteDone vs a tag rename", () => {
     await completed;
     expect(notify.mock.calls).toEqual([
       ["Updated 1 link in 1 drawing", "info"],
-      ["Renamed #DSA to #Algo in 2 drawings", "info"],
+      ["Renamed #DSA to #Algo in 2 files", "info"],
     ]);
   });
 

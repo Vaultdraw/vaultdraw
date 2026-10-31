@@ -33,11 +33,11 @@ test("Tags panel shows nested tags with counts and collapses", async ({
   const errors = trackErrors(page);
   await expect(tagButton(page, "dsa")).toHaveAttribute(
     "aria-label",
-    "Tag dsa, 2 drawings",
+    "Tag dsa, 2 files",
   );
   await expect(tagButton(page, "dsa/graphs")).toHaveAttribute(
     "aria-label",
-    "Tag dsa/graphs, 1 drawing",
+    "Tag dsa/graphs, 1 file",
   );
   await expect(tagButton(page, "Interview")).toBeVisible();
 

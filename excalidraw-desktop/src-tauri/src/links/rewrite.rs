@@ -150,25 +150,27 @@ fn text_edits(s: &str, reps: &[Replace]) -> Vec<(usize, usize, String)> {
     e
 }
 
-/// Edits `(start, end, new spelling)` for the tag tokens of `s` under the renamed tag. Only the
-/// segments of the old tag are replaced, so children keep their own spelling.
-pub(super) fn tag_edits(s: &str, rule: &TagRule) -> Vec<(usize, usize, String)> {
-    let mut e = Vec::new();
-    if !s.contains('#') {
-        return e;
+/// A text edit: `(start, end, replacement)` in bytes.
+pub(super) type Edit = (usize, usize, String);
+
+/// The edit renaming tag body `display` (written at byte `start`, without `#`) under `rule`:
+/// only the segments of the old tag change, so children keep their own spelling.
+pub(super) fn tag_body_edit(display: &str, start: usize, rule: &TagRule) -> Option<Edit> {
+    let key = tag_key(display);
+    if !key_under(&key, &rule.from_key) || rule.skip_under.as_deref().is_some_and(|k| key_under(&key, k)) {
+        return None;
     }
     let depth = rule.from_key.matches('/').count();
-    for m in find_tags(s) {
-        let key = tag_key(m.display);
-        if !key_under(&key, &rule.from_key) || rule.skip_under.as_deref().is_some_and(|k| key_under(&key, k)) {
-            continue;
-        }
-        let end = m.display.match_indices('/').map(|(i, _)| i).nth(depth).unwrap_or(m.display.len());
-        if m.display[..end] != rule.to {
-            e.push((m.range.0 + 1, m.range.0 + 1 + end, rule.to.clone()));
-        }
+    let end = display.match_indices('/').map(|(i, _)| i).nth(depth).unwrap_or(display.len());
+    (display[..end] != rule.to).then(|| (start, start + end, rule.to.clone()))
+}
+
+/// Edits `(start, end, new spelling)` for the tag tokens of `s` under the renamed tag.
+pub(super) fn tag_edits(s: &str, rule: &TagRule) -> Vec<Edit> {
+    if !s.contains('#') {
+        return Vec::new();
     }
-    e
+    find_tags(s).into_iter().filter_map(|m| tag_body_edit(m.display, m.range.0 + 1, rule)).collect()
 }
 
 fn apply_edits(s: &str, edits: &[(usize, usize, String)]) -> String {

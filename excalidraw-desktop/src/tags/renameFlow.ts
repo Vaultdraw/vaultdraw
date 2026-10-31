@@ -34,8 +34,9 @@ export function validateTagInput(text: string): TagInput {
   return { ok: true, display: body };
 }
 
-export const renamedMessage = (from: string, to: string, drawings: number) =>
-  `Renamed #${from} to #${to} in ${plural(drawings, "drawing", "drawings")}`;
+/** Drawings and notes alike: a tag rename edits both (toimprove 192). */
+export const renamedMessage = (from: string, to: string, files: number) =>
+  `Renamed #${from} to #${to} in ${plural(files, "file", "files")}`;
 
 export const skippedMessage = (done: RewriteDone) =>
   done.failed

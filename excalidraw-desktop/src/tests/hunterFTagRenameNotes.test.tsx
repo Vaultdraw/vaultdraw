@@ -53,36 +53,35 @@ describe("hunter F-15: renaming a tag that only notes carry", () => {
       expect(screen.getByTestId("rename-tag-plan")).toBeTruthy(),
     );
     expect(screen.getByTestId("rename-tag-plan").textContent).toMatch(
-      /0 occurrences in 0 drawings/,
+      /0 occurrences in 0 files/,
     );
   });
 
-  it.fails(
-    "a rename that changes nothing is not offered, or says why (notes are not edited)",
-    async () => {
-      render(
-        <RenameTagDialog
-          api={api}
-          handle="h"
-          tags={() => [{ tag: "project", display: "project", count: 3 }]}
-          initial={{ key: "project", display: "project" }}
-          onConfirm={async () => {}}
-          onCancel={() => {}}
-          ownerDocument={document}
-          debounceMs={0}
-        />,
-      );
-      fireEvent.change(screen.getByLabelText("New tag"), {
-        target: { value: "proj" },
-      });
-      await waitFor(() =>
-        expect(screen.getByTestId("rename-tag-plan")).toBeTruthy(),
-      );
-      const button = screen.getByRole("button", {
-        name: "Rename",
-      }) as HTMLButtonElement;
-      const text = screen.getByTestId("rename-tag-plan").textContent ?? "";
-      expect(button.disabled || /note/i.test(text)).toBe(true);
-    },
-  );
+  // Fixed (toimprove 192): notes are renamed too, and a plan with nothing to change disables Rename.
+  it("a rename that changes nothing is not offered, and says why", async () => {
+    render(
+      <RenameTagDialog
+        api={api}
+        handle="h"
+        tags={() => [{ tag: "project", display: "project", count: 3 }]}
+        initial={{ key: "project", display: "project" }}
+        onConfirm={async () => {}}
+        onCancel={() => {}}
+        ownerDocument={document}
+        debounceMs={0}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("New tag"), {
+      target: { value: "proj" },
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("rename-tag-plan")).toBeTruthy(),
+    );
+    const button = screen.getByRole("button", {
+      name: "Rename",
+    }) as HTMLButtonElement;
+    const text = screen.getByTestId("rename-tag-plan").textContent ?? "";
+    expect(button.disabled).toBe(true);
+    expect(text).toMatch(/Nothing to rename/);
+  });
 });
