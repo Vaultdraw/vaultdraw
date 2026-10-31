@@ -193,3 +193,45 @@ test("AI assistant: turn it on, save a key, ask, stream, stop, offline", async (
 
   expect(errors).toEqual([]);
 });
+
+test("AI assistant: Summarise this note reads the note in the open tab, and leaves it unchanged", async ({
+  page,
+}) => {
+  const errors = trackErrors(page);
+  await openVault(page, "?seed=obsidian&plugins=ai-assistant");
+  await page.waitForFunction(() => (window as any).__pluginsReady === true);
+  await page.evaluate(() => {
+    const net = (window as any).__plugins.backend.net;
+    net.secrets["ai-assistant"] = { "api-key": "sk-ant-e2e-NOTE-1111" };
+    net.respond = () => ({
+      chunks: [
+        'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"A welcome note."}}\n\n',
+        'data: {"type":"message_stop"}\n\n',
+      ],
+    });
+  });
+  const before = await page.evaluate(() =>
+    (window as any).__noteFiles.textOf("Welcome.md"),
+  );
+
+  // Open the note from the file list, then summarise it from the palette.
+  await page
+    .locator(".vault-tree-item__name", { hasText: "Welcome" })
+    .first()
+    .click();
+  await expect(page.getByText("See", { exact: false }).first()).toBeVisible();
+  await run(page, "AI: Summarise", /AI: Summarise this note/);
+  await expect(page.getByText("A welcome note.")).toBeVisible({
+    timeout: 10_000,
+  });
+  const sent = await page.evaluate(
+    () => (window as any).__plugins.backend.net.requests[0].body as string,
+  );
+  expect(sent).toContain("[[Ideas#Later]]");
+  expect(sent).toContain("#welcome");
+  // The note on disk is exactly what it was.
+  expect(
+    await page.evaluate(() => (window as any).__noteFiles.textOf("Welcome.md")),
+  ).toBe(before);
+  expect(errors).toEqual([]);
+});

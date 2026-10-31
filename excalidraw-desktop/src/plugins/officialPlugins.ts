@@ -495,7 +495,7 @@ export const OFFICIAL_PLUGINS: readonly OfficialPlugin[] = [
       {
         id: "summarise",
         title: "AI: Summarise this note",
-        when: ["drawingOpen"],
+        when: ["vaultOpen"],
       },
       { id: "cancel", title: "AI: Stop the answer" },
       { id: "clear", title: "AI: Clear the conversation" },

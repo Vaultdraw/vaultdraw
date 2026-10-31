@@ -176,6 +176,16 @@ export interface VaultApi {
     path: string,
   ): Promise<{ elements: readonly SceneElement[]; revision: string }>;
   /**
+   * A Markdown note of the vault (`.md`, never `.excalidraw.md`): its text exactly as it is on
+   * disk, and its revision. Read only: a plugin never changes a note. Needs `vault.read`. The
+   * text is what the file holds now, not the unsaved text of an open editor (the app saves a
+   * note a moment after each edit). Notes over 16 MiB and files that are not UTF-8 text are
+   * refused. Errors: `INVALID_PATH`, `NOT_FOUND`, `INVALID_FILE`, `NO_VAULT`, `IO_ERROR`.
+   *
+   * @since 1.3.0
+   */
+  readNote(path: string): Promise<{ text: string; revision: string }>;
+  /**
    * Creates a new drawing (the path must end in `.excalidraw`) from `add`
    * ops (and, from 0.4.0, `group` ops with refs and `data`), and refuses when
    * the path exists. Needs `vault.write`. `refs` maps each `ref` to its id.

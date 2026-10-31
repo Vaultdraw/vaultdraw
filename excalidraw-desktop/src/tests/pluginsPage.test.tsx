@@ -136,7 +136,7 @@ describe("Plugins settings page", () => {
     const dialog = screen.getByRole("dialog", { name: "Enable Writer?" });
     expect(within(dialog).getByText(/not a limit/)).toBeTruthy();
     expect(
-      within(dialog).getByText("Read the drawings in your vault"),
+      within(dialog).getByText("Read the drawings and notes in your vault"),
     ).toBeTruthy();
     expect(
       within(dialog).getByText(
@@ -199,7 +199,7 @@ describe("Plugins settings page", () => {
     const row = screen.getByTestId("plugin-calm");
     expect(within(row).queryByText(/Needs review/)).toBeNull();
     expect(within(row).getByTestId("plugin-calm-permissions").textContent).toBe(
-      "Says it can: Read the drawings in your vault",
+      "Says it can: Read the drawings and notes in your vault",
     );
   });
 

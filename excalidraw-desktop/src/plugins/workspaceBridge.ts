@@ -18,6 +18,8 @@ export interface WorkspaceBridge {
   vault(): { name: string; readOnly: boolean } | null;
   /** The active drawing's vault-relative path, or null. */
   activePath(): string | null;
+  /** The vault-relative path of the Markdown note in the active tab, or null. */
+  activeNotePath?(): string | null;
   /** The key label bound to opening `path`, or null. */
   openShortcut(path: string): string | null;
   drawingExists(path: string): Promise<boolean>;

@@ -200,7 +200,7 @@ test("Plugins settings: a plugin that declares a write permission shows it in th
   await page.getByRole("dialog").getByRole("tab", { name: "Plugins" }).click();
   const row = page.getByTestId("plugin-writer");
   await expect(row).toContainText(
-    "Says it can: Read the drawings in your vault",
+    "Says it can: Read the drawings and notes in your vault",
   );
   await expect(row).toContainText("Needs review");
 

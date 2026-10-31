@@ -2,11 +2,12 @@ id = "ai-assistant"
 name = "AI assistant"
 version = "0.1.0"
 api = 1
+min_api = "1.3.0"
 min_app = "0.2.0"
 main = "main.js"
 description = "Ask a model you choose about your drawing, with your own key. Off until you turn it on"
 author = "Vaultdraw"
-permissions = ["net", "secret"]
+permissions = ["net", "secret", "vault.read"]
 
 [[contributes.panels]]
 id = "assistant"
@@ -30,7 +31,7 @@ when = ["drawingOpen"]
 [[contributes.commands]]
 id = "summarise"
 title = "AI: Summarise this note"
-when = ["drawingOpen"]
+when = ["vaultOpen"]
 
 [[contributes.commands]]
 id = "cancel"

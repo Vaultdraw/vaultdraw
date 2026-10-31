@@ -71,7 +71,9 @@ describe("consent load gate", () => {
     expect(activate).toHaveBeenCalledTimes(1);
     expect(h.backend.consentCalls).toEqual(["noted"]);
     const msgs = toastStore.getSnapshot().toasts.map((x) => x.message);
-    expect(msgs).toEqual(["noted now can: read the drawings in your vault."]);
+    expect(msgs).toEqual([
+      "noted now can: read the drawings and notes in your vault.",
+    ]);
   });
 
   it("a failed record is logged and the plugin still loads", async () => {
@@ -109,7 +111,7 @@ describe("consent text", () => {
 
   it("has plain words per permission and falls back to the name", () => {
     expect(permissionText("vault.read")).toBe(
-      "Read the drawings in your vault",
+      "Read the drawings and notes in your vault",
     );
     expect(permissionText("vault.write")).toBe(
       "Create drawings and write export images in your vault",

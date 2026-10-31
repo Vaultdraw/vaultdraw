@@ -5,6 +5,8 @@
 import {
   pickElements,
   describeElements,
+  noteName,
+  noteText,
   textOf,
   type Context,
 } from "./context";
@@ -137,6 +139,26 @@ export function createSession(ctx: PluginContext): Session {
     if (task === "diagram") {
       return null;
     }
+    if (task === "summarise") {
+      // A note in the active tab is summarised as it is on disk; a drawing by its text.
+      const notePath = ctx.workspace.activeNotePath();
+      if (notePath) {
+        const name = noteName(notePath);
+        try {
+          const note = await ctx.vault.readNote(notePath);
+          return noteText(note.text, name, limit());
+        } catch (err) {
+          return {
+            text: "",
+            summary: `Note "${name}"`,
+            cut: 0,
+            emptyMessage: `Could not read this note (${
+              err instanceof Error ? err.message : "unknown problem"
+            }). Save it and try again.`,
+          };
+        }
+      }
+    }
     const all = ctx.scene.elements();
     const { elements, scope } = pickElements(all, ctx.scene.selection());
     if (task === "summarise") {
@@ -194,7 +216,9 @@ export function createSession(ctx: PluginContext): Session {
         context,
         sent,
         answer: "",
-        error: "The drawing is empty, so there is nothing to ask about.",
+        error:
+          context?.emptyMessage ??
+          "The drawing is empty, so there is nothing to ask about.",
         via,
         drawn: null,
       });

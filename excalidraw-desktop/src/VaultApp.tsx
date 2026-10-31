@@ -2732,6 +2732,11 @@ export const VaultApp = ({
         return f ? { name: f.name, readOnly: f.readOnly } : null;
       },
       activePath: () => appFilesRef.current.active()?.path ?? null,
+      activeNotePath: () => {
+        const s = tabsRef.current?.store?.getState();
+        const tab = s?.tabs.find((t) => t.id === s.activeId);
+        return tab?.path && isNotePath(tab.path) ? tab.path : null;
+      },
       openShortcut: (path) =>
         commandShortcutLabel(
           drawingOpenCommandId(path),

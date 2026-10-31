@@ -177,6 +177,7 @@ pub(crate) async fn plugin_call(
                 }
             }
             gateway::Route::MarkdownParse => gateway::markdown_call(params),
+            gateway::Route::NoteRead => gateway::note_read(&app, params),
             gateway::Route::Folders => crate::import_folder::folders_call(&app, &method, params),
             gateway::Route::Raw => Err(gateway::GatewayError::new("INVALID_ARGUMENT", format!("\"{method}\" returns bytes: it goes through plugin_call_raw"))),
             gateway::Route::OwnSettings => {

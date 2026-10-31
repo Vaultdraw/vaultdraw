@@ -24,6 +24,8 @@ pub(crate) enum Route {
     /// `crate::import_folder::folders_call`: capability-scoped source and target folders for
     /// importers (read-only source handles, create-only targets).
     Folders,
+    /// `note.read`: the text and revision of a Markdown note (read only; `vaultdraw_core::note_file`).
+    NoteRead,
     /// `plugin_call_raw`: binary bodies in and out (graph bytes, layout bytes); never `plugin_call`.
     Raw,
     /// `vault_settings::own_table_*`: the plugin's own table `[<plugin id>]` of the vault's
@@ -44,6 +46,7 @@ pub(crate) const ALLOWLIST: &[Row] = &[
     Row { method: VAULT_LIST, permission: Some("vault.read"), route: Route::Control(VAULT_LIST) },
     Row { method: FILE_READ, permission: Some("vault.read"), route: Route::Control(FILE_READ) },
     Row { method: FILE_WRITE, permission: Some("vault.write"), route: Route::Control(FILE_WRITE) },
+    Row { method: "note.read", permission: Some("vault.read"), route: Route::NoteRead },
     Row { method: "vault.graph", permission: Some("vault.read"), route: Route::Raw },
     Row { method: "vault.graphLayout.load", permission: Some("vault.read"), route: Route::Raw },
     Row { method: "vault.graphLayout.save", permission: Some("vault.write"), route: Route::Raw },
@@ -250,8 +253,24 @@ pub(crate) fn storage_call(state_dir: &std::path::Path, plugin_id: &str, route: 
             storage::write(state_dir, plugin_id, text)?;
             Ok(Value::Null)
         }
-        Route::Control(_) | Route::MarkdownParse | Route::Folders | Route::Raw | Route::OwnSettings => Err(GatewayError::new("INTERNAL", "not a storage row")),
+        Route::Control(_) | Route::NoteRead | Route::MarkdownParse | Route::Folders | Route::Raw | Route::OwnSettings => Err(GatewayError::new("INTERNAL", "not a storage row")),
     }
+}
+
+/// `note.read`: `{ path }` to `{ text, revision }` for a Markdown note of the open vault. Read
+/// only. The path rules are the plugin ones (no dot folder, `.md`, never `.excalidraw.md`), then
+/// the core's guarded read (16 MiB, UTF-8, no symbolic link, stays inside the vault).
+pub(crate) fn note_read(app: &tauri::AppHandle, params: Option<Value>) -> Result<Value, GatewayError> {
+    let vault = crate::control_active_vault(app).ok_or_else(|| GatewayError::new("NO_VAULT", "No vault is open"))?;
+    note_read_in(&vault, params)
+}
+
+pub(crate) fn note_read_in(vault: &vaultdraw_core::Vault, params: Option<Value>) -> Result<Value, GatewayError> {
+    let map = object_params(params)?;
+    let path = path_param(&map, "path")?;
+    check_plugin_path(path, Kind::Note).map_err(GatewayError::from)?;
+    let note = vaultdraw_core::note_file::read_note_file(&vault.root, path)?;
+    Ok(serde_json::json!({ "text": note.content, "revision": note.revision }))
 }
 
 /// `markdown.parse`: `{ text, softBreakNewline? }` to a `NoteDoc` (16 MiB cap, like notes on disk).

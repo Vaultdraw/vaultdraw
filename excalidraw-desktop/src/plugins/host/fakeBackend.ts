@@ -12,6 +12,8 @@ import {
   markdownParams,
 } from "../../../../sdk/api/shared/markdown";
 
+import { fakeRevision } from "../../notes/FakeNoteFiles";
+import { getNoteFiles } from "../../notes/noteBackend";
 import { PLUGIN_CACHE_KEY } from "../../theme/catalogue/backends";
 import { sha256Hex } from "../../theme/install/backends";
 
@@ -51,6 +53,12 @@ export interface FakeBackend extends PluginsBackend {
    * a drawing it does not have is NOT_FOUND: the app's vault is the one truth (twin drift, 2026-10-30).
    */
   listSource?: (dir: string) => Promise<unknown[] | null>;
+  /** Notes the `note.read` row serves, by path (text; the revision is made from it). */
+  notes: Record<string, string>;
+  /** Tests: where `note.read` gets a note the app holds (the e2e harness: the in-memory note files). */
+  noteSource?: (
+    path: string,
+  ) => Promise<{ text: string; revision: string } | null>;
   /** The files the `export.*` rows wrote, by vault path. */
   exportFiles: Record<string, Uint8Array>;
   /** Makes `file.write` fail with READ_ONLY. */
@@ -226,6 +234,7 @@ const VAULT_ROWS: Record<string, "vault.read" | "vault.write"> = {
   "vault.list": "vault.read",
   "file.read": "vault.read",
   "file.write": "vault.write",
+  "note.read": "vault.read",
 };
 
 const RAW_ROWS = new Set([
@@ -397,6 +406,16 @@ export function readThroughVault(
       return null;
     }
   };
+  // `ctx.vault.readNote` reads the note text the app holds (the in-memory note files).
+  fake.noteSource = async (path) => {
+    const r = repo();
+    try {
+      const n = await getNoteFiles().read(r!.handle, path);
+      return { text: n.content, revision: n.revision };
+    } catch {
+      return null;
+    }
+  };
   fake.listSource = async (dir) => {
     const r = repo();
     try {
@@ -431,6 +450,7 @@ export function createFakeBackend(
     graphLayout: new Uint8Array(0),
     vaultTables: {},
     drawings: {},
+    notes: {},
     exportFiles: {},
     vaultReadOnly: false,
     vaultOpen: true,
@@ -560,6 +580,21 @@ export function createFakeBackend(
             throw coded("NOT_FOUND", "Directory not found");
           }
           return { entries };
+        }
+        if (method === "note.read") {
+          if (!fake.vaultOpen) {
+            throw coded("NO_VAULT", "No vault is open");
+          }
+          const at = String(params?.path ?? "");
+          const n = fake.noteSource
+            ? await fake.noteSource(at)
+            : fake.notes[at] === undefined
+            ? null
+            : { text: fake.notes[at], revision: fakeRevision(fake.notes[at]) };
+          if (!n) {
+            throw coded("NOT_FOUND", `Note not found: ${at}`);
+          }
+          return { text: n.text, revision: n.revision };
         }
         return vaultCall(fake, method, params);
       }

@@ -466,6 +466,7 @@ interface VaultApi {
   readDrawing(
     path: string,
   ): Promise<{ elements: readonly SceneElement[]; revision: string }>; // needs vault.read
+  readNote(path: string): Promise<{ text: string; revision: string }>; // needs vault.read; since 1.3.0
   createDrawing(
     path: string,
     ops: readonly SceneOp[],
@@ -496,6 +497,7 @@ interface VaultApi {
 | Call | What it does |
 | --- | --- |
 | `info()` | The vault's name and whether it is read-only, or `null` when no vault is open. |
+| `readNote(path)` | A Markdown note's text exactly as the file holds it, and its revision. Read only; needs `vault.read`. Paths end in `.md` (never `.excalidraw.md`, no dot folders). Files over 16 MiB or not UTF-8 text are refused. It reads the file on disk, not the unsaved text of an open editor. |
 | `list(dir)` | One folder (`""` is the root), folders first, then by name. Dot entries and symlinks are left out. |
 | `readDrawing(path)` | The drawing's elements as plain copies, and its revision. Files over 32 MiB are refused. |
 | `createDrawing(path, ops)` | A new drawing built from `add` and `group` ops. The path must not exist. Returns the ids of the new elements, in op order, and `refs` (since 0.4.0). |
@@ -619,11 +621,13 @@ While a session runs the context key `present.active` is true: a command declare
 interface WorkspaceApi {
   open(path: string, opts?: { newTab?: boolean }): Promise<void>; // free
   activePath(): string | null; // free
+  activeNotePath(): string | null; // free; since 1.3.0
 }
 ```
 
 - `open` shows a drawing, in a new tab with `newTab: true`. It fails with `NOT_FOUND` when the drawing does not exist, and with `NO_VAULT` when no vault is open.
 - `activePath` gives the open drawing's vault-relative path, or `null`.
+- `activeNotePath` gives the Markdown note shown in the active tab, or `null` (a drawing or another file is active). Pair it with `ctx.vault.readNote`.
 
 ### ctx.importers
 

@@ -71,8 +71,15 @@ const invalid = (message: string) =>
   new PluginApiError("INVALID_PATH", message);
 
 /** `image`: an export file (`.svg` or `.png`); `imageFolder`: a folder of exports (not the root). */
-export type VaultPathKind = "file" | "folder" | "image" | "imageFolder";
+export type VaultPathKind =
+  | "file"
+  | "folder"
+  | "image"
+  | "imageFolder"
+  | "note";
 
+const NOTE_SUFFIX = ".md";
+const DRAWING_MD_SUFFIX = ".excalidraw.md";
 const IMAGE_SUFFIXES = [".svg", ".png"];
 
 /**
@@ -89,7 +96,11 @@ export const checkVaultPath = (path: unknown, kind: VaultPathKind): string => {
       return path;
     }
     throw invalid(
-      kind === "file" ? "A drawing path is required" : "A path is required",
+      kind === "file"
+        ? "A drawing path is required"
+        : kind === "note"
+        ? "A note path is required"
+        : "A path is required",
     );
   }
   if (utf8Length(path) > MAX_PLUGIN_PATH) {
@@ -103,6 +114,13 @@ export const checkVaultPath = (path: unknown, kind: VaultPathKind): string => {
   }
   if (kind === "file" && !path.toLowerCase().endsWith(DRAWING_SUFFIX)) {
     throw invalid("Drawing paths must end in .excalidraw");
+  }
+  if (
+    kind === "note" &&
+    (!path.toLowerCase().endsWith(NOTE_SUFFIX) ||
+      path.toLowerCase().endsWith(DRAWING_MD_SUFFIX))
+  ) {
+    throw invalid("Note paths must end in .md");
   }
   if (
     kind === "image" &&

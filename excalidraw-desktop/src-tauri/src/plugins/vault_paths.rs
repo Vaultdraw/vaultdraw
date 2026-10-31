@@ -15,6 +15,8 @@ pub(crate) enum Kind {
     File,
     /// A folder to list; empty is the vault root.
     Folder,
+    /// A Markdown note: ends in `.md`, never `.excalidraw.md` (that is a drawing).
+    Note,
 }
 
 fn invalid(message: &str) -> RpcError {
@@ -25,7 +27,11 @@ fn invalid(message: &str) -> RpcError {
 /// is a symlink or leaves the vault is decided by the core call that follows.
 pub(crate) fn check_plugin_path(path: &str, kind: Kind) -> Result<(), RpcError> {
     if path.is_empty() {
-        return if kind == Kind::Folder { Ok(()) } else { Err(invalid("A drawing path is required")) };
+        return match kind {
+            Kind::Folder => Ok(()),
+            Kind::Note => Err(invalid("A note path is required")),
+            Kind::File => Err(invalid("A drawing path is required")),
+        };
     }
     if path.len() > MAX_PLUGIN_PATH {
         return Err(invalid("Path is longer than 1024 bytes"));
@@ -35,6 +41,9 @@ pub(crate) fn check_plugin_path(path: &str, kind: Kind) -> Result<(), RpcError> 
     }
     if kind == Kind::File && !path.to_ascii_lowercase().ends_with(DRAWING_SUFFIX) {
         return Err(invalid("Drawing paths must end in .excalidraw"));
+    }
+    if kind == Kind::Note && !vaultdraw_core::note_file::is_note_path(path) {
+        return Err(invalid("Note paths must end in .md"));
     }
     validate_relative(path).map_err(|e| RpcError::app(&e.code, e.message))?;
     Ok(())

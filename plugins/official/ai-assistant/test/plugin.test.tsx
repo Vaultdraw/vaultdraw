@@ -63,7 +63,7 @@ const ask = async (text: string) => {
 describe("manifest", () => {
   it("asks only for what it needs and declares every command", () => {
     const m = manifest();
-    expect(m.permissions).toEqual(["net", "secret"]);
+    expect(m.permissions).toEqual(["net", "secret", "vault.read"]);
     expect(m.contributes.commands.map((c) => c.id)).toEqual([
       "ask",
       "describe",
@@ -289,6 +289,73 @@ describe("what is sent", () => {
       .content as string;
     expect(sent).toContain("Login page\n\nSecret plan");
     expect(sent).not.toContain("size");
+  });
+
+  describe("Summarise in a note", () => {
+    const NOTE = "# Trip\n\nWe leave on Friday.\n\n- pack\n- book a taxi\n";
+    const inNote = async (text = NOTE) => {
+      await start();
+      p!.vault.seedNotes({ "Plans/Trip.md": text });
+      p!.workspace.setActiveNote("Plans/Trip.md");
+      p!.net.respond = () => ({ chunks: sse("Short.") });
+    };
+
+    it("sends the note's text, not the drawing that was open before", async () => {
+      await inNote();
+      await p!.run("summarise");
+      await waitFor(() => expect(screen.getByText("Short.")).toBeTruthy());
+      const sent = JSON.parse(p!.net.requests[0].body!).messages.at(-1)
+        .content as string;
+      expect(sent).toContain("We leave on Friday.");
+      expect(sent).not.toContain("Login page");
+    });
+
+    it("an empty note is not sent and says so", async () => {
+      await inNote("  \n");
+      await p!.run("summarise");
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toMatch(
+          /This note is empty/,
+        ),
+      );
+      expect(p!.net.requests).toEqual([]);
+    });
+
+    it("a note that cannot be read says so in plain words and sends nothing", async () => {
+      await start();
+      p!.workspace.setActiveNote("Gone.md");
+      await p!.run("summarise");
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toMatch(
+          /Could not read this note/,
+        ),
+      );
+      expect(p!.net.requests).toEqual([]);
+    });
+
+    it("a long note is cut at the setting and the cut is shown in the preview", async () => {
+      await inNote(`${"word ".repeat(400)}\n${"tail ".repeat(400)}`);
+      await p!.setSetting("max_context_chars", 500);
+      await p!.run("summarise");
+      await waitFor(() => expect(screen.getByText("Short.")).toBeTruthy());
+      const sent = JSON.parse(p!.net.requests[0].body!).messages.at(-1)
+        .content as string;
+      expect(sent.length).toBeLessThan(700);
+      expect(sent).not.toContain("tail");
+    });
+
+    it("with a drawing in the active tab, the drawing's text is used as before", async () => {
+      await start();
+      p!.vault.seedNotes({ "Plans/Trip.md": NOTE });
+      p!.workspace.setActiveNote(null);
+      p!.net.respond = () => ({ chunks: sse("Short.") });
+      await p!.run("summarise");
+      await waitFor(() => expect(screen.getByText("Short.")).toBeTruthy());
+      const sent = JSON.parse(p!.net.requests[0].body!).messages.at(-1)
+        .content as string;
+      expect(sent).toContain("Login page");
+      expect(sent).not.toContain("We leave");
+    });
   });
 
   it("an empty drawing is not sent", async () => {

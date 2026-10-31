@@ -911,6 +911,7 @@ fn gateway_allowlist_maps_methods_to_permissions() {
             ("vault.list", Some("vault.read")),
             ("file.read", Some("vault.read")),
             ("file.write", Some("vault.write")),
+            ("note.read", Some("vault.read")),
             ("vault.graph", Some("vault.read")),
             ("vault.graphLayout.load", Some("vault.read")),
             ("vault.graphLayout.save", Some("vault.write")),
@@ -1179,6 +1180,7 @@ fn corpus() -> Vec<(String, Kind, Option<String>)> {
             let kind = match r["kind"].as_str().unwrap() {
                 "file" => Kind::File,
                 "folder" => Kind::Folder,
+                "note" => Kind::Note,
                 k => panic!("kind {k}"),
             };
             (r["path"].as_str().unwrap().to_string(), kind, r["code"].as_str().map(str::to_string))
@@ -1248,6 +1250,49 @@ fn plugin_params_keep_only_what_a_call_needs() {
     assert_eq!(code(gateway::plugin_params("file.write", Some(json!({"path": "a.txt", "scene": {}})))), "INVALID_PATH");
     assert_eq!(code(gateway::plugin_params("file.write", Some(json!({"path": "a.excalidraw", "expectedRevision": "r"})))), "PERMISSION");
     assert_eq!(code(gateway::plugin_params("file.read", Some(json!([1])))), "INVALID_ARGUMENT");
+}
+
+#[test]
+fn note_read_returns_text_and_revision_and_changes_nothing() {
+    let (d, v) = vault(true);
+    let root = d.path();
+    fs::create_dir_all(root.join("sub")).unwrap();
+    fs::create_dir_all(root.join(".obsidian")).unwrap();
+    fs::write(root.join("sub/Plan 日本.md"), "# Plan\n\nBody #tag\n").unwrap();
+    fs::write(root.join("a.excalidraw.md"), "x").unwrap();
+    fs::write(root.join(".obsidian/n.md"), "x").unwrap();
+    fs::write(root.join("bin.md"), [0xff, 0xfe, 0x00]).unwrap();
+    fs::write(root.join("plain.txt"), "x").unwrap();
+    let got = gateway::note_read_in(&v, Some(json!({"path": "sub/Plan 日本.md"}))).unwrap();
+    assert_eq!(got["text"], "# Plan\n\nBody #tag\n");
+    assert_eq!(got["revision"], vaultdraw_core::revision("# Plan\n\nBody #tag\n".as_bytes()));
+    // a read-only vault reads, and nothing is created or changed
+    assert_eq!(fs::read_to_string(root.join("sub/Plan 日本.md")).unwrap(), "# Plan\n\nBody #tag\n");
+    assert!(!root.join(".excalidraw-vault/note-history").exists());
+    for (path, want) in [
+        ("missing.md", "NOT_FOUND"),
+        ("a.excalidraw.md", "INVALID_PATH"),
+        (".obsidian/n.md", "INVALID_PATH"),
+        ("plain.txt", "INVALID_PATH"),
+        ("../x.md", "INVALID_PATH"),
+        ("", "INVALID_PATH"),
+        ("bin.md", "INVALID_FILE"),
+        ("sub", "INVALID_PATH"),
+    ] {
+        assert_eq!(code(gateway::note_read_in(&v, Some(json!({"path": path})))), want, "{path:?}");
+    }
+    assert_eq!(code(gateway::note_read_in(&v, Some(json!({"file": "x.md"})))), "INVALID_ARGUMENT");
+    assert_eq!(code(gateway::note_read_in(&v, Some(json!([1])))), "INVALID_ARGUMENT");
+}
+
+#[cfg(unix)]
+#[test]
+fn note_read_refuses_a_symbolic_link() {
+    let (d, v) = vault(false);
+    fs::write(d.path().join("real.md"), "x").unwrap();
+    std::os::unix::fs::symlink(d.path().join("real.md"), d.path().join("link.md")).unwrap();
+    assert!(gateway::note_read_in(&v, Some(json!({"path": "link.md"}))).is_err());
+    assert!(gateway::note_read_in(&v, Some(json!({"path": "real.md"}))).is_ok());
 }
 
 #[test]

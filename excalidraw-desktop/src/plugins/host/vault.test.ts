@@ -60,7 +60,11 @@ describe("path rules against the shared corpus", () => {
       join(here, "../../../../sdk/api/test/vault-paths.json"),
       "utf8",
     ),
-  ) as { path: string; kind: "file" | "folder"; code: string | null }[];
+  ) as {
+    path: string;
+    kind: "file" | "folder" | "note";
+    code: string | null;
+  }[];
 
   it("has cases", () => {
     expect(corpus.length).toBeGreaterThan(20);
@@ -110,6 +114,86 @@ describe("ctx.vault permissions", () => {
     expect(ctx.workspace.activePath()).toBe("fake.excalidraw");
     t!.vault.setVault(null);
     expect(ctx.vault.info()).toBeNull();
+  });
+});
+
+describe("ctx.vault.readNote and ctx.workspace.activeNotePath", () => {
+  it("needs vault.read, before any native call", async () => {
+    await bootVault([]);
+    const calls = (getPluginsBackend() as ReturnType<typeof createFakeBackend>)
+      .gatewayCalls;
+    await expect(ctx.vault.readNote("a.md")).rejects.toMatchObject({
+      code: "PERMISSION",
+      permission: "vault.read",
+    });
+    expect(calls.filter((c) => c.method === "note.read")).toEqual([]);
+  });
+
+  it("returns the text exactly as stored, with a revision that follows the text", async () => {
+    await bootVault(["vault.read"]);
+    const text = "---\ntags: [a]\n---\n# Plan 日本\r\n\r\nBody #tag\n";
+    t!.vault.seedNotes({
+      "sub/Plan 日本.md": text,
+      "b.md": "one",
+      "c.md": "two",
+    });
+    const a = await ctx.vault.readNote("sub/Plan 日本.md");
+    expect(a.text).toBe(text);
+    const b = await ctx.vault.readNote("b.md");
+    const c = await ctx.vault.readNote("c.md");
+    expect(b.revision).not.toBe(c.revision);
+    expect((await ctx.vault.readNote("b.md")).revision).toBe(b.revision);
+  });
+
+  it("is read only: a call changes no note and no drawing", async () => {
+    await bootVault(["vault.read"]);
+    t!.vault.seedNotes({ "a.md": "x" });
+    t!.vault.seed({ "d.excalidraw": [rect] });
+    await ctx.vault.readNote("a.md");
+    expect(Object.keys(t!.vault.drawings())).toEqual(["d.excalidraw"]);
+    expect(t!.vault.saves()).toEqual([]);
+  });
+
+  it("says NOT_FOUND for a missing note and NO_VAULT without a vault", async () => {
+    await bootVault(["vault.read"]);
+    await expect(ctx.vault.readNote("missing.md")).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+    t!.vault.setVault(null);
+    await expect(ctx.vault.readNote("a.md")).rejects.toMatchObject({
+      code: "NO_VAULT",
+    });
+  });
+
+  it("refuses a drawing, a drawing in a Markdown file and a dot folder before the native call", async () => {
+    await bootVault(["vault.read"]);
+    const calls = (getPluginsBackend() as ReturnType<typeof createFakeBackend>)
+      .gatewayCalls;
+    const before = calls.length;
+    for (const path of [
+      "a.excalidraw",
+      "a.excalidraw.md",
+      ".obsidian/a.md",
+      "a.txt",
+      "",
+    ]) {
+      await expect(ctx.vault.readNote(path)).rejects.toMatchObject({
+        code: "INVALID_PATH",
+      });
+    }
+    await expect(ctx.vault.readNote(3 as never)).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+    expect(calls.length).toBe(before);
+  });
+
+  it("activeNotePath is free and follows the active tab", async () => {
+    await bootVault([]);
+    expect(ctx.workspace.activeNotePath()).toBeNull();
+    t!.workspace.setActiveNote("Daily/2026-10-27.md");
+    expect(ctx.workspace.activeNotePath()).toBe("Daily/2026-10-27.md");
+    t!.workspace.setActiveNote(null);
+    expect(ctx.workspace.activeNotePath()).toBeNull();
   });
 });
 

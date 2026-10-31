@@ -77,6 +77,15 @@ export function createVaultApi(rt: PluginRuntime): VaultApi {
       });
       return reply.entries;
     },
+    async readNote(path) {
+      need("note.read", "vault.read");
+      checkVaultPath(path, "note");
+      const reply = await call<{ text: string; revision: string }>(
+        "note.read",
+        { path },
+      );
+      return { text: reply.text, revision: reply.revision };
+    },
     async readDrawing(path) {
       need("file.read", "vault.read");
       checkVaultPath(path, "file");

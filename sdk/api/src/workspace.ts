@@ -19,6 +19,13 @@ export interface WorkspaceApi {
    */
   activePath(): string | null;
   /**
+   * The vault-relative path of the Markdown note shown in the active tab, or null when the active
+   * tab is a drawing or another kind of file. Free. Read it with `ctx.vault.readNote`.
+   *
+   * @since 1.3.0
+   */
+  activeNotePath(): string | null;
+  /**
    * The key label bound to "open this drawing" (in the user's notation for the platform, for
    * example "Ctrl+Alt+1"), or null when none is. Follows the user's own key bindings. Free.
    *

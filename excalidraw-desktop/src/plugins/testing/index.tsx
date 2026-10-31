@@ -56,6 +56,8 @@ import { setPluginSetting } from "../settings/pluginSettings";
 
 import { FakePdfBridge, makePages } from "../../tests/fakePdfBridge";
 
+import { checkVaultPath } from "../../../../sdk/api/shared/vaultPaths";
+
 import { createFakeScene, type FakeScene } from "./fakeScene";
 
 import type { FakeNet } from "../../../../sdk/api/testing/net";
@@ -149,6 +151,8 @@ export interface FakeStorage {
 
 /** The vault `ctx.vault` sees: the fake backend's drawings, seedable. */
 export interface FakeVault {
+  /** Replaces every note `ctx.vault.readNote` can read: path (ending in `.md`) to its text. */
+  seedNotes(notes: Record<string, string>): void;
   /** Replaces every drawing: path to elements. */
   seed(
     drawings: Record<string, readonly (NewElement & { id?: string })[]>,
@@ -175,6 +179,8 @@ export interface FakeVault {
 
 /** What `ctx.workspace` and the folders' `open()` did. */
 export interface FakeWorkspace {
+  /** The note shown in the active tab (`ctx.workspace.activeNotePath()`); null = a drawing is active. */
+  setActiveNote(path: string | null): void;
   opened(): { path: string; newTab: boolean }[];
   /** Absolute paths opened as a vault by `TargetFolder.open()` (new vaults). */
   openedVaults(): string[];
@@ -461,6 +467,7 @@ export async function boot(
   await host.startupDone;
 
   // The shell's bridge: the fake vault plus the fake scene stand in for the window.
+  let activeNote: string | null = null;
   let vaultInfo: { name: string; readOnly: boolean } | null = {
     name: "mock-vault",
     readOnly: false,
@@ -498,6 +505,7 @@ export async function boot(
   setWorkspaceBridge({
     vault: () => vaultInfo,
     activePath: () => getActiveScene()?.path ?? null,
+    activeNotePath: () => activeNote,
     drawingExists: async (path) => path in backend.drawings,
     openDrawing: async (path, newTab) => {
       opened.push({ path, newTab });
@@ -601,6 +609,12 @@ export async function boot(
     files: {},
   });
   const vault: FakeVault = {
+    seedNotes(notes) {
+      for (const path of Object.keys(notes)) {
+        checkVaultPath(path, "note");
+      }
+      backend.notes = { ...notes };
+    },
     seed(drawings) {
       backend.drawings = Object.fromEntries(
         Object.entries(drawings).map(([path, els]) => [
@@ -951,6 +965,12 @@ export async function boot(
     theme: fakeTheme,
     vault,
     workspace: {
+      setActiveNote(path) {
+        if (path !== null) {
+          checkVaultPath(path, "note");
+        }
+        activeNote = path;
+      },
       opened: () => opened.map((o) => ({ ...o })),
       openedVaults: () => [...openedVaults],
       revealed: () => [...revealed],

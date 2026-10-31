@@ -198,6 +198,8 @@ export interface FakeStorage {
 export interface FakeVault {
   /** Replaces every drawing: path to elements. Paths follow the plugin path rules. */
   seed(drawings: Record<string, readonly FakeElementInput[]>): void;
+  /** Replaces every note `ctx.vault.readNote` can read: path (ending in `.md`) to its text. */
+  seedNotes(notes: Record<string, string>): void;
   /** The drawings now (seeded or created by the plugin), by path. */
   drawings(): Record<string, readonly FakeElement[]>;
   /** The open vault; null = no vault is open (`NO_VAULT`). Default: a writable "mock-vault". */
@@ -220,6 +222,8 @@ export interface FakeVault {
 
 /** What `ctx.workspace` and `TargetFolder.open()` did. */
 export interface FakeWorkspace {
+  /** The note shown in the active tab (`ctx.workspace.activeNotePath()`); null = a drawing is active. */
+  setActiveNote(path: string | null): void;
   /** Every `open` call that succeeded. */
   opened(): { path: string; newTab: boolean }[];
   /** Folders opened as a vault by `TargetFolder.open()` (new vaults), as absolute paths. */

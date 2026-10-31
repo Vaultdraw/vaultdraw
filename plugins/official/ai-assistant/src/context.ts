@@ -11,6 +11,8 @@ export interface Context {
   summary: string;
   /** Characters dropped to stay under the limit. */
   cut: number;
+  /** What to tell the user when `text` is empty (default: the drawing is empty). */
+  emptyMessage?: string;
 }
 
 const round = (n: number) => Math.round(n);
@@ -83,3 +85,29 @@ export function pickElements(
   }
   return { elements: all, scope: "drawing" };
 }
+
+/** A note's text for a summary: cut at the limit on a line break when there is one. */
+export function noteText(text: string, name: string, limit: number): Context {
+  const clean = text.replace(/\r\n?/g, "\n").trim();
+  let out = clean;
+  let cut = 0;
+  if (out.length > limit) {
+    cut = out.length - limit;
+    out = out.slice(0, limit);
+    const at = out.lastIndexOf("\n");
+    if (at > limit / 2) {
+      out = out.slice(0, at);
+    }
+  }
+  const words = clean ? clean.split(/\s+/).length : 0;
+  return {
+    text: out,
+    summary: `Note "${name}": ${words} word${words === 1 ? "" : "s"}`,
+    cut,
+    emptyMessage: "This note is empty, so there is nothing to summarise.",
+  };
+}
+
+/** The note's display name: its file name without the folder and `.md`. */
+export const noteName = (path: string): string =>
+  path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");

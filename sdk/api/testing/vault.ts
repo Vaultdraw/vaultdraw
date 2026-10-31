@@ -121,6 +121,8 @@ export function createVaultModel(
   maxOps: () => number | undefined = () => undefined,
 ): VaultModel {
   const drawings = new Map<string, Stored>();
+  const notes = new Map<string, { text: string; revision: number }>();
+  let activeNote: string | null = null;
   let info: { name: string; readOnly: boolean } | null = { ...DEFAULT_INFO };
   let opened: { path: string; newTab: boolean }[] = [];
   let openedVaults: string[] = [];
@@ -145,6 +147,13 @@ export function createVaultModel(
   });
 
   const fake: FakeVault = {
+    seedNotes(next) {
+      notes.clear();
+      for (const [path, text] of Object.entries(next)) {
+        checkVaultPath(path, "note");
+        notes.set(path, { text, revision: notes.size + 1 });
+      }
+    },
     seed(next) {
       drawings.clear();
       for (const [path, els] of Object.entries(next)) {
@@ -173,6 +182,12 @@ export function createVaultModel(
         | undefined,
   };
   const workspace: FakeWorkspace = {
+    setActiveNote(path) {
+      if (path !== null) {
+        checkVaultPath(path, "note");
+      }
+      activeNote = path;
+    },
     opened: () => opened.map((o) => ({ ...o })),
     openedVaults: () => [...openedVaults],
     revealed: () => [...revealedFolders],
@@ -394,6 +409,16 @@ export function createVaultModel(
           needVault();
           return list(dir);
         },
+        async readNote(path) {
+          requirePermission(pluginId, permissions, "note.read", "vault.read");
+          checkVaultPath(path, "note");
+          needVault();
+          const n = notes.get(path);
+          if (!n) {
+            throw new PluginApiError("NOT_FOUND", "Note not found");
+          }
+          return { text: n.text, revision: `n${n.revision}` };
+        },
         async readDrawing(path) {
           requirePermission(pluginId, permissions, "file.read", "vault.read");
           checkVaultPath(path, "file");
@@ -554,6 +579,7 @@ export function createVaultModel(
           host.opened(path);
         },
         activePath: () => host.activePath(),
+        activeNotePath: () => activeNote,
         openShortcut: () => null,
         // The seeded drawings directly in `path` (folders are not modelled).
         useFolder: (path) =>
@@ -576,6 +602,8 @@ export function createVaultModel(
     isOpen: () => info !== null,
     reset() {
       drawings.clear();
+      notes.clear();
+      activeNote = null;
       info = { ...DEFAULT_INFO };
       opened = [];
       openedVaults = [];

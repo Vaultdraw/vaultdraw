@@ -1109,6 +1109,10 @@ export interface VaultApi {
         elements: readonly SceneElement[];
         revision: string;
     }>;
+    readNote(path: string): Promise<{
+        text: string;
+        revision: string;
+    }>;
     createDrawing(path: string, ops: readonly SceneOp[]): Promise<{
         path: string;
         revision: string;
@@ -1171,6 +1175,7 @@ export interface WorkspaceApi {
         newTab?: boolean;
     }): Promise<void>;
     activePath(): string | null;
+    activeNotePath(): string | null;
     openShortcut(path: string): string | null;
     useFolder(path: string): readonly FolderItem[] | undefined;
 }

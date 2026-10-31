@@ -87,7 +87,7 @@ test("Browse community plugins: no question, install, update and uninstall", asy
   await browser.getByLabel("Search plugins").fill("words");
   await expect(list.getByRole("option")).toHaveCount(1);
   await expect(browser.getByTestId("plugin-browser-permissions")).toContainText(
-    "Read the drawings in your vault",
+    "Read the drawings and notes in your vault",
   );
   await browser.getByRole("button", { name: "Install", exact: true }).click();
   await expect(page.getByText("Installed Word count")).toBeVisible();

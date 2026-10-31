@@ -200,5 +200,65 @@
     "kind": "file",
     "code": "INVALID_PATH",
     "note": "over 1024 bytes"
+  },
+  {
+    "path": "n.md",
+    "kind": "note",
+    "code": null,
+    "note": "a note"
+  },
+  {
+    "path": "sub/Deep Note 日本.MD",
+    "kind": "note",
+    "code": null,
+    "note": "suffix is case-insensitive"
+  },
+  {
+    "path": "a.excalidraw.md",
+    "kind": "note",
+    "code": "INVALID_PATH",
+    "note": "that is a drawing in a Markdown file"
+  },
+  {
+    "path": "n.txt",
+    "kind": "note",
+    "code": "INVALID_PATH",
+    "note": "not a note"
+  },
+  {
+    "path": "n.excalidraw",
+    "kind": "note",
+    "code": "INVALID_PATH",
+    "note": "a drawing is not a note"
+  },
+  {
+    "path": ".obsidian/n.md",
+    "kind": "note",
+    "code": "INVALID_PATH",
+    "note": "dot folder"
+  },
+  {
+    "path": "sub/.n.md",
+    "kind": "note",
+    "code": "INVALID_PATH",
+    "note": "dot file"
+  },
+  {
+    "path": "",
+    "kind": "note",
+    "code": "INVALID_PATH",
+    "note": "a note needs a path"
+  },
+  {
+    "path": "../n.md",
+    "kind": "note",
+    "code": "INVALID_PATH",
+    "note": "leaves the vault"
+  },
+  {
+    "path": "a\\n.md",
+    "kind": "note",
+    "code": "INVALID_PATH",
+    "note": "backslash"
   }
 ]
