@@ -263,6 +263,15 @@ export function useControlBridge(
             ? () => uriDeps(win, () => live.current.uri!)
             : undefined,
           onReady: (topics) => winEvents.setTopics(topics),
+          theme: {
+            backend: async () =>
+              (await import("../theme/install/backends")).getInstallBackend(
+                win,
+              ),
+            maxKb: () => getPreferences(win).themeInstallMaxKb,
+            reload: async () =>
+              (await import("../theme/registry")).reloadThemeRegistry(win),
+          },
         });
         const send = createSnapshotSender((commands) =>
           call("control_commands_snapshot", {

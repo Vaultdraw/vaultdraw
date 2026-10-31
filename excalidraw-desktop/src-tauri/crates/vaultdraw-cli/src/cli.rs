@@ -125,6 +125,11 @@ pub enum Command {
         #[command(subcommand)]
         action: TabAction,
     },
+    /// Install and manage themes (needs the app: it owns the install rules)
+    Theme {
+        #[command(subcommand)]
+        action: ThemeAction,
+    },
     /// Back the vault up to a zip (works without the app; the vault is only read)
     Backup {
         /// Folder for the zip (default: `[backup] folder` in config.toml); must be outside the vault
@@ -333,6 +338,21 @@ pub enum PluginAction {
         method: String,
         /// Params as a JSON value, or - to read them from standard input (default: {})
         params: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ThemeAction {
+    /// Install a theme from a web address: a theme file (.json) or a GitHub repository. Same checks as the install dialog; Offline mode and the theme downloads switch apply
+    Install {
+        /// A link to a theme file, or a GitHub repository (owner/repo or its web address)
+        url: String,
+        /// The theme to take from a repository that has several (its name or path)
+        #[arg(long, value_name = "NAME")]
+        theme: Option<String>,
+        /// Replace an installed theme of the same name that came from a download
+        #[arg(long)]
+        replace: bool,
     },
 }
 

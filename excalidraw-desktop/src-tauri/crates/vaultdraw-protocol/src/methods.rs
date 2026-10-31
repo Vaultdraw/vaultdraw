@@ -37,6 +37,7 @@ pub const TAB_FOCUS: &str = "tab.focus";
 pub const TAB_CLOSE: &str = "tab.close";
 pub const CONFIG_GET: &str = "config.get";
 pub const CONFIG_SET: &str = "config.set";
+pub const THEME_INSTALL: &str = "theme.install";
 pub const APP_QUIT: &str = "app.quit";
 pub const EVENTS_SUBSCRIBE: &str = "events.subscribe";
 pub const EVENTS_UNSUBSCRIBE: &str = "events.unsubscribe";
@@ -510,6 +511,21 @@ fn c3_methods() -> Vec<MethodSpec> {
             obj(json!({"key": {"type": ["string", "null"]}, "value": {}}), &["value"]),
             CLI_ONLY,
             false,
+        ),
+        spec(
+            THEME_INSTALL,
+            "Install a theme from a web address (a theme file or a GitHub repository), with the same checks as the app's install dialog; Offline mode and the theme downloads switch apply",
+            obj(
+                json!({
+                    "url": {"type": "string"},
+                    "theme": {"type": "string", "description": "The theme to take from a repository that has several"},
+                    "replace": {"type": "boolean", "description": "Replace an installed theme of the same name that came from a download"}
+                }),
+                &["url"],
+            ),
+            obj(json!({"name": {"type": "string"}}), &["name"]),
+            CLI_ONLY,
+            true,
         ),
         spec(
             CONFIG_SET,

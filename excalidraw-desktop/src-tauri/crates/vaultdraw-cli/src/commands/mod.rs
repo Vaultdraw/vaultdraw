@@ -11,6 +11,7 @@ mod plugin;
 mod profile;
 mod scene;
 mod tabs;
+mod theme;
 mod uri;
 
 use crate::cli::{Cli, CmdAction, CmdArgs, Command, ConfigAction};
@@ -64,6 +65,7 @@ pub fn run(cli: &Cli) -> Result<(), Fail> {
         Command::Plugin { action } => plugin::run(cli, action),
         Command::Tabs => tabs::list(cli),
         Command::Tab { action } => tabs::run(cli, action),
+        Command::Theme { action } => theme::run(cli, action),
         Command::Config { action: ConfigAction::Check { strict } } => diag::config_check(cli, *strict),
         Command::Config { action: ConfigAction::Schema } => diag::config_schema(),
         Command::Config { action } => app::config(cli, action),

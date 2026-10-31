@@ -163,6 +163,12 @@ echo '[...]' | vaultdraw scene create Ideas/new   # a new drawing from operation
 - The `scene.*` methods are experimental. Their names and shapes may change before API level 2.
 - AI apps will reach the same methods through the AI tools interface, which is refused unless you turn AI on in Settings → Control (off by default; see [AI](docs/configuration.md#ai)).
 
+### Install a theme
+
+```bash
+vaultdraw theme install owner/repo --theme "Night Owl"   # a theme file or a GitHub repository; same checks as the app; see docs/cli.md
+```
+
 ### Plugin commands
 
 ```bash

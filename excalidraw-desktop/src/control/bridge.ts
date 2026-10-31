@@ -11,6 +11,7 @@ import { ControlError, toControlError } from "./errors";
 import { objectParams, stringParam } from "./params";
 import { createPluginMethods } from "./pluginMethods";
 import { createLazySceneMethods } from "./sceneLazy";
+import { createThemeMethods, type ThemeDeps } from "./themeMethods";
 import { createUriRunner, type UriDeps, type UriPlan } from "./uriRun";
 import { createWindowMethods, type ControlFiles } from "./windowMethods";
 
@@ -54,6 +55,8 @@ export interface ControlDeps {
    * this bridge's own handlers. Absent = `uri.run` is not registered.
    */
   uri?: () => Omit<UriDeps, "call">;
+  /** The theme installer behind `theme.install`; absent = the method is not registered. */
+  theme?: ThemeDeps;
   /** The scene.* handlers (default: lazy, see sceneLazy.ts); tests inject their own. */
   scene?: Record<string, (params: unknown) => unknown>;
 }
@@ -98,6 +101,7 @@ export function createControlBridge(deps: ControlDeps) {
     ...(deps.files
       ? createWindowMethods(deps.files, (blob) => spoolBlob(deps.invoke, blob))
       : {}),
+    ...(deps.theme ? createThemeMethods(deps.theme) : {}),
     ...(deps.scene ?? createLazySceneMethods()),
   };
 

@@ -35,3 +35,14 @@ Everything below is checked end to end by `excalidraw-desktop/scripts/linux-cont
 ### Headless reads
 
 With the app closed, `vaultdraw --vault <folder> ls` and `cat` read the vault directly (no display needed). With the app running, reads go through the app and `--offline` is refused.
+
+## Install a theme
+
+```sh
+vaultdraw theme install https://example.com/night.json     # a theme file
+vaultdraw theme install owner/repo                         # a GitHub repository (or its web address)
+vaultdraw theme install owner/repo --theme "Night Owl"     # one theme of a repository that has several
+vaultdraw theme install <url> --replace                    # replace an installed theme of the same name
+```
+
+This needs the running app. It runs the same installer as **Themes: Install from URL or GitHub repo**, so the rules are the same: only http and https addresses, no private or local addresses, a file size cap (`[themes] max_install_kb`), and a check that the file is a valid theme before anything is written. A theme you wrote yourself is never replaced. **Offline mode** and the theme downloads switch (`network.allow_themes`) apply: the command fails and says so. A repository with several themes needs `--theme`; the error lists their names. `--json` prints `{"name": …}`.

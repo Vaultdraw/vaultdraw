@@ -6,8 +6,11 @@ import { themeNameProblem } from "./themeName";
 import { InstallError } from "./types";
 
 import type {
+  Fetched,
   InstallBackend,
   InstalledTheme,
+  RepoTheme,
+  Resolved,
   ThemeSource,
   UpdateFetch,
 } from "./types";
@@ -78,6 +81,96 @@ export const validateCandidate = (
     throw bad(`That theme's name cannot be used: ${nameProblem}`);
   }
   return name;
+};
+
+/** The candidate for a theme file found at one address. */
+export const fileCandidate = (
+  resolved: Extract<Resolved, { kind: "file" }>,
+): Candidate => ({
+  json: resolved.json,
+  fallbackName: resolved.name,
+  source: { url: resolved.url, sha256: resolved.sha256 },
+});
+
+/** The candidate for one theme of a repository, after its file was downloaded. */
+export const repoCandidate = (
+  repo: Extract<Resolved, { kind: "repo" }>,
+  theme: RepoTheme,
+  got: Fetched,
+): Candidate => ({
+  json: got.json,
+  fallbackName: theme.name,
+  source: {
+    repo: `${repo.owner}/${repo.repo}`,
+    path: theme.path,
+    commit: repo.commit,
+    ref: repo.ref,
+    sha256: got.sha256,
+    url: got.url,
+  },
+});
+
+/** Downloads one theme of a repository. */
+export const fetchRepoCandidate = async (
+  backend: InstallBackend,
+  repo: Extract<Resolved, { kind: "repo" }>,
+  theme: RepoTheme,
+  maxBytes: number,
+): Promise<Candidate> =>
+  repoCandidate(
+    repo,
+    theme,
+    await backend.fetch(
+      {
+        kind: "repo",
+        owner: repo.owner,
+        repo: repo.repo,
+        commit: repo.commit,
+        path: theme.path,
+      },
+      maxBytes,
+    ),
+  );
+
+/**
+ * Installs the theme at `input` (a file address or a repository) the way the install dialog does:
+ * the same lookup, the same checks, the same write. A repository with several themes needs `theme`
+ * (a name or a path in it). Throws InstallError.
+ */
+export const installFromInput = async (
+  backend: InstallBackend,
+  input: string,
+  options: { theme?: string; replace?: boolean; maxBytes: number },
+): Promise<string> => {
+  const resolved = await backend.resolve(input.trim(), options.maxBytes);
+  if (resolved.kind === "file") {
+    return installCandidate(backend, fileCandidate(resolved), options);
+  }
+  const wanted = options.theme?.toLowerCase();
+  const names = resolved.themes.map((t) => t.name).join(", ");
+  const match = wanted
+    ? resolved.themes.find(
+        (t) =>
+          t.name.toLowerCase() === wanted || t.path.toLowerCase() === wanted,
+      )
+    : resolved.themes.length === 1
+    ? resolved.themes[0]
+    : undefined;
+  if (!match) {
+    throw new InstallError(
+      "THEME_NOT_CHOSEN",
+      wanted
+        ? `No theme called ${options.theme} in that repository. It has: ${names}`
+        : `That repository has several themes (${names}). Say which one to install`,
+    );
+  }
+  const cand = await fetchRepoCandidate(
+    backend,
+    resolved,
+    match,
+    options.maxBytes,
+  );
+  return installCandidate(backend, cand, options);
 };
 
 /** The file's JSON with its `name` set, so a renamed copy shows under its new name. */

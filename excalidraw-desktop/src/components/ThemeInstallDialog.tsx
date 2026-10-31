@@ -7,6 +7,8 @@ import { getInstallBackend } from "../theme/install/backends";
 import {
   applyUpdate,
   checkUpdates,
+  fetchRepoCandidate,
+  fileCandidate,
   freeName,
   installCandidate,
   kibToBytes,
@@ -97,30 +99,12 @@ export const ThemeInstallDialog = ({
     repo: Extract<Resolved, { kind: "repo" }>,
     theme: RepoTheme,
   ): Promise<Step> => {
-    const got = await (
-      await backend()
-    ).fetch(
-      {
-        kind: "repo",
-        owner: repo.owner,
-        repo: repo.repo,
-        commit: repo.commit,
-        path: theme.path,
-      },
+    const cand = await fetchRepoCandidate(
+      await backend(),
+      repo,
+      theme,
       maxBytes,
     );
-    const cand: Candidate = {
-      json: got.json,
-      fallbackName: theme.name,
-      source: {
-        repo: `${repo.owner}/${repo.repo}`,
-        path: theme.path,
-        commit: repo.commit,
-        ref: repo.ref,
-        sha256: got.sha256,
-        url: got.url,
-      },
-    };
     return {
       k: "confirm",
       cand,
@@ -130,11 +114,7 @@ export const ThemeInstallDialog = ({
 
   const toCandidate = async (resolved: Resolved): Promise<Step> => {
     if (resolved.kind === "file") {
-      const cand: Candidate = {
-        json: resolved.json,
-        fallbackName: resolved.name,
-        source: { url: resolved.url, sha256: resolved.sha256 },
-      };
+      const cand = fileCandidate(resolved);
       return {
         k: "confirm",
         cand,

@@ -1519,6 +1519,46 @@
       "window": false
     },
     {
+      "name": "theme.install",
+      "params": {
+        "additionalProperties": true,
+        "properties": {
+          "replace": {
+            "description": "Replace an installed theme of the same name that came from a download",
+            "type": "boolean"
+          },
+          "theme": {
+            "description": "The theme to take from a repository that has several",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "roles": [
+        "cli"
+      ],
+      "summary": "Install a theme from a web address (a theme file or a GitHub repository), with the same checks as the app's install dialog; Offline mode and the theme downloads switch apply",
+      "window": true
+    },
+    {
       "name": "config.set",
       "params": {
         "additionalProperties": true,

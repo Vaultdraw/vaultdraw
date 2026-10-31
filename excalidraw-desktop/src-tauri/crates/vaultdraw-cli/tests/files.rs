@@ -54,6 +54,10 @@ fn app(method: &str, params: &Value) -> Reply {
         "tab.list" => Ok(tabs_result()),
         "tab.focus" => Ok(json!({"id":"t3"})),
         "tab.close" => Ok(json!({"closed":true})),
+        "theme.install" => match params["url"].as_str() {
+            Some("https://example.com/none.json") => Err((-32000, "Offline mode is on".into(), Some("NETWORK_NOT_ALLOWED"))),
+            _ => Ok(json!({"name":"Night Owl"})),
+        },
         "config.get" => Ok(json!({"key":params["key"],"value":match params["key"].as_str() { Some("ui.name") => json!("dark"), Some(_) => json!(12), None => json!({"ui":{"name":"dark"}}) }})),
         "config.set" => Ok(json!({"changed":1})),
         "app.quit" => Ok(json!({"quitting":true})),
@@ -387,4 +391,23 @@ fn completions_still_work_with_the_new_commands() {
     for c in ["ls", "search", "backlinks", "expected-revision", "events"] {
         assert!(text.contains(c), "{c} missing from the zsh completions");
     }
+}
+
+#[test]
+fn theme_install_params_and_output() {
+    let (o, seen) = run(&["theme", "install", "https://example.com/night.json"]);
+    assert_eq!(code(&o), 0, "{}", err(&o));
+    assert_eq!(seen[0]["method"], "theme.install");
+    assert_eq!(params_of(&seen, 0), json!({"url":"https://example.com/night.json"}));
+    assert_eq!(out(&o), "installed Night Owl\n");
+    let (o, seen) = run(&["theme", "install", "owner/repo", "--theme", "Night", "--replace", "--json"]);
+    assert_eq!(params_of(&seen, 0), json!({"url":"owner/repo","theme":"Night","replace":true}));
+    assert_eq!(parse(&out(&o))["name"], "Night Owl");
+}
+
+#[test]
+fn theme_install_refusal_is_an_error_with_the_apps_words() {
+    let (o, _) = run(&["theme", "install", "https://example.com/none.json"]);
+    assert_ne!(code(&o), 0);
+    assert!(err(&o).contains("Offline mode is on"), "{}", err(&o));
 }

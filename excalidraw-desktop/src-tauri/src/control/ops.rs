@@ -19,6 +19,8 @@ type Reply = Result<Value, RpcError>;
 const QUIT_DELAY: Duration = Duration::from_millis(100);
 /// Rendering a drawing to a file (`export.render`) takes longer than the other window calls.
 const EXPORT_TIMEOUT: Duration = Duration::from_secs(120);
+/// Installing a theme downloads from the internet: it gets longer than the other window calls.
+const THEME_TIMEOUT: Duration = Duration::from_secs(60);
 /// A control call that reads the index waits this long for the first build of a vault's index.
 const INDEX_WAIT: Duration = Duration::from_secs(10);
 /// After a create, move or trash the reply waits this long for the index to show the change.
@@ -56,6 +58,7 @@ pub(crate) fn call(app: &AppHandle, method: &str, params: Option<Value>) -> Repl
         CONFIG_SET => config_ops::set(&dirs()?, &params),
         APP_QUIT => Ok(quit(app)),
         VAULT_OPEN | TAB_LIST => call_window(app, method, Some(params), CALL_TIMEOUT),
+        THEME_INSTALL => call_window(app, method, Some(params), THEME_TIMEOUT),
         FILE_OPEN => window_with_target(app, method, params, Need::File, CALL_TIMEOUT),
         FILE_TRASH => {
             let reply = window_with_target(app, method, params, Need::File, CALL_TIMEOUT)?;
