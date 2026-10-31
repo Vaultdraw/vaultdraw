@@ -49,6 +49,8 @@ type Item = {
   source: string;
   /** Text: [start, end) of the token in `source`. Shape: null. */
   span: [number, number] | null;
+  /** The element id of `[[x#^id]]` / `anchor=^id`, kept when the drawing is renamed. */
+  anchor: string | null;
   snippet: string;
   highlights: [number, number][];
 };
@@ -106,6 +108,7 @@ function scanItems(json: string): Item[] {
           kind: "text",
           target: span.target,
           label: span.label,
+          anchor: span.anchor,
           relative:
             span.target.startsWith("./") || span.target.startsWith("../"),
           source,
@@ -124,6 +127,7 @@ function scanItems(json: string): Item[] {
           kind: "shape",
           target: field.target,
           label: null,
+          anchor: field.anchor ?? null,
           relative: !!field.relative,
           source: el.link,
           span: null,
@@ -360,8 +364,8 @@ export class FakeVaultLinks implements VaultLinks {
         const target = this.writeTarget(it, expected, nSource, after, format);
         const value =
           it.kind === "text"
-            ? wikiLink(target, it.label)
-            : this.shapeValue(it.source, target, nSource, expected);
+            ? wikiLink(target, it.label, it.anchor)
+            : this.shapeValue(it.source, target, nSource, expected, it.anchor);
         const list = bySource.get(it.elementId) ?? [];
         list.push({ item: it, value });
         bySource.set(it.elementId, list);
@@ -418,12 +422,13 @@ export class FakeVaultLinks implements VaultLinks {
     target: string,
     nSource: string,
     expected: string,
+    anchor: string | null,
   ): string {
     if (old.startsWith("vaultdraw://")) {
-      return encodeVaultUrl(target);
+      return encodeVaultUrl(target, anchor);
     }
     if (old.startsWith("[[")) {
-      return wikiLink(target);
+      return wikiLink(target, null, anchor);
     }
     const rel = relativePath(nSource, expected);
     return old.startsWith("./") && !rel.startsWith("../") ? `./${rel}` : rel;

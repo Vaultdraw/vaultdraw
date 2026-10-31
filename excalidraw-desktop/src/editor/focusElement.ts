@@ -24,14 +24,31 @@ export function focusElement(
     ?.containerId;
   const resolved =
     byId(target.containerId) ?? byId(ownContainerId ?? null) ?? own;
-  if (!resolved) {
+  // A link made from a group ("Copy link to object" on several shapes) names the group.
+  const members = resolved
+    ? []
+    : elements.filter(
+        (el) => !el.isDeleted && el.groupIds.includes(target.elementId),
+      );
+  if (!resolved && members.length === 0) {
     return false;
   }
+  const box = resolved
+    ? resolved
+    : (() => {
+        const x1 = Math.min(...members.map((m) => m.x));
+        const y1 = Math.min(...members.map((m) => m.y));
+        const x2 = Math.max(...members.map((m) => m.x + m.width));
+        const y2 = Math.max(...members.map((m) => m.y + m.height));
+        return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
+      })();
 
   api.updateScene({
     appState: {
-      selectedElementIds: { [resolved.id]: true },
-      selectedGroupIds: {},
+      selectedElementIds: resolved
+        ? { [resolved.id]: true }
+        : Object.fromEntries(members.map((m) => [m.id, true])),
+      selectedGroupIds: resolved ? {} : { [target.elementId]: true },
       editingGroupId: null,
     },
     captureUpdate: "NEVER",
@@ -39,14 +56,14 @@ export function focusElement(
 
   const pad = Math.max(
     MIN_PADDING,
-    Math.max(resolved.width, resolved.height) * PADDING_RATIO,
+    Math.max(box.width, box.height) * PADDING_RATIO,
   );
   api.setViewport({
     target: [
-      resolved.x - pad,
-      resolved.y - pad,
-      resolved.x + resolved.width + pad,
-      resolved.y + resolved.height + pad,
+      box.x - pad,
+      box.y - pad,
+      box.x + box.width + pad,
+      box.y + box.height + pad,
     ],
     fit: "scale-down",
     animation: true,

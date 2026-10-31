@@ -8,6 +8,7 @@ import { sceneCoordsToViewportCoords } from "@excalidraw/common";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
+import { spanRaw } from "../../links/format";
 import { DEFAULT_LINKS_SETTINGS } from "../../links/types";
 
 import { targetOf } from "./onLinkOpen";
@@ -106,7 +107,7 @@ export function collectHintTargets(
       for (const hit of textLinksWithGeometry(el, measure)) {
         const f = hit.fragments[0];
         if (f) {
-          add(`[[${hit.span.target}]]`, el, f.x1, f.top);
+          add(spanRaw(hit.span), el, f.x1, f.top);
         }
       }
     }

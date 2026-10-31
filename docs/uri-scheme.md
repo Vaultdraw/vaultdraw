@@ -10,6 +10,7 @@ Nothing happens behind your back: opening and searching only change what you see
 | --- | --- | --- |
 | `vaultdraw://` or `vaultdraw://focus` | Brings the window to the front. | No |
 | `vaultdraw://open?file=Graphs/BFS` | Opens the drawing (`.excalidraw` is optional). Add `&newTab=1` for a new tab. | No |
+| `vaultdraw://open?file=Graphs/BFS&anchor=%5Eabc123` | Opens the drawing and selects and scrolls to the element with that id (`anchor` is `^` and the id). If the element is gone, the drawing opens and a notice says so. | No |
 | `vaultdraw://open?vault=DSA&file=Graphs/BFS` | Opens it in the vault named `DSA`. | Only if `DSA` is not the open vault |
 | `vaultdraw://open?vault=DSA` | Switches to the vault. | Yes |
 | `vaultdraw://search?query=dijkstra` | Opens the search with the text filled in. Nothing is run on a result. | No |
@@ -89,4 +90,4 @@ To undo it, delete those two files and run the two `update-*` commands. This has
 
 ## Not yet
 
-A link cannot yet carry a template or content for `new`, point at an element, or open a folder as a vault. A file from outside cannot be opened without copying it or opening its folder as a vault. If you open a library file before any drawing is open, Vaultdraw asks you to open a drawing first (the library merges in the editor). Windows file types are not registered.
+A link cannot yet carry a template or content for `new`, or open a folder as a vault. A file from outside cannot be opened without copying it or opening its folder as a vault. If you open a library file before any drawing is open, Vaultdraw asks you to open a drawing first (the library merges in the editor). Windows file types are not registered.

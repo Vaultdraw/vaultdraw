@@ -121,7 +121,20 @@ describe("window methods (C3)", () => {
     expect(
       await call("file.open", { path: "a.excalidraw", newTab: true }),
     ).toEqual({ path: "a.excalidraw", opened: true });
-    expect(files.openDrawing).toHaveBeenCalledWith("a.excalidraw", true);
+    expect(files.openDrawing).toHaveBeenCalledWith(
+      "a.excalidraw",
+      true,
+      undefined,
+    );
+    await call("file.open", { path: "a.excalidraw", element: "k9" });
+    expect(files.openDrawing).toHaveBeenLastCalledWith(
+      "a.excalidraw",
+      false,
+      "k9",
+    );
+    expect(
+      (await call("file.open", { path: "a.excalidraw", element: 7 })).error.code,
+    ).toBe("INVALID_PARAMS");
     expect((await call("file.open", { path: "../x" })).error.code).toBe(
       "INVALID_PARAMS",
     );

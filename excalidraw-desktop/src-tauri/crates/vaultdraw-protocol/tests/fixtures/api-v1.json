@@ -1013,6 +1013,9 @@
       "params": {
         "additionalProperties": true,
         "properties": {
+          "element": {
+            "type": "string"
+          },
           "file": {
             "type": "string"
           },
@@ -1046,7 +1049,7 @@
         "cli",
         "uri"
       ],
-      "summary": "Open a drawing in the window, optionally in a new tab (one of path or file)",
+      "summary": "Open a drawing in the window, optionally in a new tab and with one element selected and scrolled to (one of path or file)",
       "window": true
     },
     {

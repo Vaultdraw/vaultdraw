@@ -30,8 +30,22 @@ pub fn search(cli: &Cli, query: &str, limit: Option<u32>) -> Result<(), Fail> {
     read_request(cli, methods::VAULT_SEARCH, Some(p), render::search)
 }
 
+/// `Drawing#^id` -> (`Drawing`, Some(`id`)): the element to select, as in Obsidian's block links.
+/// A `vaultdraw:` link keeps its own `anchor`.
+fn split_element(t: &str) -> (&str, Option<&str>) {
+    if t.starts_with("vaultdraw:") {
+        (t, None)
+    } else {
+        vaultdraw_core::links::grammar::split_anchor(t)
+    }
+}
+
 pub fn open(cli: &Cli, t: &str, new_tab: bool, wait: bool) -> Result<(), Fail> {
+    let (t, element) = split_element(t);
     let mut p = target(cli, t);
+    if let Some(id) = element {
+        p.insert("element".into(), json!(id));
+    }
     if new_tab {
         p.insert("newTab".into(), json!(true));
     }

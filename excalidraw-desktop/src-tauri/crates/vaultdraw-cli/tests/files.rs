@@ -394,6 +394,19 @@ fn completions_still_work_with_the_new_commands() {
 }
 
 #[test]
+fn open_with_an_element_anchor_sends_the_element() {
+    let (o, seen) = run(&["open", "Graphs/BFS#^k9_-", "--new-tab"]);
+    assert_eq!(code(&o), 0, "{}", err(&o));
+    assert_eq!(seen[0]["method"], "file.open");
+    assert_eq!(params_of(&seen, 0), json!({"path":"Graphs/BFS","element":"k9_-","newTab":true}));
+    // Not an id after `#^`: the whole text is the name, as before.
+    let (_, seen) = run(&["open", "a#^b c"]);
+    assert_eq!(params_of(&seen, 0), json!({"file":"a#^b c"}));
+    let (_, seen) = run(&["open", "BFS#^k9", "--file"]);
+    assert_eq!(params_of(&seen, 0), json!({"file":"BFS","element":"k9"}));
+}
+
+#[test]
 fn theme_install_params_and_output() {
     let (o, seen) = run(&["theme", "install", "https://example.com/night.json"]);
     assert_eq!(code(&o), 0, "{}", err(&o));

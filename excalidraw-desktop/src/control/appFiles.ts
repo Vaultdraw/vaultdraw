@@ -33,6 +33,8 @@ export interface AppFilesDeps {
     path: string,
     opts?: { target?: OpenTarget },
   ) => Promise<boolean>;
+  /** Selects and scrolls to an element of the open drawing (`file.open` with `element`). */
+  focusElement?: (path: string, elementId: string) => void;
   /** Throwing cores. */
   createEntry: (parent: string, name: string, json?: string) => Promise<void>;
   moveEntry: (
@@ -111,7 +113,7 @@ export function createAppFiles(d: AppFilesDeps): ControlFiles {
       }
     },
     openVault: async (path) => summary(await d.openVaultAt(path)),
-    openDrawing: async (path, newTab) => {
+    openDrawing: async (path, newTab, element) => {
       const opened = await d.openDrawing(
         path,
         newTab ? { target: "new" } : undefined,
@@ -119,6 +121,9 @@ export function createAppFiles(d: AppFilesDeps): ControlFiles {
       // A note opens in the note editor: there is no drawing editor to wait for (toimprove 206).
       if (opened && fileKind(path) !== "note") {
         await editorShows(path);
+        if (element) {
+          d.focusElement?.(path, element);
+        }
       }
       return opened;
     },

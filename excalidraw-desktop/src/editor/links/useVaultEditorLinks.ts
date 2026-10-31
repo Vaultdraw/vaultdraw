@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { registerCommandHandlers } from "../../commands/handlerRegistry";
+import { toastStore } from "../../toasts/toastStore";
 import { wikiLink } from "../../links/format";
 import { DEFAULT_LINKS_SETTINGS } from "../../links/types";
 import { DEFAULT_TAGS_SETTINGS } from "../../tags/types";
@@ -132,6 +133,21 @@ export function useVaultEditorLinks(
         const { api: b, controller: c } = live.current;
         if (path && b) {
           insertLinkText(b, caret, wikiLink(c.targetFor(path, names)));
+        }
+      },
+      "links.copyElementLink": async () => {
+        const text = live.current.controller.selectionLinkText();
+        if (!text) {
+          toastStore.push({
+            message: "Select one element, or a group, to copy its link",
+          });
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          toastStore.push({ message: `Copied ${text}` });
+        } catch {
+          toastStore.push({ message: "Could not copy the link" });
         }
       },
       "links.openUnderSelection": () => {

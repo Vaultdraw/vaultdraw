@@ -8,7 +8,8 @@
           "start": 4,
           "end": 19,
           "target": "BFS and DFS",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -19,7 +20,8 @@
           "start": 0,
           "end": 34,
           "target": "Graphs/Dijkstra",
-          "label": "shortest paths"
+          "label": "shortest paths",
+          "anchor": null
         }
       ]
     },
@@ -30,13 +32,15 @@
           "start": 4,
           "end": 9,
           "target": "a",
-          "label": null
+          "label": null,
+          "anchor": null
         },
         {
           "start": 14,
           "end": 21,
           "target": "b",
-          "label": "B"
+          "label": "B",
+          "anchor": null
         }
       ]
     },
@@ -55,7 +59,8 @@
           "start": 5,
           "end": 13,
           "target": "Café",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -66,7 +71,8 @@
           "start": 13,
           "end": 35,
           "target": "Notes/x",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -81,13 +87,15 @@
           "start": 3,
           "end": 11,
           "target": "Café",
-          "label": null
+          "label": null,
+          "anchor": null
         },
         {
           "start": 15,
           "end": 22,
           "target": "b",
-          "label": "ß"
+          "label": "ß",
+          "anchor": null
         }
       ]
     },
@@ -98,7 +106,8 @@
           "start": 4,
           "end": 9,
           "target": "b",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -109,7 +118,8 @@
           "start": 1,
           "end": 6,
           "target": "a",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -124,7 +134,8 @@
           "start": 0,
           "end": 5,
           "target": "a",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -135,7 +146,8 @@
           "start": 0,
           "end": 7,
           "target": "x",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -146,13 +158,15 @@
           "start": 0,
           "end": 6,
           "target": "a",
-          "label": null
+          "label": null,
+          "anchor": null
         },
         {
           "start": 7,
           "end": 16,
           "target": "b",
-          "label": "c"
+          "label": "c",
+          "anchor": null
         }
       ]
     },
@@ -163,7 +177,8 @@
           "start": 0,
           "end": 9,
           "target": "a",
-          "label": "b|c"
+          "label": "b|c",
+          "anchor": null
         }
       ]
     },
@@ -174,7 +189,8 @@
           "start": 0,
           "end": 16,
           "target": "x",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -189,13 +205,15 @@
           "start": 9,
           "end": 14,
           "target": "a",
-          "label": null
+          "label": null,
+          "anchor": null
         },
         {
           "start": 17,
           "end": 22,
           "target": "b",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -210,7 +228,8 @@
           "start": 15,
           "end": 22,
           "target": "a\\b",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -221,7 +240,8 @@
           "start": 0,
           "end": 260,
           "target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -236,7 +256,8 @@
           "start": 0,
           "end": 260,
           "target": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
-          "label": null
+          "label": null,
+          "anchor": null
         }
       ]
     },
@@ -247,88 +268,228 @@
     {
       "input": "]] [[ ]] [[| x]] [[a",
       "links": []
+    },
+    {
+      "input": "See [[BFS and DFS#^abc123]] now",
+      "links": [
+        {
+          "start": 4,
+          "end": 27,
+          "target": "BFS and DFS",
+          "label": null,
+          "anchor": "abc123"
+        }
+      ]
+    },
+    {
+      "input": "[[Graphs/BFS.excalidraw#^id_1-x|the queue]]",
+      "links": [
+        {
+          "start": 0,
+          "end": 43,
+          "target": "Graphs/BFS",
+          "label": "the queue",
+          "anchor": "id_1-x"
+        }
+      ]
+    },
+    {
+      "input": "[[a #^b]]",
+      "links": [
+        {
+          "start": 0,
+          "end": 9,
+          "target": "a",
+          "label": null,
+          "anchor": "b"
+        }
+      ]
+    },
+    {
+      "input": "[[a#^]]",
+      "links": [
+        {
+          "start": 0,
+          "end": 7,
+          "target": "a#^",
+          "label": null,
+          "anchor": null
+        }
+      ]
+    },
+    {
+      "input": "[[a#^b c]]",
+      "links": [
+        {
+          "start": 0,
+          "end": 10,
+          "target": "a#^b c",
+          "label": null,
+          "anchor": null
+        }
+      ]
+    },
+    {
+      "input": "[[#^b]]",
+      "links": [
+        {
+          "start": 0,
+          "end": 7,
+          "target": "#^b",
+          "label": null,
+          "anchor": null
+        }
+      ]
+    },
+    {
+      "input": "[[a#head]]",
+      "links": [
+        {
+          "start": 0,
+          "end": 10,
+          "target": "a#head",
+          "label": null,
+          "anchor": null
+        }
+      ]
+    },
+    {
+      "input": "[[a#^x#^y]]",
+      "links": [
+        {
+          "start": 0,
+          "end": 11,
+          "target": "a#^x",
+          "label": null,
+          "anchor": "y"
+        }
+      ]
     }
   ],
   "linkField": [
     {
       "input": "[[BFS and DFS]]",
-      "target": "BFS and DFS"
+      "target": "BFS and DFS",
+      "anchor": null
     },
     {
       "input": "vaultdraw://open?file=Graphs/BFS%20and%20DFS",
-      "target": "Graphs/BFS and DFS"
+      "target": "Graphs/BFS and DFS",
+      "anchor": null
     },
     {
       "input": "./x.excalidraw",
       "target": "./x",
-      "relative": true
+      "relative": true,
+      "anchor": null
     },
     {
       "input": "x.excalidraw",
       "target": "x",
-      "relative": true
+      "relative": true,
+      "anchor": null
     },
     {
       "input": "https://example.com",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "/some/path",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "vaultdraw://open?file=a%20b&anchor=%5Ex",
-      "target": "a b"
+      "target": "a b",
+      "anchor": "x"
     },
     {
       "input": "vaultdraw://open?path=x.excalidraw",
-      "target": "x"
+      "target": "x",
+      "anchor": null
     },
     {
       "input": "vaultdraw://open?file=",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "vaultdraw://open?anchor=x",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "[[a|b]]",
-      "target": "a"
+      "target": "a",
+      "anchor": null
     },
     {
       "input": "[[ ]]",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "../x/y.excalidraw",
       "target": "../x/y",
-      "relative": true
+      "relative": true,
+      "anchor": null
     },
     {
       "input": "sub/x.excalidraw",
       "target": "sub/x",
-      "relative": true
+      "relative": true,
+      "anchor": null
     },
     {
       "input": "./x",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "mailto:a@b.c",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "https://x.com/a.excalidraw",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "",
-      "target": null
+      "target": null,
+      "anchor": null
     },
     {
       "input": "[[Café]]",
-      "target": "Café"
+      "target": "Café",
+      "anchor": null
+    },
+    {
+      "input": "[[Graphs/BFS#^k9]]",
+      "target": "Graphs/BFS",
+      "anchor": "k9"
+    },
+    {
+      "input": "vaultdraw://open?file=Graphs/BFS&anchor=%5Ek9",
+      "target": "Graphs/BFS",
+      "anchor": "k9"
+    },
+    {
+      "input": "vaultdraw://open?file=a&anchor=k9",
+      "target": "a",
+      "anchor": null
+    },
+    {
+      "input": "vaultdraw://open?file=a&anchor=%5E",
+      "target": "a",
+      "anchor": null
+    },
+    {
+      "input": "./x.excalidraw#^k9",
+      "target": null,
+      "anchor": null
     }
   ]
 }

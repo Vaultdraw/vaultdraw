@@ -4,6 +4,11 @@
 //! brackets, no `[` or lone `]` inside, non-blank target; a `.excalidraw` suffix is stripped.
 //! Link field of an element: `[[x]]`, `vaultdraw://open?file=<percent-encoded>`, or a
 //! relative `./x.excalidraw` / `x.excalidraw`. `http(s)://…` and `/abs` are not drawing links.
+//!
+//! Element anchor: `[[x#^id]]` (Obsidian's block link) and `vaultdraw://open?file=x&anchor=%5Eid`
+//! name one element of the drawing. The `target` (and `target_range`) never hold the anchor, so
+//! resolving, counting and the rename rewriter treat the link like one without it and leave the
+//! anchor where it stands.
 
 use memchr::{memchr3, memmem};
 use std::sync::OnceLock;
@@ -32,6 +37,27 @@ pub struct TextLink<'a> {
     /// Target without brackets, label or `.excalidraw`.
     pub target: &'a str,
     pub label: Option<&'a str>,
+    /// The element id after `#^`, if any.
+    pub anchor: Option<&'a str>,
+}
+
+/// Longest element id accepted after `#^`.
+const MAX_ANCHOR: usize = 64;
+
+/// `x#^id` -> (`x`, Some(`id`)); anything else stays whole. An id is letters, digits, `-` and `_`.
+pub fn split_anchor(written: &str) -> (&str, Option<&str>) {
+    if let Some(at) = written.rfind("#^") {
+        let id = &written[at + 2..];
+        let left = written[..at].trim_end();
+        if at > 0 && !left.is_empty() && is_anchor_id(id) {
+            return (left, Some(id));
+        }
+    }
+    (written, None)
+}
+
+pub fn is_anchor_id(id: &str) -> bool {
+    !id.is_empty() && id.len() <= MAX_ANCHOR && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
 fn opener() -> &'static memmem::Finder<'static> {
@@ -75,13 +101,14 @@ fn parse_body(text: &str, start: usize, bs: usize, be: usize) -> Option<TextLink
         None => (body, None),
     };
     let lead = left.len() - left.trim_start().len();
-    let written = left.trim();
+    let full = left.trim();
+    let (written, anchor) = split_anchor(full);
     let target = strip_ext(written).trim_end();
     if target.is_empty() {
         return None;
     }
     let ts = bs + lead;
-    Some(TextLink { start, end: be + 2, target_range: (ts, ts + written.len()), target, label })
+    Some(TextLink { start, end: be + 2, target_range: (ts, ts + written.len()), target, label, anchor })
 }
 
 pub fn text_links_vec(text: &str) -> Vec<TextLink<'_>> {
@@ -145,6 +172,8 @@ pub struct FieldLink {
     pub target: String,
     pub form: FieldForm,
     pub label: Option<String>,
+    /// The element id the link points at, if any.
+    pub anchor: Option<String>,
 }
 
 fn has_scheme(s: &str) -> bool {
@@ -171,20 +200,28 @@ pub fn url_file_param(query: &str) -> Option<String> {
     })
 }
 
+/// The element id of the `anchor=^id` parameter of a `vaultdraw://open?` URL.
+pub fn url_anchor_param(query: &str) -> Option<String> {
+    query.split('&').find_map(|kv| {
+        let (k, v) = kv.split_once('=')?;
+        (k == "anchor").then(|| pct_decode(v)).and_then(|a| a.strip_prefix('^').filter(|id| is_anchor_id(id)).map(str::to_string))
+    })
+}
+
 pub fn parse_link_field(s: &str) -> Option<FieldLink> {
     let s = s.trim();
     if let Some(q) = s.strip_prefix(VAULT_URL) {
         let file = url_file_param(q)?;
         let target = strip_ext(file.trim()).trim();
-        return (!target.is_empty()).then(|| FieldLink { target: target.to_string(), form: FieldForm::Url, label: None });
+        return (!target.is_empty()).then(|| FieldLink { target: target.to_string(), form: FieldForm::Url, label: None, anchor: url_anchor_param(q) });
     }
     if s.starts_with("[[") {
         let l = text_links_vec(s).into_iter().next().filter(|l| l.start == 0)?;
-        return Some(FieldLink { target: l.target.to_string(), form: FieldForm::Wiki, label: l.label.map(str::to_string) });
+        return Some(FieldLink { target: l.target.to_string(), form: FieldForm::Wiki, label: l.label.map(str::to_string), anchor: l.anchor.map(str::to_string) });
     }
     if s.starts_with('/') || s.starts_with('\\') || has_scheme(s) || !has_ext(s) {
         return None;
     }
     let target = strip_ext(s);
-    (!target.is_empty() && !target.ends_with('/')).then(|| FieldLink { target: target.to_string(), form: FieldForm::Rel, label: None })
+    (!target.is_empty() && !target.ends_with('/')).then(|| FieldLink { target: target.to_string(), form: FieldForm::Rel, label: None, anchor: None })
 }

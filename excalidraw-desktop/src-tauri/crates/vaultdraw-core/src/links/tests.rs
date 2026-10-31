@@ -23,6 +23,7 @@ fn grammar_fixtures() {
                     "end": utf16_len_of(input, l.end),
                     "target": l.target,
                     "label": l.label,
+                    "anchor": l.anchor,
                 })
             })
             .collect();
@@ -37,6 +38,7 @@ fn grammar_fixtures() {
                 let g = got.unwrap_or_else(|| panic!("field {input:?}"));
                 assert_eq!(g.target, t, "field {input:?}");
                 assert_eq!(g.form == FieldForm::Rel, c["relative"].as_bool().unwrap_or(false), "field {input:?}");
+                assert_eq!(g.anchor.as_deref(), c["anchor"].as_str(), "field {input:?} anchor");
             }
         }
     }

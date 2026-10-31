@@ -1259,6 +1259,16 @@ Hover over a link for a moment to see a preview of the linked drawing: its name,
 
 Select a shape and press ⌥⌘K (**Links: Link selection to drawing…**) to pick a drawing. The shape stores `[[Name]]` in its link field, and Cmd+clicking the shape opens the drawing. Set `links.shape_link_format = "vaultdraw-url"` to store a `vaultdraw://open?file=…` link instead. Vaultdraw also reads relative paths such as `./x.excalidraw`, so drawings made with the Obsidian Excalidraw plugin work.
 
+### Links to one element
+
+`[[Roadmap#^abc123]]` opens the drawing `Roadmap` and selects and scrolls to the element whose id is `abc123`. This is Obsidian's block link, so the same text works in notes, and a drawing file stays a normal `.excalidraw` file. Write it in a text, or store it in a shape's link field.
+
+- **Copy it:** select one element (or a group) and run **Links: Copy link to selected element** in the palette (rebindable, no default key), or use **Copy link to object** in the element's menu. The palette command always copies `[[Drawing#^id]]`, which you can paste into any text. The menu item follows `links.shape_link_format` (a `vaultdraw://open?file=…&anchor=%5Eid` link when that is `"vaultdraw-url"`) and `links.new_link_format` for the name.
+- **From the command line:** `vaultdraw open "Roadmap#^abc123"`.
+- **Renaming the drawing** rewrites the name in these links and keeps the `#^id`.
+- **If the element is gone**, the drawing still opens and a notice says the element is no longer there.
+- An id is letters, digits, `-` and `_` (up to 64). `[[Name#heading]]` is not a drawing link.
+
 ### Opening links
 
 - **Cmd+click** a `[[link]]` or a linked shape. Holding the modifier underlines every link. The modifier is set by `links.open_modifier`: `mod` (default), `alt`, `ctrl` or `shift`.

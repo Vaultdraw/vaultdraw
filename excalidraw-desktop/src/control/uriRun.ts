@@ -32,6 +32,8 @@ export interface UriPlan {
   query?: string;
   id?: string;
   newTab?: boolean;
+  /** `open` only: an element of the drawing to select and scroll to. */
+  element?: string;
   /** `notice` only: what to tell the user. */
   message?: string;
   /** `new` / `cmd` may run without asking. */
@@ -473,7 +475,11 @@ export function createUriRunner(deps: UriDeps) {
       switch (plan.action) {
         case "open":
           if (file) {
-            await deps.call("file.open", { path: file, newTab: !!plan.newTab });
+            await deps.call("file.open", {
+              path: file,
+              newTab: !!plan.newTab,
+              ...(plan.element ? { element: plan.element } : {}),
+            });
           }
           return;
         case "search":

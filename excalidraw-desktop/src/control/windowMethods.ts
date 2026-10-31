@@ -78,7 +78,12 @@ export interface ControlFiles {
   /** Switches to the vault folder (no dialog); rejects with the native error. */
   openVault: (path: string) => Promise<VaultSummary>;
   /** false when the drawing did not open. */
-  openDrawing: (path: string, newTab: boolean) => Promise<boolean>;
+  openDrawing: (
+    path: string,
+    newTab: boolean,
+    /** Select and scroll to this element once the drawing shows. */
+    element?: string,
+  ) => Promise<boolean>;
   drawingExists: (path: string) => Promise<boolean>;
   folderExists: (path: string) => Promise<boolean>;
   /** Throwing core of the UI "new drawing" / "from JSON" flow. */
@@ -233,7 +238,8 @@ export function createWindowMethods(
         });
       }
       const newTab = objectParams(params).newTab === true;
-      if (!(await f.openDrawing(path, newTab))) {
+      const element = optionalStringParam(params, "element");
+      if (!(await f.openDrawing(path, newTab, element))) {
         throw (
           conflictGuard({ target: path }) ??
           new ControlError("IO_ERROR", `Could not open ${path}`, { path })

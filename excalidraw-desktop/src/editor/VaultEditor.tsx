@@ -163,6 +163,8 @@ type Props = {
     containerId: string | null;
     nonce: number;
   } | null;
+  /** The element a focus request names is not in the drawing (a stale link); say so. */
+  onFocusMissing?: () => void;
   /** Persisted library; omit to run with Excalidraw's in-memory library. */
   library?: { store: LibraryStore; repository: LibraryRepository };
   /** Links (open/insert/hints, rename edits, re-measure); omit for none. */
@@ -204,6 +206,7 @@ const VaultEditorComponent = ({
   onOpenGraph,
   onToggleHistory,
   focusRequest = null,
+  onFocusMissing,
   library,
   links,
   onImportFile,
@@ -867,6 +870,9 @@ const VaultEditorComponent = ({
       ?.focus({ preventScroll: true });
   }, [swapping, loading, apiReady]);
 
+  const onFocusMissingRef = useRef(onFocusMissing);
+  onFocusMissingRef.current = onFocusMissing;
+
   // Search results: focus the requested element once per request, after the
   // scene is loaded and laid out.
   useEffect(() => {
@@ -882,8 +888,8 @@ const VaultEditorComponent = ({
     const run = () => {
       ran = true;
       const api = apiRef.current;
-      if (api) {
-        focusElement(api, focusRequest);
+      if (api && !focusElement(api, focusRequest)) {
+        onFocusMissingRef.current?.();
       }
     };
     const frame = win ? win.requestAnimationFrame(run) : null;
@@ -1168,6 +1174,9 @@ const VaultEditorComponent = ({
         interaction={disabled ? false : undefined}
         onExportImage={handleExportImage}
         onLinkOpen={editorLinks.onLinkOpen}
+        generateLinkForSelection={
+          links ? editorLinks.generateLinkForSelection : undefined
+        }
         linkIndicator={linkIndicator}
         aiEnabled={false}
         freedrawPen={pens.freedrawPen}

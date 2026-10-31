@@ -100,6 +100,17 @@ describe("uriRun: what runs at once", () => {
     expect(t.asks).toEqual([]);
   });
 
+  it("passes the element of a link with an anchor to file.open", async () => {
+    const t = make();
+    await t.run({ action: "open", file: "Graphs/BFS", element: "k9_-" });
+    expect(t.calls).toEqual([
+      [
+        "file.open",
+        { path: "Graphs/BFS.excalidraw", newTab: false, element: "k9_-" },
+      ],
+    ]);
+  });
+
   it("passes newTab through", async () => {
     const t = make();
     await t.run({

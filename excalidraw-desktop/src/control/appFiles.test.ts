@@ -45,6 +45,18 @@ describe("createAppFiles", () => {
     expect(deps.openDrawing).toHaveBeenNthCalledWith(2, "a", undefined);
   });
 
+  it("focuses the element after a drawing opened, and only then", async () => {
+    const focusElement = vi.fn();
+    const { deps, files } = make({ focusElement });
+    await files.openDrawing("a.excalidraw", false, "k9");
+    await files.openDrawing("a.excalidraw", false);
+    expect(focusElement).toHaveBeenCalledTimes(1);
+    expect(focusElement).toHaveBeenCalledWith("a.excalidraw", "k9");
+    (deps.openDrawing as any).mockResolvedValue(false);
+    await files.openDrawing("a.excalidraw", false, "k9");
+    expect(focusElement).toHaveBeenCalledTimes(1);
+  });
+
   it("existence probes turn NOT_FOUND into false and rethrow others", async () => {
     const { files } = make({
       repository: {

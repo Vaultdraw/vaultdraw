@@ -512,6 +512,82 @@ if (params.get("seed") === "links") {
   );
 }
 
+if (params.get("seed") === "elementlinks") {
+  // Opt-in (?seed=elementlinks): links that name one element (`[[Target#^id]]`): Source has a text
+  // link and a shape link to a far element of Target, and a link to an element that is not there.
+  // Target has a near element, a far one and a group.
+  const el = (id: string, x: number, y: number, extra = {}) => ({
+    angle: 0,
+    strokeColor: "#1e1e1e",
+    backgroundColor: "#ffc9c9",
+    fillStyle: "solid",
+    strokeWidth: 1,
+    strokeStyle: "solid",
+    roughness: 1,
+    opacity: 100,
+    groupIds: [],
+    roundness: null,
+    locked: false,
+    frameId: null,
+    isDeleted: false,
+    boundElements: [],
+    updated: 1,
+    link: null,
+    version: 1,
+    versionNonce: 1,
+    seed: 1,
+    index: null,
+    id,
+    type: "rectangle",
+    x,
+    y,
+    width: 200,
+    height: 100,
+    ...extra,
+  });
+  const text = (id: string, t: string, y: number) =>
+    el(id, 200, y + 200, {
+      type: "text",
+      backgroundColor: "transparent",
+      width: 360,
+      height: 25,
+      text: t,
+      originalText: t,
+      fontSize: 20,
+      fontFamily: 1,
+      textAlign: "left",
+      verticalAlign: "top",
+      containerId: null,
+      lineHeight: 1.25,
+    });
+  const scene = (...elements: object[]) =>
+    JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "e2e-element-links",
+      elements,
+      appState: {},
+      files: {},
+    });
+  repository.seedDrawing(
+    "Source.excalidraw",
+    scene(
+      text("src-t1", "Open [[Target#^t-far]]", 20),
+      text("src-t2", "Gone [[Target#^nope]]", 80),
+      el("src-shape", 200, 500, { link: "[[Target#^t-group]]" }),
+    ),
+  );
+  repository.seedDrawing(
+    "Target.excalidraw",
+    scene(
+      el("t-near", 200, 200),
+      el("t-far", 3000, 2400),
+      el("t-g1", -2500, -1500, { groupIds: ["t-group"] }),
+      el("t-g2", -2200, -1500, { groupIds: ["t-group"] }),
+    ),
+  );
+}
+
 // ?names=N (links perf): N empty drawings with realistic names in nested
 // folders, for the `[[` autocomplete at 10k names.
 const nameCount = Number(params.get("names")) || 0;

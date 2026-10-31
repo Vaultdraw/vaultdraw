@@ -9,6 +9,8 @@ import { sceneCoordsToViewportCoords } from "@excalidraw/common";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
+import { spanRaw } from "../../links/format";
+
 import { clientToScene, hitTestTextLink, shapeLinkAt } from "./textLinkHitTest";
 
 import type { OpenModifier } from "../../links/types";
@@ -241,7 +243,7 @@ export class ModifierLinks {
     })[];
     const hit = hitTestTextLink(elements, point);
     if (hit) {
-      return { raw: `[[${hit.span.target}]]`, hit };
+      return { raw: spanRaw(hit.span), hit };
     }
     const shape = shapeLinkAt(elements, point);
     return shape?.link ? { raw: shape.link, hit: null } : null;

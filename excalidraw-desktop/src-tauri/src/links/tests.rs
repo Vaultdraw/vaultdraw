@@ -215,6 +215,32 @@ fn text_without_original_text_and_url_and_relative_link_fields() {
     assert!(e[1].get("updated").is_none(), "no key is ever added");
 }
 
+/// Renaming a drawing keeps the element anchor of every link to it: `[[Old#^id]]` in text and in a
+/// link field, the URL form's `anchor`, with and without a label, several links in one text.
+#[test]
+fn rename_keeps_element_anchors() {
+    let cases: [(&str, &str, &str); 7] = [
+        ("see [[Old#^k9]] now", "text", "see [[Dir/New one#^k9]] now"),
+        ("[[Old.excalidraw#^k9|the box]]", "text", "[[Dir/New one#^k9|the box]]"),
+        ("[[Old #^k9]] and [[Old]] and [[Other#^k9]]", "text", "[[Dir/New one #^k9]] and [[Dir/New one]] and [[Other#^k9]]"),
+        ("[[Old#head]]", "text", "[[Old#head]]"),
+        ("[[Old#^k9]]", "link", "[[Dir/New one#^k9]]"),
+        ("vaultdraw://open?file=Old&anchor=%5Ek9", "link", "vaultdraw://open?file=Dir/New%20one&anchor=%5Ek9"),
+        ("vaultdraw://open?anchor=%5Ek9&file=Old", "link", "vaultdraw://open?anchor=%5Ek9&file=Dir/New%20one"),
+    ];
+    for (input, kind, want) in cases {
+        let field = if kind == "text" { "text" } else { "link" };
+        let el = serde_json::json!({"id": "a", "type": if kind == "text" { "text" } else { "rectangle" }, field: input, "version": 1, "updated": 1, "versionNonce": 1});
+        let src = serde_json::json!({"type": "excalidraw", "elements": [el]}).to_string();
+        let els = one("a", rep("old", "Dir/New one"));
+        let got = match rewrite(src.as_bytes(), &rules(&els)).unwrap() {
+            Some(out) => serde_json::from_slice::<serde_json::Value>(&out.bytes).unwrap()["elements"][0][field].as_str().unwrap().to_string(),
+            None => input.to_string(),
+        };
+        assert_eq!(got, want, "{kind}: {input}");
+    }
+}
+
 #[test]
 fn rewrite_returns_none_when_nothing_matches_and_rejects_truncated_json() {
     let src = r#"{"type":"excalidraw","elements":[{"id":"t","type":"text","text":"[[Other]]","originalText":"[[Other]]"}]}"#;

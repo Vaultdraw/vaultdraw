@@ -66,7 +66,7 @@ pub enum Command {
     },
     /// Open a drawing in the window
     Open {
-        /// Path (contains / or ends in .excalidraw) or link-style name
+        /// Path (contains / or ends in .excalidraw) or link-style name; add #^<element id> to select and scroll to one element
         target: String,
         #[arg(long)]
         new_tab: bool,

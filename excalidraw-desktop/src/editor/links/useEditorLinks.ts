@@ -18,9 +18,16 @@ import {
   useState,
 } from "react";
 
+import { getLinkIdAndTypeFromSelection } from "@excalidraw/element";
+
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
-import { linkTargetFor, shapeLinkValue } from "../../links/format";
+import {
+  linkTargetFor,
+  shapeLinkValue,
+  spanRaw,
+  wikiLink,
+} from "../../links/format";
 import { createResolver } from "../../links/resolve";
 import { DEFAULT_TAGS_SETTINGS } from "../../tags/types";
 
@@ -243,7 +250,7 @@ export function useEditorLinks(opts: UseEditorLinksOptions) {
             : all.filter((t) => t.containerId === el.id);
         for (const t of texts) {
           const first = linksOf(t)[0];
-          if (first && openRaw(`[[${first.target}]]`, { target })) {
+          if (first && openRaw(spanRaw(first), { target })) {
             return true;
           }
         }
@@ -295,6 +302,51 @@ export function useEditorLinks(opts: UseEditorLinksOptions) {
     [],
   );
 
+  /**
+   * The link to one element (or group) of the open drawing, for Excalidraw's "Copy link to object"
+   * and its link box: the user's shape link format. `[[Drawing#^id]]` is Obsidian's block link.
+   */
+  const generateLinkForSelection = useCallback((id: string): string => {
+    const { settings, currentPath } = latest.current;
+    if (!currentPath) {
+      return "";
+    }
+    latest.current.onNeedNames?.();
+    const target = linkTargetFor(
+      currentPath,
+      currentPath,
+      resolverRef.current,
+      settings.newLinkFormat,
+    );
+    return shapeLinkValue(target, settings.shapeLinkFormat, id);
+  }, []);
+
+  /**
+   * `[[Drawing#^id]]` for the selected element or group, ready to paste into any drawing's text
+   * (a form that also works outside this drawing, so never relative). Null: nothing linkable.
+   */
+  const selectionLinkText = useCallback((): string | null => {
+    const { api, settings, currentPath } = latest.current;
+    if (!api || !currentPath) {
+      return null;
+    }
+    const picked = getLinkIdAndTypeFromSelection(
+      api.getSceneElements().filter((el) => api.getAppState().selectedElementIds[el.id]),
+      api.getAppState(),
+    );
+    if (!picked) {
+      return null;
+    }
+    latest.current.onNeedNames?.();
+    const target = linkTargetFor(
+      currentPath,
+      null,
+      resolverRef.current,
+      settings.newLinkFormat === "relative" ? "shortest" : settings.newLinkFormat,
+    );
+    return wikiLink(target, null, picked.id);
+  }, []);
+
   const applyEdits = useCallback((edits: readonly ElementEdit[]): number => {
     const api = latest.current.api;
     return api ? applyEditsTo(api, edits) : 0;
@@ -328,6 +380,8 @@ export function useEditorLinks(opts: UseEditorLinksOptions) {
     startLinkHints,
     openLinkUnderSelection,
     linkSelectionTo,
+    generateLinkForSelection,
+    selectionLinkText,
     targetFor,
     applyEdits,
     remeasure,

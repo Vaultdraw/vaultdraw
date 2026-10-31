@@ -522,6 +522,39 @@
     "action": "cmd",
     "id": "drawing.open:Graphs/BFS.excalidraw"
    }
+  },
+  {
+   "name": "open an element",
+   "input": "vaultdraw://open?file=Graphs/BFS&anchor=%5Ek9_-",
+   "ok": {
+    "action": "open",
+    "file": "Graphs/BFS",
+    "element": "k9_-"
+   }
+  },
+  {
+   "name": "anchor without caret is ignored",
+   "input": "vaultdraw://open?file=Graphs/BFS&anchor=k9",
+   "ok": {
+    "action": "open",
+    "file": "Graphs/BFS"
+   }
+  },
+  {
+   "name": "anchor that is not an id is ignored",
+   "input": "vaultdraw://open?file=a&anchor=%5Ex%20y",
+   "ok": {
+    "action": "open",
+    "file": "a"
+   }
+  },
+  {
+   "name": "anchor without a file is ignored",
+   "input": "vaultdraw://open?vault=DSA&anchor=%5Ek9",
+   "ok": {
+    "action": "open",
+    "vault": "DSA"
+   }
   }
  ]
 }

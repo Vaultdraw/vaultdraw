@@ -54,7 +54,7 @@ fn an_encoded_dotdot_is_caught_after_decoding_and_double_encoding_stays_literal(
     assert!(parse("vaultdraw://open?file=%2e%2e%2fx").is_err());
     // `%252e%252e` decodes once to the text "%2e%2e": a harmless name, never decoded twice.
     let r = parse("vaultdraw://open?file=%252e%252e/x").unwrap();
-    assert_eq!(r, UriRequest::Open { vault: None, file: Some("%2e%2e/x".into()), new_tab: false });
+    assert_eq!(r, UriRequest::Open { vault: None, file: Some("%2e%2e/x".into()), new_tab: false, element: None });
 }
 
 #[test]

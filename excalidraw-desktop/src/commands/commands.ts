@@ -192,6 +192,13 @@ const LINKS_COMMANDS: CommandDefinition[] = [
     when: [...WHEN_LINK_SELECTION, "writable"],
   },
   {
+    id: "links.copyElementLink",
+    title: "Links: Copy link to selected element",
+    category: "Links",
+    keys: { default: [] },
+    when: [...WHEN_LINK_SELECTION],
+  },
+  {
     id: "links.openUnderSelection",
     title: "Links: Open link under selection",
     category: "Links",

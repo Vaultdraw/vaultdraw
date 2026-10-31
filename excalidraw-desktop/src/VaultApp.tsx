@@ -3053,6 +3053,13 @@ export const VaultApp = ({
       return chosen;
     },
     openDrawing: handleOpenDrawing,
+    focusElement: (path, elementId) =>
+      setFocusRequest({
+        path,
+        elementId,
+        containerId: null,
+        nonce: ++focusNonceRef.current,
+      }),
     editorReady: waitForEditor,
     createEntry: createEntryCore,
     moveEntry: (from, to, rewriteLinks) =>
@@ -3758,6 +3765,13 @@ export const VaultApp = ({
                   onToggleHistory={ext.history ? toggleHistory : undefined}
                   focusRequest={
                     focusRequest?.path === activeDoc.path ? focusRequest : null
+                  }
+                  onFocusMissing={() =>
+                    setGlobalAlert({
+                      message:
+                        "That element is no longer in this drawing. The drawing is open.",
+                      type: "info",
+                    })
                   }
                   library={libraryOn ? libraryBundle : undefined}
                   links={editorLinks}

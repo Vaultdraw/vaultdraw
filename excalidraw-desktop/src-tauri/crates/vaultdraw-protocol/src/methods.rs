@@ -386,8 +386,8 @@ fn c3_methods() -> Vec<MethodSpec> {
         ),
         spec(
             FILE_OPEN,
-            "Open a drawing in the window, optionally in a new tab (one of path or file)",
-            target(json!({"newTab": {"type": "boolean"}})),
+            "Open a drawing in the window, optionally in a new tab and with one element selected and scrolled to (one of path or file)",
+            target(json!({"newTab": {"type": "boolean"}, "element": {"type": "string"}})),
             obj(json!({"path": {"type": "string"}, "opened": {"type": "boolean"}}), &["path", "opened"]),
             CLI_URI,
             true,

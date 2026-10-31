@@ -28,10 +28,26 @@ export function linkTargetFor(
   }
 }
 
-/** `[[target]]` or `[[target|label]]`. */
-export const wikiLink = (target: string, label?: string | null) =>
-  label ? `[[${target}|${label}]]` : `[[${target}]]`;
+/** `[[target]]`, `[[target|label]]`, or with an element anchor `[[target#^id]]`. */
+export const wikiLink = (
+  target: string,
+  label?: string | null,
+  anchor?: string | null,
+) => {
+  const at = anchor ? `${target}#^${anchor}` : target;
+  return label ? `[[${at}|${label}]]` : `[[${at}]]`;
+};
 
-/** The value of an element's `link` field for `target`. */
-export const shapeLinkValue = (target: string, format: ShapeLinkFormat) =>
-  format === "vaultdraw-url" ? encodeVaultUrl(target) : wikiLink(target);
+/** The link a found `[[...]]` span stands for, anchor kept (what the openers are given). */
+export const spanRaw = (span: { target: string; anchor: string | null }) =>
+  wikiLink(span.target, null, span.anchor);
+
+/** The value of an element's `link` field for `target`, optionally pointing at one element. */
+export const shapeLinkValue = (
+  target: string,
+  format: ShapeLinkFormat,
+  anchor?: string | null,
+) =>
+  format === "vaultdraw-url"
+    ? encodeVaultUrl(target, anchor)
+    : wikiLink(target, null, anchor);

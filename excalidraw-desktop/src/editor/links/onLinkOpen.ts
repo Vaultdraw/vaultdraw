@@ -28,17 +28,25 @@ export type LinkOpenDeps = {
 /** The target a link value (`[[x]]`, vaultdraw URL, `./x.excalidraw`) names. */
 export function targetOf(
   raw: string | null | undefined,
-): { target: string; relative: boolean } | null {
+): { target: string; relative: boolean; anchor: string | null } | null {
   const text = raw?.trim();
   if (!text) {
     return null;
   }
   if (text.startsWith("[[")) {
     const first = findLinks(text)[0];
-    return first ? { target: first.target, relative: false } : null;
+    return first
+      ? { target: first.target, relative: false, anchor: first.anchor }
+      : null;
   }
   const field = parseLinkField(text);
-  return field ? { target: field.target, relative: !!field.relative } : null;
+  return field
+    ? {
+        target: field.target,
+        relative: !!field.relative,
+        anchor: field.anchor ?? null,
+      }
+    : null;
 }
 
 export type LinkOpenOptions = { target?: OpenTarget };
@@ -54,7 +62,11 @@ export function createLinkOpener(deps: LinkOpenDeps) {
     const done = (res: Resolution) => {
       const cb = deps.getCallbacks();
       if (res.path) {
-        cb.openDrawing(res.path, undefined, opts?.target ?? "current");
+        cb.openDrawing(
+          res.path,
+          spec.anchor ?? undefined,
+          opts?.target ?? "current",
+        );
       } else {
         cb.onUnresolved(spec.target);
       }

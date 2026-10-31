@@ -2379,6 +2379,18 @@
    "palette": true
   },
   {
+   "id": "links.copyElementLink",
+   "title": "Links: Copy link to selected element",
+   "category": "Links",
+   "keys": [],
+   "when": [
+    "drawingOpen",
+    "!textEditing",
+    "!modalOpen"
+   ],
+   "palette": true
+  },
+  {
    "id": "links.openUnderSelection",
    "title": "Links: Open link under selection",
    "category": "Links",

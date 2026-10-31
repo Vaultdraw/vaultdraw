@@ -32,6 +32,9 @@ pub enum UriRequest {
         file: Option<String>,
         #[serde(skip_serializing_if = "std::ops::Not::not")]
         new_tab: bool,
+        /// An element of the drawing to select and scroll to (`anchor=^id`).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        element: Option<String>,
     },
     /// Open the vault search with the text filled in.
     Search {
@@ -163,7 +166,12 @@ pub fn parse(url: &str) -> Result<UriRequest, UriError> {
                 return Err(UriError::Missing("file or vault"));
             }
             let new_tab = matches!(q.get("newTab")?.as_deref(), Some("1" | "true"));
-            Ok(UriRequest::Open { vault, file, new_tab })
+            // `anchor=^id` names an element, as `[[Drawing#^id]]` does; one that is not an id is ignored.
+            let element = match q.get("anchor")? {
+                Some(a) if file.is_some() => a.strip_prefix('^').filter(|id| crate::links::grammar::is_anchor_id(id)).map(str::to_string),
+                _ => None,
+            };
+            Ok(UriRequest::Open { vault, file, new_tab, element })
         }
         "search" => {
             let query = q.get("query")?.ok_or(UriError::Missing("query"))?;
