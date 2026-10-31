@@ -49,6 +49,11 @@ import {
   type SyncPreferences,
 } from "../sync/syncSettings";
 import {
+  TREE_DEFAULTS,
+  normalizeTreePreferences,
+  type TreePreferences,
+} from "../components/tree/treeSettings";
+import {
   MEMORY_DEFAULTS,
   normalizeMemoryPreferences,
   type MemoryPreferences,
@@ -421,6 +426,7 @@ export type VaultPreferences = VaultPreferencesBase &
   MarkdownPreferences &
   MemoryPreferences &
   SyncPreferences &
+  TreePreferences &
   SearchPreferences &
   ExtensionPreferences &
   KeysPreferences &
@@ -576,6 +582,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   ...MARKDOWN_DEFAULTS,
   ...MEMORY_DEFAULTS,
   ...SYNC_DEFAULTS,
+  ...TREE_DEFAULTS,
   ...SEARCH_DEFAULTS,
   ...EXTENSION_DEFAULTS,
   ...KEYS_DEFAULTS,
@@ -1154,6 +1161,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
     ...normalizeMarkdownPreferences(parsed as Record<string, unknown>),
     ...normalizeMemoryPreferences(parsed as Record<string, unknown>),
     ...normalizeSyncPreferences(parsed as Record<string, unknown>),
+    ...normalizeTreePreferences(parsed as Record<string, unknown>),
     ...normalizeSearchPreferences(parsed as Record<string, unknown>),
     ...normalizeExtensionPreferences(parsed as Record<string, unknown>),
     ...normalizeKeysPreferences(parsed as Record<string, unknown>),

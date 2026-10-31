@@ -231,3 +231,84 @@ export function buildRowMenu({
 
   return joinGroups([create, organise, [copy], reveal, plugins, last]);
 }
+
+export interface SelectionMenuActions {
+  move: (entries: VaultEntry[]) => void;
+  trash: (entries: VaultEntry[]) => void;
+  /** Export the selected drawings into a folder; absent = not offered. */
+  exportAs?: (entries: VaultEntry[], format: "png" | "svg") => void;
+  clear: () => void;
+}
+
+/**
+ * The menu for a right-click on a row that is part of a multi-selection
+ * (F13): what Obsidian and Zed offer for several files at once.
+ */
+export function buildSelectionMenu(input: {
+  entries: VaultEntry[];
+  /** "3 items", "2 drawings" (countLabel). */
+  label: string;
+  readOnly: boolean;
+  actions: SelectionMenuActions;
+}): MenuNode[] {
+  const { entries, label, readOnly, actions: a } = input;
+  const item = (
+    id: string,
+    text: string,
+    run: () => void,
+    extra: Partial<Extract<MenuNode, { kind: "item" }>> = {},
+  ): MenuNode => ({ kind: "item", id, label: text, run, ...extra });
+  // Folders export every drawing inside them; notes have no image.
+  const exportable = entries.some(
+    (e) => e.kind === "drawing" || e.kind === "folder",
+  );
+  const exportItems: MenuNode[] =
+    exportable && a.exportAs
+      ? [
+          {
+            kind: "submenu",
+            id: "export",
+            label: "Export",
+            items: [
+              item(
+                "exportPng",
+                "Export as PNG…",
+                () => a.exportAs?.(entries, "png"),
+                { commandId: "list.exportPng" },
+              ),
+              item(
+                "exportSvg",
+                "Export as SVG…",
+                () => a.exportAs?.(entries, "svg"),
+                { commandId: "list.exportSvg" },
+              ),
+            ],
+          },
+        ]
+      : [];
+  const organise: MenuNode[] = readOnly
+    ? []
+    : [
+        item("move", `Move ${label} to…`, () => a.move(entries), {
+          commandId: "list.move",
+        }),
+      ];
+  const last: MenuNode[] = readOnly
+    ? []
+    : [
+        item("trash", `Move ${label} to Trash`, () => a.trash(entries), {
+          danger: true,
+          commandId: "list.delete",
+        }),
+      ];
+  return joinGroups([
+    organise,
+    exportItems,
+    [
+      item("clearSelection", "Clear selection", a.clear, {
+        commandId: "list.clearSelection",
+      }),
+    ],
+    last,
+  ]);
+}

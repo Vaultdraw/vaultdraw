@@ -3601,6 +3601,76 @@
    "palette": true
   },
   {
+   "id": "list.extendDown",
+   "title": "List: Extend selection down",
+   "category": "Navigator",
+   "keys": [
+    "Shift+J",
+    "Shift+ArrowDown"
+   ],
+   "when": [
+    "listFocus"
+   ],
+   "palette": true
+  },
+  {
+   "id": "list.extendUp",
+   "title": "List: Extend selection up",
+   "category": "Navigator",
+   "keys": [
+    "Shift+K",
+    "Shift+ArrowUp"
+   ],
+   "when": [
+    "listFocus"
+   ],
+   "palette": true
+  },
+  {
+   "id": "list.toggleSelection",
+   "title": "List: Add or remove item from selection",
+   "category": "Navigator",
+   "keys": [
+    "X"
+   ],
+   "when": [
+    "listFocus"
+   ],
+   "palette": true
+  },
+  {
+   "id": "list.visual",
+   "title": "List: Visual selection mode",
+   "category": "Navigator",
+   "keys": [
+    "V"
+   ],
+   "when": [
+    "listFocus"
+   ],
+   "palette": true
+  },
+  {
+   "id": "list.selectAll",
+   "title": "List: Select all items",
+   "category": "Navigator",
+   "keys": [],
+   "when": [
+    "listFocus"
+   ],
+   "palette": true
+  },
+  {
+   "id": "list.clearSelection",
+   "title": "List: Clear selection",
+   "category": "Navigator",
+   "keys": [],
+   "when": [
+    "listFocus"
+   ],
+   "palette": true
+  },
+  {
    "id": "navigator.focusTree",
    "title": "Navigator: Focus file tree",
    "category": "Navigator",

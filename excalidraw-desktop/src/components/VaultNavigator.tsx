@@ -71,7 +71,7 @@ import { SearchResults } from "./search/SearchResults";
 import { TagChips } from "./tags/TagChips";
 import { TagsPanel, type TagsPanelHandle } from "./tags/TagsPanel";
 
-import { folderTrashMessage } from "./trashMessage";
+import { bulkTrashMessage, folderTrashMessage } from "./trashMessage";
 import { ConfirmModal } from "./ConfirmModal";
 import { Dialog } from "./Dialog";
 import { MoveModal } from "./MoveModal";
@@ -87,6 +87,15 @@ import {
   targetFolder,
   type TreeKeyDeps,
 } from "./tree/treeKeys";
+import {
+  EMPTY_SELECTION,
+  actionTargets,
+  countLabel,
+  pruneSelection,
+  selectRange,
+  toggleSelection,
+  type TreeSelection,
+} from "./tree/treeSelection";
 
 import type { ReactNode } from "react";
 
@@ -174,6 +183,13 @@ interface VaultNavigatorProps {
     sourcePath: string,
     destinationParentPath: string,
   ) => void | Promise<void>;
+  /** Multi-select (F13): move several entries; absent = one by one. */
+  onMoveEntries?: (
+    paths: string[],
+    destinationParentPath: string,
+  ) => void | Promise<void>;
+  /** Multi-select (F13): trash several entries; absent = one by one. */
+  onTrashEntries?: (paths: string[]) => void | Promise<void>;
   onDuplicateDrawing: (path: string) => void | Promise<void>;
   onSaveAsTemplate?: (path: string) => void;
   onTrashEntry: (path: string) => void | Promise<void>;
@@ -242,6 +258,8 @@ export const VaultNavigator = ({
   onCreateNote,
   onRenameEntry,
   onMoveEntry,
+  onMoveEntries,
+  onTrashEntries,
   onDuplicateDrawing,
   onSaveAsTemplate,
   onTrashEntry,
@@ -278,6 +296,11 @@ export const VaultNavigator = ({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
+  // Multi-select (F13): empty until the user selects; see treeSelection.ts.
+  const [selection, setSelection] = useState<TreeSelection>(EMPTY_SELECTION);
+  const [visual, setVisual] = useState(false);
+  // Cmd/Ctrl+click: "select" (Zed, Obsidian) or "new_tab" (navigator.mod_click).
+  const [modClick] = useGlobalPref(undefined, "navigatorModClick");
 
   // Modals state
   const [createKind, setCreateKind] = useState<CreateKind | null>(null);
@@ -287,12 +310,15 @@ export const VaultNavigator = ({
 
   const [renameTarget, setRenameTarget] = useState<VaultEntry | null>(null);
   const [moveTarget, setMoveTarget] = useState<VaultEntry | null>(null);
+  /** Two or more entries to move or trash at once (F13). */
+  const [moveMany, setMoveMany] = useState<VaultEntry[] | null>(null);
+  const [trashMany, setTrashMany] = useState<VaultEntry[] | null>(null);
   // The move dialog lists every folder: it needs the vault file list.
   useEffect(() => {
-    if (moveTarget) {
+    if (moveTarget || moveMany) {
       onNeedIndex?.();
     }
-  }, [moveTarget, onNeedIndex]);
+  }, [moveTarget, moveMany, onNeedIndex]);
   const [trashTarget, setTrashTarget] = useState<VaultEntry | null>(null);
   const [trashCount, setTrashCount] = useState<FolderCount | null>(null);
   // The callback is a fresh closure each render: read it through a ref.
@@ -323,6 +349,52 @@ export const VaultNavigator = ({
       setTrashTarget(entry);
     } else {
       void onTrashEntry(entry.path);
+    }
+  };
+
+  /** A path's entry: the loaded tree, the file list, else made from the path. */
+  const entryFor = (path: string): VaultEntry =>
+    rowsRef.current.find((r) => r.entry.path === path)?.entry ??
+    allIndexedEntries.find((e) => e.path === path) ?? {
+      path,
+      name: path.split("/").pop() ?? path,
+      kind: ((k) => (k === "other" ? "drawing" : k))(fileKind(path)),
+      modifiedAt: 0,
+      size: 0,
+    };
+  const trashPaths = async (paths: string[]) => {
+    if (onTrashEntries) {
+      await onTrashEntries(paths);
+    } else {
+      for (const path of paths) {
+        await onTrashEntry(path);
+      }
+    }
+  };
+  const movePaths = async (paths: string[], dest: string) => {
+    if (onMoveEntries) {
+      await onMoveEntries(paths, dest);
+    } else {
+      for (const path of paths) {
+        await onMoveEntry(path, dest);
+      }
+    }
+  };
+  // Bulk actions: one entry goes through the single-item dialogs.
+  const requestTrashMany = (paths: string[]) => {
+    if (paths.length === 1) {
+      requestTrash(entryFor(paths[0]));
+    } else if (confirmDelete) {
+      setTrashMany(paths.map(entryFor));
+    } else {
+      void trashPaths(paths);
+    }
+  };
+  const requestMoveMany = (paths: string[]) => {
+    if (paths.length === 1) {
+      setMoveTarget(entryFor(paths[0]));
+    } else {
+      setMoveMany(paths.map(entryFor));
     }
   };
 
@@ -384,16 +456,52 @@ export const VaultNavigator = ({
     return names.concat((children ?? []).map((c) => c.entry.name));
   };
 
+  // Dragging a selected row drags the whole selection (F13).
+  const dragTargets = (source: DragSource) =>
+    actionTargets(selectionRef.current, source.path);
   const { drag, onRowPointerDown, pointerRef } = useTreeDrag({
     containerRef: treeContainerRef,
     ghostRef,
     enabled: !vault.readOnly && !searchQuery.trim(),
-    check: (source, folder) =>
-      checkTreeDrop(source, folder, {
-        readOnly: vault.readOnly,
-        existingNames: namesInFolder(folder),
-      }),
-    onDrop: (source, folder) => void onMoveEntry(source.path, folder),
+    check: (source, folder) => {
+      const paths = dragTargets(source);
+      if (paths.length === 1) {
+        return checkTreeDrop(source, folder, {
+          readOnly: vault.readOnly,
+          existingNames: namesInFolder(folder),
+        });
+      }
+      // Items already in the folder stay; any other refusal blocks the drop.
+      const names = namesInFolder(folder);
+      let moves = 0;
+      for (const path of paths) {
+        if (getParentPath(path) === folder) {
+          continue;
+        }
+        const check = checkTreeDrop(entryFor(path), folder, {
+          readOnly: vault.readOnly,
+          existingNames: names,
+        });
+        if (!check.allowed) {
+          return check;
+        }
+        moves++;
+      }
+      return moves > 0
+        ? { allowed: true }
+        : { allowed: false, reason: "Already in this folder" };
+    },
+    onDrop: (source, folder) => {
+      const paths = dragTargets(source);
+      if (paths.length === 1) {
+        void onMoveEntry(source.path, folder);
+      } else {
+        void movePaths(
+          paths.filter((p) => getParentPath(p) !== folder),
+          folder,
+        );
+      }
+    },
     isExpanded: (folder) => expandedFolders.has(folder),
     onExpandFolder,
   });
@@ -542,6 +650,33 @@ export const VaultNavigator = ({
   );
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  // Entries trashed, moved or renamed (here or outside) leave the selection.
+  // Costs nothing while the selection is empty.
+  useEffect(() => {
+    if (selection.paths.size === 0) {
+      return;
+    }
+    const exists = (path: string): boolean => {
+      let nodes: TreeNode[] | undefined = treeNodes;
+      while (nodes) {
+        const node: TreeNode | undefined = nodes.find(
+          (n) => n.entry.path === path || path.startsWith(`${n.entry.path}/`),
+        );
+        if (!node) {
+          return false;
+        }
+        if (node.entry.path === path) {
+          return true;
+        }
+        nodes = node.children;
+      }
+      // Inside a folder that was never loaded: keep it.
+      return true;
+    };
+    setSelection((sel) => pruneSelection(sel, exists));
+  }, [treeNodes, selection.paths.size]);
   const treeWindow = useTreeWindow(treeContainerRef, rows.length, !isSearching);
   const { scrollToRow } = treeWindow;
   // Keyboard focus moves between rows that may be outside the mounted window.
@@ -604,6 +739,42 @@ export const VaultNavigator = ({
     },
     [openEntry],
   );
+  const modClickRef = useRef(modClick);
+  modClickRef.current = modClick;
+  const focusedRef = useRef(focusedPath);
+  focusedRef.current = focusedPath;
+  /**
+   * A click on a row: Shift selects the range from the anchor, Cmd/Ctrl
+   * toggles the row (navigator.mod_click = "select"), a plain click clears
+   * the selection and opens the row as before.
+   */
+  const onRowClick = useCallback(
+    (path: string, kind: EntryKind, mods: { shift: boolean; mod: boolean }) => {
+      if (mods.shift) {
+        const from = focusedRef.current ?? live.current.activePath;
+        setFocusedPath(path);
+        setSelection((sel) => selectRange(sel, rowsRef.current, path, from));
+        return;
+      }
+      if (mods.mod && modClickRef.current === "select") {
+        setFocusedPath(path);
+        setSelection((sel) => {
+          // The first Cmd+click keeps the row the user was on (Zed, Obsidian).
+          const start = focusedRef.current;
+          const base =
+            sel.paths.size === 0 && start && start !== path
+              ? toggleSelection(sel, start)
+              : sel;
+          return toggleSelection(base, path);
+        });
+        return;
+      }
+      setVisual(false);
+      setSelection(EMPTY_SELECTION);
+      onRowSelect(path, kind, mods.mod);
+    },
+    [onRowSelect],
+  );
   const onRowToggle = useCallback(
     (path: string) => live.current.onToggleFolder(path),
     [],
@@ -614,10 +785,32 @@ export const VaultNavigator = ({
     setCreateName("");
     setCreateError(null);
   }, []);
-  const onRowMenu = useCallback(
-    (entry: VaultEntry, x: number, y: number) => setMenu({ entry, x, y }),
-    [],
-  );
+  const onRowMenu = useCallback((entry: VaultEntry, x: number, y: number) => {
+    const sel = selectionRef.current;
+    const paths = actionTargets(sel, entry.path);
+    if (paths.length > 1) {
+      const entries = paths.map(
+        (p) =>
+          rowsRef.current.find((r) => r.entry.path === p)?.entry ?? {
+            ...entry,
+            path: p,
+            name: p.split("/").pop() ?? p,
+          },
+      );
+      setMenu({
+        entry,
+        x,
+        y,
+        selection: { entries, label: countLabel(entries) },
+      });
+      return;
+    }
+    // A right-click outside the selection acts on that row alone.
+    if (sel.paths.size > 0 && !sel.paths.has(entry.path)) {
+      setSelection(EMPTY_SELECTION);
+    }
+    setMenu({ entry, x, y });
+  }, []);
 
   // Tree keys are `list.*` commands (rebindable in [hotkeys]). The controller
   // is stable and computes actions from this snapshot only on demand.
@@ -666,6 +859,12 @@ export const VaultNavigator = ({
     notes: !!onCreateNote,
     menu: openRowMenu,
     exit: exitTree,
+    selection,
+    setSelection,
+    visual,
+    setVisual,
+    moveMany: requestMoveMany,
+    trashMany: requestTrashMany,
     // command audit (S8): the row menu's items as list.* commands
     row: {
       duplicate: (path) => void onDuplicateDrawing(path),
@@ -787,7 +986,13 @@ export const VaultNavigator = ({
       // Its dialogs render inside: keep them visible to assistive tech when
       // the palette opens one with the navigator collapsed.
       aria-hidden={
-        collapsed && !createKind && !renameTarget && !moveTarget && !trashTarget
+        collapsed &&
+        !createKind &&
+        !renameTarget &&
+        !moveTarget &&
+        !trashTarget &&
+        !moveMany &&
+        !trashMany
       }
       data-vault-path={vault.path}
     >
@@ -937,6 +1142,8 @@ export const VaultNavigator = ({
           drag?.targetFolder === "" ? "vault-tree-container--drop-root" : ""
         }`}
         role={isSearching ? undefined : "tree"}
+        aria-multiselectable={isSearching ? undefined : true}
+        data-visual={visual ? "true" : undefined}
         id={treeId}
         tabIndex={isSearching ? undefined : 0}
       >
@@ -983,6 +1190,8 @@ export const VaultNavigator = ({
                 focusedPath={focusedPath}
                 readOnly={vault.readOnly}
                 onSelect={onRowSelect}
+                onRowClick={onRowClick}
+                selection={selection}
                 onToggleFolder={onRowToggle}
                 onNewInside={onRowNewInside}
                 onOpenMenu={onRowMenu}
@@ -1047,7 +1256,12 @@ export const VaultNavigator = ({
           >
             <span className="vault-tree-drag-ghost__name">
               {drag.source.kind === "folder" ? <IconFolder /> : <IconDrawing />}
-              {drawingStem(drag.source.name)}
+              {(() => {
+                const paths = dragTargets(drag.source);
+                return paths.length > 1
+                  ? countLabel(paths.map(entryFor))
+                  : drawingStem(drag.source.name);
+              })()}
             </span>
             {drag.targetFolder !== null && (
               <span className="vault-tree-drag-ghost__hint">
@@ -1092,6 +1306,14 @@ export const VaultNavigator = ({
           readOnly={vault.readOnly}
           ownerDocument={asideRef.current?.ownerDocument ?? ownerDocument}
           onClose={() => setMenu(null)}
+          selectionActions={{
+            move: (entries) => requestMoveMany(entries.map((e) => e.path)),
+            trash: (entries) => requestTrashMany(entries.map((e) => e.path)),
+            clear: () => {
+              setVisual(false);
+              setSelection(EMPTY_SELECTION);
+            },
+          }}
           actions={{
             newInside: onRowNewInside,
             newNote: onCreateNote
@@ -1208,6 +1430,45 @@ export const VaultNavigator = ({
         />
       )}
 
+      {/* Move several (F13) */}
+      {moveMany && (
+        <MoveModal
+          sourcePath={moveMany[0].path}
+          sourceKind={moveMany[0].kind}
+          sourcePaths={moveMany.map((e) => e.path)}
+          label={countLabel(moveMany)}
+          folders={allFolderPaths}
+          onMove={async (destFolder) => {
+            await movePaths(
+              moveMany
+                .map((e) => e.path)
+                .filter((p) => getParentPath(p) !== destFolder),
+              destFolder,
+            );
+            setMoveMany(null);
+            setSelection(EMPTY_SELECTION);
+          }}
+          onCancel={() => setMoveMany(null)}
+        />
+      )}
+
+      {/* Trash several (F13) */}
+      {trashMany && (
+        <ConfirmModal
+          title={`Delete ${countLabel(trashMany)}`}
+          message={bulkTrashMessage(trashMany)}
+          confirmLabel="Move to Trash"
+          isDanger
+          recoverable
+          onConfirm={async () => {
+            await trashPaths(trashMany.map((e) => e.path));
+            setTrashMany(null);
+            setSelection(EMPTY_SELECTION);
+          }}
+          onCancel={() => setTrashMany(null)}
+        />
+      )}
+
       {/* Trash Confirm Modal */}
       {trashTarget && (
         <ConfirmModal
@@ -1240,6 +1501,14 @@ interface TreeRowsProps {
   focusedPath: string | null;
   readOnly: boolean;
   onSelect: (path: string, kind: EntryKind, newTab?: boolean) => void;
+  /** A click with its modifiers (multi-select, F13). */
+  onRowClick: (
+    path: string,
+    kind: EntryKind,
+    mods: { shift: boolean; mod: boolean },
+  ) => void;
+  /** Selected rows (multi-select); the shared empty one costs nothing. */
+  selection: TreeSelection;
   onToggleFolder: (path: string) => void;
   onNewInside: (folderPath: string, kind: "folder" | "drawing") => void;
   onOpenMenu: (entry: VaultEntry, x: number, y: number) => void;
@@ -1264,6 +1533,7 @@ const TreeRows = ({
   dropTarget,
   dragSourcePath,
   tagsByPath,
+  selection,
   ...handlers
 }: TreeRowsProps) => (
   <>
@@ -1284,6 +1554,7 @@ const TreeRows = ({
           expanded={row.expanded}
           active={path === activePath}
           focused={path === focusedPath}
+          selected={selection.paths.has(path)}
           dropTarget={isFolder && dropTarget === path}
           dragSource={dragSourcePath === path}
           tags={isFolder ? undefined : tagsByPath?.[path]}
@@ -1305,6 +1576,7 @@ interface TreeRowProps
     TreeRowsProps,
     | "readOnly"
     | "onSelect"
+    | "onRowClick"
     | "onToggleFolder"
     | "onNewInside"
     | "onOpenMenu"
@@ -1316,6 +1588,7 @@ interface TreeRowProps
   expanded: boolean;
   active: boolean;
   focused: boolean;
+  selected: boolean;
   dropTarget: boolean;
   dragSource: boolean;
   tags?: string[];
@@ -1328,11 +1601,13 @@ const TreeRow = memo(
     expanded: isExpanded,
     active: isActive,
     focused: isFocused,
+    selected: isSelected,
     dropTarget: isDropTarget,
     dragSource: isDragSource,
     tags,
     readOnly,
     onSelect,
+    onRowClick,
     onToggleFolder,
     onNewInside,
     onOpenMenu,
@@ -1350,7 +1625,9 @@ const TreeRow = memo(
           isActive ? "vault-tree-item--active" : ""
         } ${isFocused ? "vault-tree-item--focused" : ""} ${
           isDropTarget ? "vault-tree-item--drop-target" : ""
-        } ${isDragSource ? "vault-tree-item--drag-source" : ""}`}
+        } ${isDragSource ? "vault-tree-item--drag-source" : ""} ${
+          isSelected ? "vault-tree-item--selected" : ""
+        }`}
         style={{ "--depth": depth } as React.CSSProperties}
         data-tree-path={entry.path}
         data-tree-kind={entry.kind}
@@ -1365,9 +1642,14 @@ const TreeRow = memo(
         }}
         role="treeitem"
         aria-expanded={isFolder ? isExpanded : undefined}
-        aria-selected={isActive}
+        aria-selected={isSelected || isActive}
         tabIndex={isFocused ? 0 : -1}
-        onClick={(e) => onSelect(entry.path, entry.kind, isNewTabClick(e))}
+        onClick={(e) =>
+          onRowClick(entry.path, entry.kind, {
+            shift: e.shiftKey,
+            mod: isNewTabClick(e),
+          })
+        }
         onAuxClick={(e) => {
           // Middle click opens a drawing in a new tab.
           if (e.button === 1 && !isFolder) {

@@ -45,7 +45,7 @@ export async function runEverydayScenarios(kit: PerfKit): Promise<void> {
       15_000,
     );
 
-  /** Cmd+click on the tree row: opens the drawing in a new tab. */
+  /** Middle click on the tree row: opens the drawing in a new tab (Cmd+click selects, F13). */
   const openInNewTab = async (path: string) => {
     const target = row(path);
     if (!target) {
@@ -53,10 +53,10 @@ export async function runEverydayScenarios(kit: PerfKit): Promise<void> {
     }
     const t0 = now();
     target.dispatchEvent(
-      new win.MouseEvent("click", {
+      new win.MouseEvent("auxclick", {
         bubbles: true,
         cancelable: true,
-        metaKey: true,
+        button: 1,
       }),
     );
     await waitEditor(path);

@@ -144,6 +144,10 @@ autosave_delay_ms = 500
 [navigator]
 # name_asc | name_desc | modified_desc | modified_asc
 # sort = "name_asc"
+# Cmd/Ctrl+click on a row: select (add to the selection) | new_tab
+# mod_click = "select"
+# Exporting into a folder that has a file of that name: keep_both | replace | skip
+# export_existing = "keep_both"
 
 [files]
 # Ask before moving a drawing to the Trash

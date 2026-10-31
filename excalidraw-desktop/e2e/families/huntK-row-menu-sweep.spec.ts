@@ -25,6 +25,7 @@ type Expect = "dialog" | "submenu" | "notice" | "view" | "skip";
 const EXPECT: Record<string, Expect> = {
   "New drawing": "dialog",
   "New folder": "dialog",
+  "New note": "dialog",
   Duplicate: "skip", // writes a copy: covered by file-kinds-menu and V-2
   "Save as template…": "dialog",
   "Move to…": "dialog",

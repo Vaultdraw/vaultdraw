@@ -112,3 +112,23 @@ export const updatedMessage = (links: number, drawings: number) =>
     "drawing",
     "drawings",
   )}`;
+
+/**
+ * A confirm that asks each question once per batch (a multi-select move,
+ * F13): the first answer to "Update links?" or "Move anyway?" applies to
+ * every later item, as Obsidian asks once for a multi-file move.
+ */
+export function onceConfirm(
+  confirm: MoveFlowDeps["confirm"],
+  answers: Map<string, boolean>,
+): MoveFlowDeps["confirm"] {
+  return async (request) => {
+    const known = answers.get(request.title);
+    if (known !== undefined) {
+      return known;
+    }
+    const answer = await confirm(request);
+    answers.set(request.title, answer);
+    return answer;
+  };
+}

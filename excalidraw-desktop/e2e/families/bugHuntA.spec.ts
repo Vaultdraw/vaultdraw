@@ -42,7 +42,7 @@ test("hunt: Re-import from a non-active tab's menu rewrites the clicked tab's no
   await clickMainMenuItem(page, "Import Obsidian vault…");
   await expect(row(page, "Vault")).toBeVisible({ timeout: 30_000 });
   await row(page, "Vault/Alpha.excalidraw").click();
-  await row(page, "Vault/Beta.excalidraw").click({ modifiers: ["Meta"] });
+  await row(page, "Vault/Beta.excalidraw").click({ button: "middle" });
   await expect(
     page.locator('[data-testid="vault-tab"][data-active="true"]'),
   ).toContainText("Beta");

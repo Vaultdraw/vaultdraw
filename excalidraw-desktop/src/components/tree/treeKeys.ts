@@ -11,6 +11,15 @@
  */
 import { getParentPath } from "../../vault/treeStore";
 
+import {
+  EMPTY_SELECTION,
+  selectAll,
+  selectRange,
+  toggleSelection,
+  topLevelPaths,
+  type TreeSelection,
+} from "./treeSelection";
+
 import type { ListAction } from "../../commands/listNav";
 import type { ExplorerExportFormat } from "../../export/exportFromFile";
 import type { VaultEntry } from "../../vault/types";
@@ -37,6 +46,15 @@ export interface TreeKeyDeps {
   notes?: boolean;
   menu(entry: VaultEntry): void;
   exit(): void;
+  /** Multi-select (F13); absent = the tree offers no selection keys. */
+  selection?: TreeSelection;
+  setSelection?(sel: TreeSelection): void;
+  /** Vim-style visual mode (V): moving the cursor extends the selection. */
+  visual?: boolean;
+  setVisual?(on: boolean): void;
+  /** Bulk move and trash of these paths (top-level only). */
+  moveMany?(paths: string[]): void;
+  trashMany?(paths: string[]): void;
   /** Row menu items (command audit S8); absent = not offered. */
   row?: TreeRowActions;
 }
@@ -92,6 +110,12 @@ export const TREE_ACTIONS: readonly TreeAction[] = [
   "copyLink",
   "compareConflict",
   "downloadFromCloud",
+  "extendDown",
+  "extendUp",
+  "toggleSelection",
+  "visual",
+  "selectAll",
+  "clearSelection",
 ];
 
 /**
@@ -120,11 +144,26 @@ export function treeActions(d: TreeKeyDeps): TreeActions {
   const item = row?.entry;
   // Where navigation starts without a focused row: the open drawing.
   const cursor = index >= 0 ? index : indexOf(d.activePath);
-  const go = (i: number) => {
-    if (rows.length > 0) {
-      d.setFocusedPath(rows[(i + rows.length) % rows.length].entry.path);
+  const sel = d.selection ?? EMPTY_SELECTION;
+  const selecting = !!d.setSelection;
+  /** Move the cursor; in visual mode (or with `extend`) the range follows it. */
+  const go = (i: number, extend = d.visual) => {
+    if (rows.length === 0) {
+      return;
+    }
+    // A range never wraps around the ends.
+    const next = extend
+      ? Math.min(rows.length - 1, Math.max(0, i))
+      : (i + rows.length) % rows.length;
+    const path = rows[next].entry.path;
+    d.setFocusedPath(path);
+    if (extend && d.setSelection) {
+      const from = index >= 0 ? rows[index].entry.path : path;
+      d.setSelection(selectRange(sel, rows, path, from));
     }
   };
+  // Bulk targets: the selection when there is one (Zed's marked entries).
+  const many = sel.paths.size > 0 ? topLevelPaths(sel.paths) : null;
   const start = () => go(cursor < 0 ? 0 : cursor);
   const onRow = (fn: (row: TreeRow) => void) => () => row ? fn(row) : start();
   // Every row (folder, drawing, note) can be renamed, moved and deleted from the keyboard.
@@ -181,14 +220,70 @@ export function treeActions(d: TreeKeyDeps): TreeActions {
     select: activate(false),
     openInNewTab: activate(true),
     rename: edit(d.rename),
-    delete: edit(d.trash),
-    move: edit(d.move),
+    delete:
+      many && d.trashMany && !d.readOnly
+        ? () => d.trashMany?.(many)
+        : edit(d.trash),
+    move:
+      many && d.moveMany && !d.readOnly
+        ? () => d.moveMany?.(many)
+        : edit(d.move),
+    ...(selecting ? selectionActions(d, sel, cursor, go) : {}),
     newItem: createIn("drawing"),
     newFolder: createIn("folder"),
     newNote: createIn("note"),
     menu: item ? () => d.menu(item) : undefined,
-    exit: d.dragging ? undefined : d.exit,
+    // Escape: leave visual mode and clear the selection first, then the tree.
+    exit: d.dragging
+      ? undefined
+      : sel.paths.size > 0 || d.visual
+      ? () => {
+          d.setVisual?.(false);
+          d.setSelection?.(EMPTY_SELECTION);
+        }
+      : d.exit,
     ...rowMenuActions(item, d),
+  };
+}
+
+/** Shift+J/K, X, V, Mod+A and "Clear selection" (F13). */
+function selectionActions(
+  d: TreeKeyDeps,
+  sel: TreeSelection,
+  cursor: number,
+  go: (i: number, extend?: boolean) => void,
+): TreeActions {
+  const { rows } = d;
+  const set = (next: TreeSelection) => d.setSelection?.(next);
+  const here = cursor >= 0 ? rows[cursor]?.entry.path : undefined;
+  return {
+    extendDown: () => go(cursor < 0 ? 0 : cursor + 1, true),
+    extendUp: () => go(cursor < 0 ? rows.length - 1 : cursor - 1, true),
+    toggleSelection: here
+      ? () => {
+          d.setFocusedPath(here);
+          set(toggleSelection(sel, here));
+        }
+      : undefined,
+    visual: here
+      ? () => {
+          if (d.visual) {
+            d.setVisual?.(false);
+            return;
+          }
+          d.setFocusedPath(here);
+          d.setVisual?.(true);
+          set(selectRange(EMPTY_SELECTION, rows, here, here));
+        }
+      : undefined,
+    selectAll: rows.length > 0 ? () => set(selectAll(rows)) : undefined,
+    clearSelection:
+      sel.paths.size > 0
+        ? () => {
+            d.setVisual?.(false);
+            set(EMPTY_SELECTION);
+          }
+        : undefined,
   };
 }
 

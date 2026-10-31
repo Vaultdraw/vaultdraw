@@ -674,6 +674,25 @@ Canvas zoom is Excalidraw's own: **Cmd/Ctrl + `+`**, **`-`** and **`0`**. Interf
 
 ### File tree and panel keys
 
+### Selecting several files
+
+Select several rows in the file tree and act on them at once, as in Zed and Obsidian:
+
+| Do | To |
+| --- | --- |
+| Cmd+click (Ctrl+click on Windows and Linux) | add a row to the selection, or take it out |
+| Shift+click | select every row between the last one clicked and this one |
+| Shift+arrow, Shift+J/K, or `V` then J/K | grow the selection from the keyboard |
+| Escape, or a plain click | clear the selection |
+
+With rows selected:
+
+- **Drag** any selected row onto a folder: they all move there. Items already in that folder stay.
+- **Right-click** a selected row: **Move N items to…**, **Export** as PNG or SVG, **Clear selection**, **Move N items to Trash**. A right-click on a row outside the selection acts on that row alone.
+- **Keys:** `M` moves and `D` trashes the whole selection. A folder takes everything inside it, so a selected file inside a selected folder is not moved twice.
+- Moving asks about links once for the whole batch. Trash goes to the system Trash, so it can be restored; the confirmation lists the first names and the count.
+- Set `navigator.mod_click = "new_tab"` to keep Cmd+click opening a new tab.
+
 The file tree, the Tags list, the Links panel and the Settings page list share one set of `list.*` commands. Their keys work only while that list has focus (click into it, or press **Mod+Alt+F** for the file tree), so on the canvas `r` is still the rectangle tool and in a text field `j` still types a `j`. A key a list has no use for (for example `r` in the Links panel) is left alone.
 
 | Command id | What it does | Default keys |
@@ -692,7 +711,11 @@ The file tree, the Tags list, the Links panel and the Settings page list share o
 | `list.move` | Move the row to another folder | `M` |
 | `list.menu` | The row's menu | `Shift+F10`, `ContextMenu` |
 | `list.nextView` | Switch Backlinks / Outgoing (Links panel) | `Tab` |
-| `list.exit` | Leave the list (the tree goes back to the canvas) | `Escape` |
+| `list.exit` | Clear the file tree's selection; with none, leave the list (the tree goes back to the canvas) | `Escape` |
+| `list.extendDown` / `list.extendUp` | Grow or shrink the file tree's selection by one row | `Shift+J`, `Shift+ArrowDown` / `Shift+K`, `Shift+ArrowUp` |
+| `list.toggleSelection` | Add the focused row to the selection, or take it out | `X` |
+| `list.visual` | Visual mode, as in Vim: moving with `J`/`K` selects the rows passed; again (or `Escape`) ends it | `V` |
+| `list.selectAll` / `list.clearSelection` | Select every visible row / clear the selection | none |
 | `navigator.focusTree` | Focus the file tree; again goes back to the canvas | `Mod+Alt+F` |
 | `navigator.clearSearch` | Clear the navigator's search box (offered while it has text) | none |
 
@@ -2061,6 +2084,8 @@ The file tree.
 | Key | Default | Accepts | Per vault | What it does |
 | --- | --- | --- | --- | --- |
 | `sort` | `"name_asc"` | "name_asc", "name_desc", "modified_desc", "modified_asc" | yes | Sort order; folders always come first, names compare by number. |
+| `mod_click` | `"select"` | "select", "new_tab" |  | Cmd+click (Ctrl+click on Windows and Linux) on a tree row: `"select"` adds it to or removes it from the selection, as in Zed and Obsidian; `"new_tab"` opens it in a new tab. Middle click and Cmd+Enter always open a new tab. |
+| `export_existing` | `"keep_both"` | "keep_both", "replace", "skip" |  | Exporting into a folder that already has a file of that name: `"keep_both"` adds a number to the new file ("Plan 2.png"), `"replace"` overwrites it, `"skip"` leaves it and exports the rest. |
 
 ### `[files]`
 

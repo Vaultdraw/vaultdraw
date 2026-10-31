@@ -46,6 +46,7 @@ import {
 } from "../markdown/markdownSettings";
 import { MEMORY_MAPPINGS, type MemoryField } from "../memory/memorySettings";
 import { SYNC_MAPPINGS, type SyncField } from "../sync/syncSettings";
+import { TREE_MAPPINGS, type TreeField } from "../components/tree/treeSettings";
 import { setSafeStart, type SafeStart } from "../safeStart/state";
 import { parseBisect, setBisect } from "../extensionSwitches/bisectState";
 import { SEARCH_MAPPINGS, type SearchField } from "../search/searchSettings";
@@ -421,6 +422,7 @@ type ConfigField =
   | MarkdownField
   | MemoryField
   | SyncField
+  | TreeField
   | SearchField
   | LayoutField
   | ExtensionField
@@ -1142,6 +1144,7 @@ export const CONFIG_MAPPING: readonly ConfigMapping[] = [
   ...MARKDOWN_MAPPINGS,
   ...MEMORY_MAPPINGS,
   ...SYNC_MAPPINGS,
+  ...TREE_MAPPINGS,
   ...SEARCH_MAPPINGS,
   ...LAYOUT_MAPPINGS,
   ...EXTENSION_MAPPINGS,

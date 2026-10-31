@@ -112,7 +112,7 @@ test("a drawing in a background tab renamed outside: the tab follows, it is not 
   await row(page, "DSA/Graphs.excalidraw").click();
   await row(page, "DSA/Dynamic Programming").click();
   await row(page, "DSA/Dynamic Programming/01 Introduction.excalidraw").click({
-    modifiers: ["Meta"],
+    button: "middle",
   });
   await expect(page.getByTestId("vault-tab")).toHaveCount(2);
   await outside(page, {

@@ -17,6 +17,34 @@ interface MoveModalProps {
   folders: string[]; // List of all known folder paths in vault, e.g. ["", "DSA", "DSA/Dynamic Programming"]
   onMove: (destinationParentPath: string) => void | Promise<void>;
   onCancel: () => void;
+  /** Multi-select (F13): every path moves; `sourcePath` is the first. */
+  sourcePaths?: readonly string[];
+  /** "3 items": names the selection in the title and text. */
+  label?: string;
+}
+
+/**
+ * Whether `paths` can move into `target`. Several paths: items already
+ * there are skipped, so only an impossible move (into itself) or a target
+ * that holds every item refuses.
+ */
+export function bulkMoveCheck(
+  paths: readonly string[],
+  target: string,
+): { allowed: boolean; reason?: string } {
+  let already: { allowed: boolean; reason?: string } | null = null;
+  let moves = 0;
+  for (const path of paths) {
+    const check = isMoveAllowed(path, target);
+    if (check.allowed) {
+      moves++;
+    } else if (getParentPath(path) === target && path !== target) {
+      already = check;
+    } else {
+      return check;
+    }
+  }
+  return moves > 0 ? { allowed: true } : already ?? { allowed: false };
 }
 
 /** Root, and every ancestor of the current location, so it is visible. */
@@ -41,7 +69,11 @@ export const MoveModal = ({
   folders,
   onMove,
   onCancel,
+  sourcePaths,
+  label,
 }: MoveModalProps) => {
+  const paths = sourcePaths ?? [sourcePath];
+  const multi = paths.length > 1;
   const [active, setActive] = useState("");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(() => initialExpanded(sourcePath));
@@ -89,7 +121,7 @@ export const MoveModal = ({
     });
 
   const confirm = async (target: string) => {
-    const check = isMoveAllowed(sourcePath, target);
+    const check = bulkMoveCheck(paths, target);
     if (!check.allowed) {
       setError(check.reason ?? "Invalid move target");
       return;
@@ -153,7 +185,11 @@ export const MoveModal = ({
 
   return (
     <Dialog
-      title={`Move ${entryWord(sourceKind).toLowerCase()}`}
+      title={
+        multi && label
+          ? `Move ${label}`
+          : `Move ${entryWord(sourceKind).toLowerCase()}`
+      }
       titleId="move-modal-title"
       className="vd-dialog--wide"
       onClose={onCancel}
@@ -181,8 +217,9 @@ export const MoveModal = ({
     >
       <div onKeyDown={onKeyDown}>
         <p className="vd-dialog__lede">
-          Choose a destination folder for <strong>{entryName}</strong>. Type to
-          filter, arrow keys to navigate, Enter to move.
+          Choose a destination folder for{" "}
+          <strong>{multi && label ? label : entryName}</strong>. Type to filter,
+          arrow keys to navigate, Enter to move.
         </p>
         <input
           ref={inputRef}
@@ -221,7 +258,7 @@ export const MoveModal = ({
           )}
           {rows.map((row, i) => {
             const path = row.entry.path;
-            const allowed = isMoveAllowed(sourcePath, path).allowed;
+            const allowed = bulkMoveCheck(paths, path).allowed;
             return (
               <div
                 key={path}
@@ -257,7 +294,10 @@ export const MoveModal = ({
           })}
         </div>
         <div className="vd-move__dest">
-          {entryWord(sourceKind)} will move into {destLabel}.
+          {multi && label
+            ? `${label[0].toUpperCase()}${label.slice(1)} will move`
+            : `${entryWord(sourceKind)} will move`}{" "}
+          into {destLabel}.
         </div>
         {error && (
           <div className="vault-error-text" style={{ marginTop: "8px" }}>

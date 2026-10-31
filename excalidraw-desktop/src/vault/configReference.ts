@@ -213,6 +213,12 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
       sort: {
         doc: "Sort order; folders always come first, names compare by number.",
       },
+      mod_click: {
+        doc: 'Cmd+click (Ctrl+click on Windows and Linux) on a tree row: `"select"` adds it to or removes it from the selection, as in Zed and Obsidian; `"new_tab"` opens it in a new tab. Middle click and Cmd+Enter always open a new tab.',
+      },
+      export_existing: {
+        doc: 'Exporting into a folder that already has a file of that name: `"keep_both"` adds a number to the new file ("Plan 2.png"), `"replace"` overwrites it, `"skip"` leaves it and exports the rest.',
+      },
     },
   },
   {

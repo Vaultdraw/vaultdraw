@@ -26,7 +26,7 @@ import { createSpot } from "./createTarget";
 import { getDockVisible, setDockVisible } from "./dockState";
 import { linkTargetFor, wikiLink } from "./format";
 import { NavHistories } from "./history";
-import { decideMove, updatedMessage } from "./moveFlow";
+import { decideMove, onceConfirm, updatedMessage } from "./moveFlow";
 import { toastRewriteDone } from "./rewriteToast";
 import { createResolver } from "./resolve";
 
@@ -288,6 +288,8 @@ export function useAppLinks(deps: AppLinksDeps) {
       run: (move: (f: string, t: string) => Promise<unknown>) => Promise<void>,
       /** No dialogs: confirmations auto-accept and links are rewritten (or not). */
       silent?: { rewriteLinks: boolean },
+      /** A bulk move: each question is asked once, its answer reused (F13). */
+      batch?: Map<string, boolean>,
     ): Promise<boolean> => {
       const d = live.current;
       if (!d.vault) {
@@ -299,7 +301,11 @@ export function useAppLinks(deps: AppLinksDeps) {
           links: d.links,
           handle: h,
           mode: silent ? silent.rewriteLinks : d.settings.updateOnRename,
-          confirm: silent ? async () => true : ask,
+          confirm: silent
+            ? async () => true
+            : batch
+            ? onceConfirm(ask, batch)
+            : ask,
         },
         from,
         to,

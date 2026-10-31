@@ -39,7 +39,7 @@ const editWithVim = async (
 ) => {
   await page
     .locator(`[data-tree-path="${path}"] .vault-tree-item__name`)
-    .click(newTab ? { modifiers: ["Meta"] } : undefined);
+    .click(newTab ? { button: "middle" } : undefined);
   await expect(page.getByRole("tab", { name, selected: true })).toBeVisible();
   // A note opens in the mode the last one was left in (reading or editing).
   const edit = page.getByRole("button", { name: "Edit note" });

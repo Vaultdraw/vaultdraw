@@ -50,6 +50,13 @@ export const LIST_ACTIONS = [
   // sync services: a conflict copy's compare, an iCloud placeholder's download
   "compareConflict",
   "downloadFromCloud",
+  // multi-select in the file tree (F13)
+  "extendDown",
+  "extendUp",
+  "toggleSelection",
+  "visual",
+  "selectAll",
+  "clearSelection",
 ] as const;
 
 export type ListAction = typeof LIST_ACTIONS[number];

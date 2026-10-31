@@ -67,6 +67,19 @@ export const LIST_COMMANDS: readonly CommandDefinition[] = [
   list("copyLink", "Copy item link", []),
   list("compareConflict", "Compare conflict copy with original", []),
   list("downloadFromCloud", "Download item from iCloud", []),
+  // multi-select (F13): Shift+arrows like Zed and Obsidian, Shift+J/K and V like Vim.
+  // Select all has no key: Mod+A is reserved for text fields.
+  list(
+    "extendDown",
+    "Extend selection down",
+    ["Shift+J", "Shift+ArrowDown"],
+    true,
+  ),
+  list("extendUp", "Extend selection up", ["Shift+K", "Shift+ArrowUp"], true),
+  list("toggleSelection", "Add or remove item from selection", ["X"]),
+  list("visual", "Visual selection mode", ["V"]),
+  list("selectAll", "Select all items", []),
+  list("clearSelection", "Clear selection", []),
   {
     id: FOCUS_TREE_COMMAND_ID,
     title: "Navigator: Focus file tree",

@@ -195,6 +195,7 @@ import VaultEditor from "./editor/VaultEditor";
 import { allEditorApis, getEditorApi } from "./editor/editorApi";
 import { useCanvasImport } from "./canvasImport/useCanvasImport";
 
+import { bulkFailureMessage } from "./components/trashMessage";
 import { OfflineBadge } from "./components/OfflineBadge";
 import { WindowControls } from "./components/WindowControls";
 import { isCustomChrome, runWindowAction } from "./vault/windowChrome";
@@ -2097,6 +2098,7 @@ export const VaultApp = ({
     from: string,
     to: string,
     silent?: { rewriteLinks: boolean },
+    batch?: Map<string, boolean>,
   ) =>
     appLinks.moveEntry(
       from,
@@ -2107,6 +2109,7 @@ export const VaultApp = ({
           ? relocateDoc(from, to, move)
           : move(from, to).then(() => undefined),
       silent,
+      batch,
     );
 
   // Throwing core of rename/move; `destParent` also reloads and expands the
@@ -2116,8 +2119,9 @@ export const VaultApp = ({
     newPath: string,
     destParent?: string,
     silent?: { rewriteLinks: boolean },
+    batch?: Map<string, boolean>,
   ): Promise<boolean> => {
-    if (!(await moveWithLinks(sourcePath, newPath, silent))) {
+    if (!(await moveWithLinks(sourcePath, newPath, silent, batch))) {
       return false;
     }
     appEvents.emit("drawing.renamed", { from: sourcePath, to: newPath });
@@ -2179,6 +2183,77 @@ export const VaultApp = ({
       });
     } finally {
       setIsBusy(false);
+    }
+  };
+
+  // Multi-select (F13): move several entries in one go. Each is the same
+  // links-aware move as one; link questions are asked once for the batch.
+  // Failures are collected into one notice instead of stopping the batch.
+  const handleMoveEntries = async (
+    paths: string[],
+    destinationParentPath: string,
+  ) => {
+    if (!vault || paths.length === 0) {
+      return;
+    }
+    setIsBusy(true);
+    setGlobalAlert(null);
+    const answers = new Map<string, boolean>();
+    const failed: string[] = [];
+    let firstError = "";
+    try {
+      for (const path of paths) {
+        try {
+          const newPath = joinPath(destinationParentPath, getBaseName(path));
+          await moveEntryCore(
+            path,
+            newPath,
+            destinationParentPath,
+            undefined,
+            answers,
+          );
+        } catch (err) {
+          failed.push(getBaseName(path));
+          firstError ||= errorMessage(err);
+        }
+      }
+    } finally {
+      setIsBusy(false);
+    }
+    if (failed.length > 0) {
+      setGlobalAlert({
+        message: bulkFailureMessage("move", failed, paths.length, firstError),
+        type: "error",
+      });
+    }
+  };
+
+  // Multi-select (F13): trash several entries; one notice for any failures.
+  const handleTrashEntries = async (paths: string[]) => {
+    if (!vault || paths.length === 0) {
+      return;
+    }
+    setIsBusy(true);
+    setGlobalAlert(null);
+    const failed: string[] = [];
+    let firstError = "";
+    try {
+      for (const path of paths) {
+        try {
+          await trashEntryCore(path);
+        } catch (err) {
+          failed.push(getBaseName(path));
+          firstError ||= errorMessage(err);
+        }
+      }
+    } finally {
+      setIsBusy(false);
+    }
+    if (failed.length > 0) {
+      setGlobalAlert({
+        message: bulkFailureMessage("trash", failed, paths.length, firstError),
+        type: "error",
+      });
     }
   };
 
@@ -3635,6 +3710,8 @@ export const VaultApp = ({
           onCreateNote={ext.notes ? createNoteOrThrow : undefined}
           onRenameEntry={handleRenameEntry}
           onMoveEntry={handleMoveEntry}
+          onMoveEntries={handleMoveEntries}
+          onTrashEntries={handleTrashEntries}
           onDuplicateDrawing={handleDuplicateDrawing}
           onSaveAsTemplate={ext.templates ? templates.requestSave : undefined}
           onTrashEntry={handleTrashEntry}

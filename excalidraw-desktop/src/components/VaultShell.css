@@ -606,6 +606,24 @@ html.dark {
   font-weight: 500;
 }
 
+/* Multi-select (F13): an accent tint and an accent bar, apart from the open file. */
+.vault-tree-item--selected,
+.vault-tree-item--selected:hover {
+  background-color: color-mix(in srgb, var(--vault-accent) 18%, transparent);
+  color: var(--vault-text);
+  box-shadow: inset 2px 0 0 var(--vault-accent);
+}
+
+.vault-tree-item--selected .vault-tree-item__icon {
+  color: var(--vault-accent-text);
+}
+
+/* Shift+click must not select the row labels as text. */
+.vault-tree-container[aria-multiselectable] .vault-tree-item {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .vault-tree-item:focus {
   outline: none;
   box-shadow: var(--vault-ring-inset);

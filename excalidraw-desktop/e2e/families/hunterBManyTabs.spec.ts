@@ -46,7 +46,7 @@ const openAll = async (page: Page) => {
       .locator(".vault-tree-item__name")
       .filter({ hasText: n === "Notes" ? /^Notes$/ : n })
       .first();
-    await loc.click({ modifiers: first ? [] : ["Meta"] });
+    await loc.click(first ? undefined : { button: "middle" });
     first = false;
   }
   // second Notes
@@ -54,7 +54,7 @@ const openAll = async (page: Page) => {
     .locator(".vault-tree-item__name")
     .filter({ hasText: /^Notes$/ })
     .nth(1)
-    .click({ modifiers: ["Meta"] });
+    .click({ button: "middle" });
 };
 
 test("hunter B: 32 tabs: the overflow list, its filter, wrap-around keys and the strip follow the active tab", async ({

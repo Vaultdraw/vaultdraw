@@ -178,7 +178,7 @@ test("a drawing deleted outside while its tab is in the background marks the tab
   );
   await row(page, "DSA/Dynamic Programming").click();
   await row(page, "DSA/Dynamic Programming/01 Introduction.excalidraw").click({
-    modifiers: ["Meta"],
+    button: "middle",
   });
   await expect(page.getByTestId("vault-tab")).toHaveCount(2);
   await outside(page, { op: "delete", path: "DSA/Graphs.excalidraw" });
