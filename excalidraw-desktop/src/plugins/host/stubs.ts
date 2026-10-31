@@ -315,6 +315,7 @@ export function registerStubs(rt: PluginRuntime): () => void {
       m.command,
     command: `${id}.${m.command}`,
     kinds: m.kinds,
+    when: m.when,
   }));
   disposers.push(addMenuItems(menus));
   // Declared toolbar buttons are drawn by the editor strip; a click runs a stub command.

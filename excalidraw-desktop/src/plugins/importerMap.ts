@@ -15,6 +15,8 @@
  * importerMapAdmin.ts, which only the lazy plugin host and Plugins page load.
  */
 
+import { defineContextKey } from "../commands/contextKeys";
+
 export interface ImporterEntry {
   pluginId: string;
   /** The importer's short id in its plugin.toml. */
@@ -199,6 +201,33 @@ export async function runImports(
   await st.runner(items, target);
   return true;
 }
+
+let importsRunning = 0;
+
+/** Marks an import as running until the returned function is called (an import counts once per call). */
+export const beginImport = (): (() => void) => {
+  importsRunning++;
+  let done = false;
+  return () => {
+    if (!done) {
+      done = true;
+      importsRunning--;
+    }
+  };
+};
+
+/** True while any import runs: the `import.running` key "Import: Cancel" waits for. */
+export const isImportRunning = (): boolean => importsRunning > 0;
+defineContextKey("import.running", isImportRunning);
+
+/**
+ * Plugin commands that run a whole import themselves (an Obsidian vault) and so are not file
+ * imports: they count as a running import while they run.
+ */
+export const IMPORT_OWN_COMMANDS: ReadonlySet<string> = new Set([
+  "markdown-import.obsidian",
+  "markdown-import.obsidian-new-vault",
+]);
 
 /** "Import: Cancel": true when an import was running and is now aborted. */
 export const cancelImports = (): boolean => st.canceller?.() ?? false;

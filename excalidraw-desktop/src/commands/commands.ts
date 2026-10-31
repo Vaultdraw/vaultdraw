@@ -565,6 +565,8 @@ export const COMMANDS: readonly CommandDefinition[] = [
     title: "Import: Cancel",
     category: "File",
     keys: { default: [] },
+    // Offered only while an import runs (importerMap.ts defines the key).
+    when: ["import.running"],
   },
   {
     id: "file.saveCopy",

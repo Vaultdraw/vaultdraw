@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { defineContextKey } from "../commands/contextKeys";
 import { buildEntries } from "../tabs/TabContextMenu";
 
 import {
@@ -7,6 +8,9 @@ import {
   beginMenuRun,
   getMenuItems,
   getMenuTarget,
+  menuItemShown,
+  registerMenuFact,
+  resolveFacts,
   runMenuItem,
   type MenuItemStub,
 } from "./menuRegistry";
@@ -92,5 +96,53 @@ describe("menu registry", () => {
     const right = beginMenuRun("p", "p.go");
     expect(getMenuTarget("p")).toBeNull();
     right();
+  });
+});
+
+describe("menu `when`", () => {
+  it("a clause is a fact (asked about the row), a context key, or unknown = hidden", async () => {
+    const offFact = registerMenuFact("t.imported", (t) => t.path === "yes");
+    offs.push(offFact);
+    const offKey = defineContextKey("t.mode", () => true);
+    offs.push(offKey);
+    const item = stub({ when: ["t.imported", "t.mode"] });
+    expect(menuItemShown(item, {})).toBe(false); // the fact has not answered yet
+    const yes = await resolveFacts(["t.imported"], {
+      surface: "tree",
+      path: "yes",
+    });
+    const no = await resolveFacts(["t.imported"], {
+      surface: "tree",
+      path: "no",
+    });
+    expect(menuItemShown(item, yes)).toBe(true);
+    expect(menuItemShown(item, no)).toBe(false);
+    expect(menuItemShown(stub({ when: ["nobody.defined"] }), {})).toBe(false);
+    expect(menuItemShown(stub(), {})).toBe(true);
+    const notItem = stub({ when: ["!t.imported"] });
+    expect(menuItemShown(notItem, {})).toBe(false); // not answered yet
+    expect(menuItemShown(notItem, no)).toBe(true);
+    expect(menuItemShown(notItem, yes)).toBe(false);
+    expect(menuItemShown(stub({ when: ["!t.mode"] }), {})).toBe(false);
+  });
+
+  it("a fact that throws counts as false; the tab menu hides what fails", async () => {
+    offs.push(
+      registerMenuFact("t.boom", () => {
+        throw new Error("x");
+      }),
+    );
+    const got = await resolveFacts(["t.boom"], { surface: "tab", path: null });
+    expect(got["t.boom"]).toBe(false);
+    add(
+      stub({ surface: "tab", title: "Shown" }),
+      stub({ surface: "tab", title: "Hidden", when: ["t.boom"] }),
+    );
+    const labels = buildEntries({
+      tab: { id: "1" as never, path: null, pinned: false },
+      facts: got,
+    }).map((e) => e.label);
+    expect(labels).toContain("Shown");
+    expect(labels).not.toContain("Hidden");
   });
 });

@@ -6,7 +6,12 @@
 
 import { useLayoutEffect, useRef } from "react";
 
-import { getMenuItems, runMenuItem } from "../plugins/menuRegistry";
+import {
+  getMenuItems,
+  menuItemShown,
+  runMenuItem,
+} from "../plugins/menuRegistry";
+import { useMenuFacts } from "../plugins/useMenuFacts";
 
 import type { TabId } from "./types";
 
@@ -48,8 +53,12 @@ type Entry = {
 
 export const buildEntries = ({
   tab,
+  facts = {},
   ...h
-}: Omit<TabContextMenuProps, "x" | "y" | "onDismiss">): Entry[] => {
+}: Omit<TabContextMenuProps, "x" | "y" | "onDismiss"> & {
+  /** Answers to the `when` clauses of plugin items (useMenuFacts). */
+  facts?: Readonly<Record<string, boolean>>;
+}): Entry[] => {
   const { id } = tab;
   const groups: (Entry | false)[][] = [
     [
@@ -94,13 +103,15 @@ export const buildEntries = ({
         },
     ],
     // Items plugins declared (`[[contributes.menus]]`); none without plugins.
-    getMenuItems("tab").map(
-      (item, i): Entry => ({
-        action: `plugin:${i}`,
-        label: item.title,
-        run: () => runMenuItem(item, { surface: "tab", path: tab.path }),
-      }),
-    ),
+    getMenuItems("tab")
+      .filter((item) => menuItemShown(item, facts))
+      .map(
+        (item, i): Entry => ({
+          action: `plugin:${i}`,
+          label: item.title,
+          run: () => runMenuItem(item, { surface: "tab", path: tab.path }),
+        }),
+      ),
   ];
   const out: Entry[] = [];
   for (const g of groups) {
@@ -122,7 +133,11 @@ export const TabContextMenu = ({
   ...rest
 }: TabContextMenuProps) => {
   const ref = useRef<HTMLDivElement>(null);
-  const entries = buildEntries(rest);
+  const facts = useMenuFacts(getMenuItems("tab"), {
+    surface: "tab",
+    path: rest.tab.path,
+  });
+  const entries = buildEntries({ ...rest, facts });
 
   // Layout effect: focus and key listeners are in place before the first
   // paint, so a key pressed in the same frame as the menu opens is not lost.

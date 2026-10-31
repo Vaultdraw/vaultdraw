@@ -25,6 +25,8 @@ export interface OfficialMenu {
   command: string;
   title: string;
   kinds?: string[];
+  /** Shown only while every clause holds (`when` in plugin.toml). */
+  when?: string[];
 }
 
 /** An activity bar button that runs one of the plugin's commands; `active` while its overlay is open. */
@@ -141,17 +143,20 @@ export const OFFICIAL_PLUGINS: readonly OfficialPlugin[] = [
         command: "reimport-note",
         title: "Re-import from its Markdown",
         kinds: ["drawing"],
+        when: ["markdown.importedNote"],
       },
       {
         surface: "tab",
         command: "reimport-note",
         title: "Re-import from its Markdown",
+        when: ["markdown.importedNote"],
       },
       {
         surface: "tree",
         command: "reimport-notes",
         title: "Re-import unchanged imported notes here",
         kinds: ["folder"],
+        when: ["markdown.folderHasImports"],
       },
     ],
     /** A hidden command the core "Import: Cancel" runs for imports that are not file imports. */

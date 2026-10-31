@@ -13,6 +13,7 @@ import {
 } from "../commands/handlerRegistry";
 import {
   addMenuItems,
+  registerMenuFact,
   runCommand,
   takeMenuTarget,
 } from "../plugins/menuRegistry";
@@ -29,6 +30,12 @@ import {
   webPictureBoxes,
 } from "./upgradeScene";
 import { UPDATE_IMPORTED_NOTES, UPDATE_THIS_NOTE } from "./commands";
+import {
+  FACT_FOLDER_HAS_IMPORTS,
+  FACT_IMPORTED_NOTE,
+  FACT_IMPORT_OR_OLD,
+  menuFacts,
+} from "./menuFacts";
 import {
   editorMeasure,
   loadedFontMeasure,
@@ -237,6 +244,7 @@ export function useImportUpgrade(o: Options): void {
         title: "Update imported notes here",
         command: UPDATE_IMPORTED_NOTES,
         kinds: ["folder"],
+        when: [FACT_FOLDER_HAS_IMPORTS],
       },
       {
         pluginId: "app",
@@ -245,9 +253,23 @@ export function useImportUpgrade(o: Options): void {
         title: "Update to my theme and font anyway",
         command: UPDATE_THIS_NOTE,
         kinds: ["drawing"],
+        when: [FACT_IMPORT_OR_OLD],
       },
     ]);
+    // What the menus ask about the row they opened on (a file is read only when one opens).
+    const facts = menuFacts(() => {
+      const { vault, repository, win } = live.current;
+      return vault
+        ? { repository, handle: vault.handle, target: upgradeTarget(win) }
+        : null;
+    });
+    const offFacts = [
+      registerMenuFact(FACT_IMPORTED_NOTE, facts.importedNote),
+      registerMenuFact(FACT_IMPORT_OR_OLD, facts.importOrOld),
+      registerMenuFact(FACT_FOLDER_HAS_IMPORTS, facts.folderHasImports),
+    ];
     return () => {
+      offFacts.forEach((off) => off());
       offMenu();
       offHandlers();
     };

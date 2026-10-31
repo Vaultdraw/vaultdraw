@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 
-import { getMenuItems, runMenuItem } from "../../plugins/menuRegistry";
+import {
+  getMenuItems,
+  menuItemShown,
+  runMenuItem,
+} from "../../plugins/menuRegistry";
+import { useMenuFacts } from "../../plugins/useMenuFacts";
 
 import { ContextMenu } from "./ContextMenu";
 import {
@@ -9,6 +14,7 @@ import {
   type RowMenuActions,
 } from "./rowMenuModel";
 
+import type { MenuTarget } from "../../plugins/api";
 import type { VaultEntry } from "../../vault/types";
 
 export interface RowMenuState {
@@ -34,28 +40,33 @@ export const RowMenu = ({
   actions,
 }: RowMenuProps) => {
   const { entry } = state;
-  const nodes = useMemo(() => {
-    const rowKind =
-      entry.kind === "folder"
-        ? "folder"
-        : entry.kind === "drawing"
-        ? "drawing"
-        : "note";
-    // Items plugins declared for tree rows (`[[contributes.menus]]`), filtered by the row's kind.
-    const pluginItems: PluginRowItem[] = getMenuItems("tree")
-      .filter((it) => it.kinds.length === 0 || it.kinds.includes(rowKind))
-      .map((it) => ({
-        command: it.command,
-        title: it.title,
-        run: () =>
-          runMenuItem(it, {
-            surface: "tree",
-            path: entry.path,
-            kind: entry.kind === "excalidrawMd" ? "other" : rowKind,
-          }),
-      }));
-    return buildRowMenu({ entry, readOnly, actions, pluginItems });
-  }, [entry, readOnly, actions]);
+  const rowKind: "folder" | "drawing" | "note" =
+    entry.kind === "folder"
+      ? "folder"
+      : entry.kind === "drawing"
+      ? "drawing"
+      : "note";
+  const target: MenuTarget = {
+    surface: "tree",
+    path: entry.path,
+    kind: entry.kind === "excalidrawMd" ? "other" : rowKind,
+  };
+  const facts = useMenuFacts(getMenuItems("tree"), target);
+  const nodes = useMemo(
+    () => {
+      // Items plugins declared for tree rows (`[[contributes.menus]]`), filtered by the row's kind.
+      const pluginItems: PluginRowItem[] = getMenuItems("tree")
+        .filter((it) => it.kinds.length === 0 || it.kinds.includes(rowKind))
+        .filter((it) => menuItemShown(it, facts))
+        .map((it) => ({
+          command: it.command,
+          title: it.title,
+          run: () => runMenuItem(it, target),
+        }));
+      return buildRowMenu({ entry, readOnly, actions, pluginItems });
+    }, // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entry, readOnly, actions, facts],
+  );
 
   return (
     <ContextMenu

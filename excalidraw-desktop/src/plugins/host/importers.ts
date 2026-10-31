@@ -17,6 +17,7 @@ import { getPreferences } from "../../vault/preferences";
 import { getActiveScene } from "../../sceneOps/sceneBus";
 import { toastStore } from "../../toasts/toastStore";
 import {
+  beginImport as markImportRunning,
   createsOwnDrawing,
   type ImportItem,
   type ImportTarget,
@@ -190,6 +191,7 @@ export async function runImportItems(
   }
   running = true;
   halted = null;
+  const endImport = markImportRunning();
   try {
     for (const item of items) {
       if (halted) {
@@ -198,6 +200,7 @@ export async function runImportItems(
       await runOne(item, target);
     }
   } finally {
+    endImport();
     running = false;
     halted = null;
   }

@@ -188,6 +188,7 @@ function registerOfficialStubs(win: Window, plugin: OfficialPlugin) {
           title: m.title,
           command: `${plugin.id}.${m.command}`,
           kinds: m.kinds ?? [],
+          when: m.when,
         })),
       ),
     );

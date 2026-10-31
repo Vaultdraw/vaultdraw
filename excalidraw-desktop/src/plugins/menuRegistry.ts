@@ -9,6 +9,8 @@ import { runHandler } from "../commands/dispatcher";
 import { getRegisteredHandler } from "../commands/handlerRegistry";
 import { toastStore } from "../toasts/toastStore";
 
+import { readCustomContextKey } from "../commands/contextKeys";
+
 import type { MenuTarget } from "./api";
 
 export type MenuSurface = MenuTarget["surface"];
@@ -23,6 +25,12 @@ export interface MenuItemStub {
   command: string;
   /** Tree rows it shows for; empty means all. */
   kinds: readonly string[];
+  /**
+   * Shown only while every clause holds (`[[contributes.menus]] when`). A clause is a menu fact
+   * (`registerMenuFact`, asked about the row the menu opened on) or a context key; one nobody
+   * defines counts as false, so the item stays hidden rather than showing something that cannot work.
+   */
+  when?: readonly string[];
 }
 
 const NONE: readonly MenuItemStub[] = [];
@@ -142,4 +150,69 @@ export function runMenuItem(item: MenuItemStub, target: MenuTarget): void {
       kind: "error",
     });
   }
+}
+
+/** Answers a `when` clause for the row a menu opened on. May look at a file, so it may be async. */
+export type MenuFact = (target: MenuTarget) => boolean | Promise<boolean>;
+const facts = new Map<string, MenuFact>();
+
+/** Registers a fact menu items can name in `when`; the returned function removes it. */
+export function registerMenuFact(key: string, fact: MenuFact): () => void {
+  facts.set(key, fact);
+  return () => {
+    if (facts.get(key) === fact) {
+      facts.delete(key);
+    }
+  };
+}
+
+/** The `when` clauses that need the target (a registered fact), without duplicates. */
+export function factClauses(list: readonly MenuItemStub[]): string[] {
+  const out = new Set<string>();
+  for (const it of list) {
+    for (const c of it.when ?? []) {
+      const key = c.startsWith("!") ? c.slice(1) : c;
+      if (facts.has(key)) {
+        out.add(key);
+      }
+    }
+  }
+  return [...out];
+}
+
+/** Resolves the given fact clauses for a target; a fact that throws counts as false. */
+export async function resolveFacts(
+  clauses: readonly string[],
+  target: MenuTarget,
+): Promise<Record<string, boolean>> {
+  const out: Record<string, boolean> = {};
+  await Promise.all(
+    clauses.map(async (c) => {
+      try {
+        out[c] = !!(await facts.get(c)?.(target));
+      } catch {
+        out[c] = false;
+      }
+    }),
+  );
+  return out;
+}
+
+/**
+ * Whether an item shows: no `when` = always; a fact that has not answered yet = hidden (the menu
+ * redraws when it does); a context key is read now; an unknown clause = false (`!clause` is the opposite of a known one).
+ */
+export function menuItemShown(
+  item: MenuItemStub,
+  resolved: Readonly<Record<string, boolean>>,
+): boolean {
+  return (item.when ?? []).every((clause) => {
+    const not = clause.startsWith("!");
+    const c = not ? clause.slice(1) : clause;
+    if (facts.has(c)) {
+      // A fact that has not answered keeps the item hidden, negated or not.
+      return c in resolved && resolved[c] !== not;
+    }
+    return readCustomContextKey(c) !== not;
+  });
 }

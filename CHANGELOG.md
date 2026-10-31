@@ -19,6 +19,8 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 ### Changed
 
 - **End-to-end tests have a Linux profile.** A second Playwright project sends a Linux user agent, so the Linux keys and words (Ctrl, "file manager") are tested on every machine and in the Linux CI, not only the macOS ones.
+- **Menus show only what can act.** **Re-import from its Markdown**, **Update to my theme and font anyway** and the two folder items for imported notes now appear only on a note the import made, or a folder that holds one (a very large folder shows them anyway). **Import: Cancel** is offered only while an import runs. Plugins get the same through `when` on a menu entry (plugin API 1.3.0).
+
 - **Narrow windows: the file list opens over the drawing.** Below `[layout] narrow_width` (now 600 px by default; 0 turns it off) the file list folds and Toggle navigator opens it as an overlay on the right; Esc, a click outside it or opening a file closes it and focus returns to where it was. At 360 px the tabs and toolbars now have the whole window.
 
 ### Fixed

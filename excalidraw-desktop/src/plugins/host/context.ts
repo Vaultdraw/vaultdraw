@@ -12,6 +12,7 @@ import { pluginSettingDecl } from "../settings/registry";
 import { cleanStatus } from "../../../../sdk/api/shared/statusBar";
 
 import { getMenuTarget } from "../menuRegistry";
+import { beginImport, IMPORT_OWN_COMMANDS } from "../importerMap";
 import { closeOverlay, getOverlay, showOverlay } from "../overlayStore";
 import { setToolHandlers } from "../toolRegistry";
 import { setShapeInserter } from "../shapeRegistry";
@@ -236,9 +237,19 @@ export function createPluginContext(
         if (!declaredCommands.has(short)) {
           return refuse("command", short);
         }
-        rt.handlers.set(short, run);
+        const handler = IMPORT_OWN_COMMANDS.has(`${id}.${short}`)
+          ? ((async (...args: unknown[]) => {
+              const end = beginImport();
+              try {
+                return await (run as (...a: unknown[]) => unknown)(...args);
+              } finally {
+                end();
+              }
+            }) as typeof run)
+          : run;
+        rt.handlers.set(short, handler);
         return track(() => {
-          if (rt.handlers.get(short) === run) {
+          if (rt.handlers.get(short) === handler) {
             rt.handlers.delete(short);
           }
         });

@@ -51,7 +51,11 @@ import {
   PDF_IMPORT_COMMAND_ID,
 } from "../plugins/officialPlugins";
 import { useCanvasImportMenu } from "../canvasImport/useCanvasImportMenu";
-import { getMenuItems, runMenuItem } from "../plugins/menuRegistry";
+import {
+  getMenuItems,
+  menuItemShown,
+  runMenuItem,
+} from "../plugins/menuRegistry";
 import {
   ACTION_KEYS_CONTEXT,
   bindActionCommands,
@@ -358,7 +362,9 @@ const VaultEditorComponent = ({
   const canvasContextMenuItems = useCallback(
     (at: ScenePoint): HostContextMenuItem[] => {
       const base = importMenuItems(at);
-      const plugin = getMenuItems("canvas");
+      const plugin = getMenuItems("canvas").filter((it) =>
+        menuItemShown(it, {}),
+      );
       return plugin.length === 0
         ? base
         : [

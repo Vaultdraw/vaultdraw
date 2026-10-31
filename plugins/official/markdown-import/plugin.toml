@@ -71,17 +71,20 @@ surface = "tree"
 command = "reimport-note"
 title = "Re-import from its Markdown"
 kinds = ["drawing"]
+when = ["markdown.importedNote"]
 
 [[contributes.menus]]
 surface = "tab"
 command = "reimport-note"
 title = "Re-import from its Markdown"
+when = ["markdown.importedNote"]
 
 [[contributes.menus]]
 surface = "tree"
 command = "reimport-notes"
 title = "Re-import unchanged imported notes here"
 kinds = ["folder"]
+when = ["markdown.folderHasImports"]
 
 # Called by the core "Import: Cancel"; not listed in the palette.
 [[contributes.commands]]

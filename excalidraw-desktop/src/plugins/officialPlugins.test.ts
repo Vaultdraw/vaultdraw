@@ -60,6 +60,7 @@ describe("the official plugin table (startup stubs)", () => {
           m.command,
           m.title,
           m.kinds,
+          m.when ?? [],
         ]),
       ).toEqual(
         (doc.contributes.menus ?? []).map(
@@ -68,7 +69,8 @@ describe("the official plugin table (startup stubs)", () => {
             command: string;
             title: string;
             kinds: string[];
-          }) => [m.surface, m.command, m.title, m.kinds],
+            when?: string[];
+          }) => [m.surface, m.command, m.title, m.kinds, m.when ?? []],
         ),
       );
       expect(
