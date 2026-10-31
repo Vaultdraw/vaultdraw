@@ -3,6 +3,8 @@
  * act: on a note the import made, or a folder that holds one. A file is read only when its menu
  * opens, and a folder is scanned up to a cap (a larger folder shows the item, never hides it).
  */
+import { hasDrawingExt } from "../vault/fileKind";
+
 import { hasOldLook, IMPORT_MARK } from "./upgradeScene";
 import { recognise } from "./recognise";
 
@@ -30,7 +32,7 @@ const mayBeImport = (json: string) =>
 export function menuFacts(deps: () => Deps | null) {
   const readScene = async (path: string | null | undefined) => {
     const d = deps();
-    if (!d || !path || !path.endsWith(".excalidraw")) {
+    if (!d || !path || !hasDrawingExt(path)) {
       return null;
     }
     try {
