@@ -1,7 +1,14 @@
 import { expect, type Page } from "@playwright/test";
 
 import { test } from "./fixture";
-import { canvasBox, openDrawing, readScene, trackErrors } from "./helpers";
+import {
+  SHOTS,
+  canvasBox,
+  openDrawing,
+  readScene,
+  screenshot,
+  trackErrors,
+} from "./helpers";
 import { openSeeded, runCommand, textElement } from "./linkStylingHelpers";
 
 // Markdown inline step 2, through visible UI: bold, italic and code words
@@ -175,6 +182,7 @@ test("Markdown mode draws bold, italic and code words without their marks, in li
     .toBeLessThan(off[0].w - 8);
   const on = await settledWidths(page, ROWS.length);
   expectHidden(off, on);
+  await screenshot(page, { path: `${SHOTS}/md-inline-light.png` });
   const stored = (await readScene(page, "Inline.excalidraw").catch(() => null))
     ?.elements;
   if (stored) {
@@ -188,6 +196,7 @@ test("Markdown mode draws bold, italic and code words without their marks, in li
   await runCommand(page, "Mode: Dark");
   await expect.poll(() => canvasBackground(page)).toBeLessThan(100);
   const dark = await settledWidths(page, ROWS.length);
+  await screenshot(page, { path: `${SHOTS}/md-inline-dark.png` });
   ROWS.forEach((row, i) => {
     expect(
       Math.abs(dark[i].w - on[i].w),
