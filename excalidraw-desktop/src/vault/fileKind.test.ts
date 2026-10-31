@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import raw from "./fixtures/filekind.json";
 import {
+  assetKind,
   fileKind,
   hasHiddenComponent,
   isHiddenName,
@@ -13,6 +14,7 @@ const fixtures = raw as {
   kinds: [string, string][];
   hidden: [string, boolean][];
   strip: [string, string][];
+  assets: [string, string][];
 };
 
 describe("fileKind (shared fixtures with Rust)", () => {
@@ -24,6 +26,9 @@ describe("fileKind (shared fixtures with Rust)", () => {
   });
   it.each(fixtures.strip)("stripDrawingExt(%s) is %s", (name, out) => {
     expect(stripDrawingExt(name)).toBe(out);
+  });
+  it.each(fixtures.assets)("assetKind(%s) is %s", (name, kind) => {
+    expect(assetKind(name) ?? "none").toBe(kind);
   });
   it("finds hidden path components", () => {
     expect(hasHiddenComponent("a/.trash/b.md")).toBe(true);

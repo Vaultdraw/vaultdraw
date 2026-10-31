@@ -66,7 +66,7 @@ mod hidden_render;
 // (history, thumbs, links, ...) compiling against `crate::{err, safe_path, ...}` unchanged.
 pub(crate) use vaultdraw_core::lock as vault_lock;
 pub(crate) use vaultdraw_core::{
-    create_folder_at, current_revision, drawing_read_only_at, drawing_revision_at, ensure_json, ensure_no_sibling_collision, err, ioerr, list_directory_in, move_entry_paths, mutation_guard,
+    create_folder_at, current_revision, drawing_read_only_at, drawing_revision_at, ensure_json, ensure_no_sibling_collision, err, ioerr, move_entry_paths, mutation_guard,
     now_ms, random_id, read_bounded, read_drawing_file, read_drawing_parts, recovery_reveal_target, revision, safe_path,
     sync_dirs, validate_relative, write_atomic, write_atomic_new, write_drawing_file, write_drawing_file_rewrite,
     writable, NativeError, DrawingFile, RecoveryEntry, Result, VaultEntry, MAX_DRAWING_BYTES, META_DIR,
@@ -503,11 +503,13 @@ async fn set_vault_watching(handle: String, enabled: bool, app: AppHandle, state
 async fn list_directory(
     handle: String,
     path: String,
+    assets: Option<String>,
     state: State<'_, Service>,
 ) -> Result<Vec<VaultEntry>> {
     ui_activity::touch();
     let v = vault_for(&state, &handle)?;
-    list_directory_in(&v, &path)
+    // `files.show_assets`: pictures, PDFs or every file beside drawings and notes (absent = none).
+    vaultdraw_core::list_directory_with(&v, &path, vaultdraw_core::filekind::AssetListing::parse(assets.as_deref()))
 }
 #[tauri::command]
 async fn read_drawing(handle: String, path: String, state: State<'_, Service>) -> Result<tauri::ipc::Response> {
@@ -743,6 +745,26 @@ async fn reveal_entry(handle: String, path: String, state: State<'_, Service>) -
     return external::reveal_linux(&p);
     #[cfg(not(target_os = "linux"))]
     external::spawn_reaped(std::process::Command::new(program).args(args)).map_err(ioerr)
+}
+/// Opens a vault PDF in the system's default app (the tree's PDF rows). Only PDFs: a click must
+/// never run a script or an app that happens to sit in the vault folder.
+#[tauri::command]
+async fn open_vault_pdf(handle: String, path: String, state: State<'_, Service>) -> Result<()> {
+    let v = vault_for(&state, &handle)?;
+    if vaultdraw_core::filekind::asset_kind(&path) != Some(vaultdraw_core::filekind::AssetKind::Pdf) || vaultdraw_core::filekind::has_hidden_component(&path) {
+        return Err(err("INVALID_PATH", "Only PDF files open in the default app"));
+    }
+    let p = safe_path(&v.root, &path, false)?;
+    if !p.is_file() {
+        return Err(err("NOT_FOUND", "File not found"));
+    }
+    #[cfg(target_os = "macos")]
+    let program = "open";
+    #[cfg(target_os = "windows")]
+    let program = "explorer";
+    #[cfg(target_os = "linux")]
+    let program = "xdg-open";
+    external::spawn_reaped(std::process::Command::new(program).arg(&p)).map_err(ioerr)
 }
 #[tauri::command]
 async fn export_file(request: tauri::ipc::Request<'_>) -> Result<bool> {
@@ -1152,7 +1174,7 @@ pub fn run() {
                 services::services_start, search::search_vault, search::search_index_status, search::search_rescan, search::vault_tags, search::search_list_names,
                 links::vault_links, links::vault_unlinked_mentions, links::resolve_link, links::links_plan_move, links::links_remeasure, links::links_remeasure_done, links::tags_plan_rename, links::rename_tag, links::vault_graph, links::graph_layout_load, links::graph_layout_save,
                 history::history_configure, history::history_status, history::history_opened, history::history_list, history::history_snapshot, history::history_checkpoint, history::history_read_version, history::history_read_blob, history::history_snapshot_bytes, history::history_restore_copy, history::history_export_file, history::history_delete_checkpoint, history::history_delete_all, history::history_exclude_from_git, network::network_fetch_image, update_check::update_check,
-                library::read_library, library::write_library, library::list_libraries, library::create_library, library::rename_library, library::delete_library, library::pick_library_file, markdown::markdown_parse, markdown::markdown_parse_file, notes::read_note, notes::write_note, note_assets::read_note_asset, import_folder::import_target_root, backup::backup_start, backup::restore_start, backup::backup_status, backup::backup_cancel,
+                library::read_library, library::write_library, library::list_libraries, library::create_library, library::rename_library, library::delete_library, library::pick_library_file, markdown::markdown_parse, markdown::markdown_parse_file, notes::read_note, notes::write_note, note_assets::read_note_asset, note_assets::read_vault_image, open_vault_pdf, import_folder::import_target_root, backup::backup_start, backup::restore_start, backup::backup_status, backup::backup_cancel,
                 pdf_import::pdf_pick, pdf_import::pdf_open_bytes, pdf_import::pdf_render_page, pdf_import::pdf_unlock, pdf_import::pdf_close,
                 templates::list_global_templates, templates::read_global_template,
                 templates::write_global_template, templates::open_global_templates_dir,
@@ -1176,7 +1198,7 @@ pub fn run() {
                 services::services_start, search::search_vault, search::search_index_status, search::search_rescan, search::vault_tags, search::search_list_names,
                 links::vault_links, links::vault_unlinked_mentions, links::resolve_link, links::links_plan_move, links::links_remeasure, links::links_remeasure_done, links::tags_plan_rename, links::rename_tag, links::vault_graph, links::graph_layout_load, links::graph_layout_save,
                 history::history_configure, history::history_status, history::history_opened, history::history_list, history::history_snapshot, history::history_checkpoint, history::history_read_version, history::history_read_blob, history::history_snapshot_bytes, history::history_restore_copy, history::history_export_file, history::history_delete_checkpoint, history::history_delete_all, history::history_exclude_from_git, network::network_fetch_image, update_check::update_check,
-                library::read_library, library::write_library, library::list_libraries, library::create_library, library::rename_library, library::delete_library, library::pick_library_file, markdown::markdown_parse, markdown::markdown_parse_file, notes::read_note, notes::write_note, note_assets::read_note_asset, import_folder::import_target_root, backup::backup_start, backup::restore_start, backup::backup_status, backup::backup_cancel,
+                library::read_library, library::write_library, library::list_libraries, library::create_library, library::rename_library, library::delete_library, library::pick_library_file, markdown::markdown_parse, markdown::markdown_parse_file, notes::read_note, notes::write_note, note_assets::read_note_asset, note_assets::read_vault_image, open_vault_pdf, import_folder::import_target_root, backup::backup_start, backup::restore_start, backup::backup_status, backup::backup_cancel,
                 pdf_import::pdf_pick, pdf_import::pdf_open_bytes, pdf_import::pdf_render_page, pdf_import::pdf_unlock, pdf_import::pdf_close,
                 templates::list_global_templates, templates::read_global_template,
                 templates::write_global_template, templates::open_global_templates_dir,
@@ -1197,7 +1219,7 @@ pub fn run() {
             services::services_start, search::search_vault, search::search_index_status, search::search_rescan, search::vault_tags, search::search_list_names,
                 links::vault_links, links::vault_unlinked_mentions, links::resolve_link, links::links_plan_move, links::links_remeasure, links::links_remeasure_done, links::tags_plan_rename, links::rename_tag, links::vault_graph, links::graph_layout_load, links::graph_layout_save,
                 history::history_configure, history::history_status, history::history_opened, history::history_list, history::history_snapshot, history::history_checkpoint, history::history_read_version, history::history_read_blob, history::history_snapshot_bytes, history::history_restore_copy, history::history_export_file, history::history_delete_checkpoint, history::history_delete_all, history::history_exclude_from_git, network::network_fetch_image, update_check::update_check,
-            library::read_library, library::write_library, library::list_libraries, library::create_library, library::rename_library, library::delete_library, library::pick_library_file, markdown::markdown_parse, markdown::markdown_parse_file, notes::read_note, notes::write_note, note_assets::read_note_asset, import_folder::import_target_root, backup::backup_start, backup::restore_start, backup::backup_status, backup::backup_cancel,
+            library::read_library, library::write_library, library::list_libraries, library::create_library, library::rename_library, library::delete_library, library::pick_library_file, markdown::markdown_parse, markdown::markdown_parse_file, notes::read_note, notes::write_note, note_assets::read_note_asset, note_assets::read_vault_image, open_vault_pdf, import_folder::import_target_root, backup::backup_start, backup::restore_start, backup::backup_status, backup::backup_cancel,
                 pdf_import::pdf_pick, pdf_import::pdf_open_bytes, pdf_import::pdf_render_page, pdf_import::pdf_unlock, pdf_import::pdf_close,
             templates::list_global_templates, templates::read_global_template,
             templates::write_global_template, templates::open_global_templates_dir,

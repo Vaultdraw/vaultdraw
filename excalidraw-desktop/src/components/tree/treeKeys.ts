@@ -9,6 +9,7 @@
  * a drawing is open: navigation may start at the open drawing, edits never.
  * The row menu's other items (duplicate, export ...) follow the same rule.
  */
+import { isAssetKind } from "../../vault/fileKind";
 import { getParentPath } from "../../vault/treeStore";
 
 import {
@@ -76,6 +77,8 @@ export interface TreeRowActions {
   copyPath?(path: string, kind: "relative" | "absolute" | "link"): void;
   /** A sync-service row: compare a conflict copy, download an iCloud placeholder. */
   sync?(entry: VaultEntry, action: "compare" | "download"): void;
+  /** A picture row while a writable drawing is open: insert it into that drawing. */
+  insertPicture?(path: string): void;
 }
 
 /** Everything the tree implements (it has no second view: Tab leaves it). */
@@ -121,6 +124,7 @@ export const TREE_ACTIONS: readonly TreeAction[] = [
   "selectAll",
   "clearSelection",
   "exportFolder",
+  "insertPicture",
 ];
 
 /**
@@ -350,8 +354,9 @@ function rowMenuActions(
     exportSvg: exportAs("svg"),
     exportPdf: exportAs("pdf"),
     saveCopy: exportAs("copy"),
+    insertPicture: bind(r.insertPicture, item.kind === "image"),
     ...syncActions,
-    ...copyActions(path, r),
+    ...copyActions(path, r, isAssetKind(item.kind)),
   };
 }
 

@@ -6,6 +6,7 @@ import {
   drawingStem,
   EXCALIDRAW_MD_EXT,
   fileKind,
+  isAssetKind,
   NOTE_EXT,
   stripDrawingExt,
 } from "./fileKind";
@@ -295,8 +296,8 @@ export async function scanVaultMetadata(
         if (signal?.aborted) {
           break;
         }
-        // Notes are not drawings: the flat index (search, switcher) keeps drawings and folders.
-        if (item.kind !== "note") {
+        // Notes and pictures are not drawings: the flat index (search, switcher) keeps drawings and folders.
+        if (item.kind !== "note" && !isAssetKind(item.kind)) {
           all.push(item);
         }
         if (item.kind === "folder") {

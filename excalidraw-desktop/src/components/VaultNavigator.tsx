@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 
 import {
   entryDisplayName,
-  entryWord,
+  entryWordInSentence,
   fileKind,
   withDrawingExt,
   drawingStem,
@@ -55,8 +55,7 @@ import {
   IconChevronRight,
   IconChevronsUpDown,
   IconClose,
-  IconDrawing,
-  IconNote,
+  EntryIcon,
   IconFolder,
   IconFolderPlus,
   IconMore,
@@ -160,6 +159,15 @@ interface VaultNavigatorProps {
   onOpenDrawing: (path: string, opts?: { target: OpenTarget }) => unknown;
   /** A Markdown note was chosen in the tree (the notes plugin handles it; nothing opens without it). */
   onOpenNote?: (path: string, opts?: { target: OpenTarget }) => unknown;
+  /** A picture was chosen in the tree: the picture viewer tab shows it. */
+  onOpenPicture?: (path: string, opts?: { target: OpenTarget }) => unknown;
+  /** A PDF was chosen in the tree: the system's PDF app opens it. */
+  onOpenPdf?: (path: string) => unknown;
+  /**
+   * Inserts the vault picture at `path` into the open drawing; `at` is the screen point of a drop
+   * (absent: the middle of the view). Passed only while a drawing is open.
+   */
+  onInsertPicture?: (path: string, at?: { x: number; y: number }) => unknown;
   /** Vault-wide search backend; null = name-only search over the loaded tree. */
   search?: VaultSearch | null;
   /**
@@ -252,6 +260,9 @@ export const VaultNavigator = ({
   onToggleCollapse,
   onOpenDrawing,
   onOpenNote,
+  onOpenPicture,
+  onOpenPdf,
+  onInsertPicture,
   search = null,
   tagSearch,
   onOpenSearchResult,
@@ -524,6 +535,13 @@ export const VaultNavigator = ({
         );
       }
     },
+    // One picture dragged onto the drawing goes into it (a multi-selection never does).
+    canDropOnCanvas: (source) =>
+      source.kind === "image" &&
+      !!onInsertPicture &&
+      dragTargets(source).length === 1,
+    onDropOnCanvas: (source, x, y) =>
+      void onInsertPicture?.(source.path, { x, y }),
     isExpanded: (folder) => expandedFolders.has(folder),
     onExpandFolder,
   });
@@ -712,6 +730,9 @@ export const VaultNavigator = ({
   const live = useRef({
     onOpenDrawing,
     onOpenNote,
+    onOpenPicture,
+    onOpenPdf,
+    onRevealEntry,
     onToggleFolder,
     onSyncAction,
     overlay,
@@ -721,6 +742,9 @@ export const VaultNavigator = ({
   live.current = {
     onOpenDrawing,
     onOpenNote,
+    onOpenPicture,
+    onOpenPdf,
+    onRevealEntry,
     onToggleFolder,
     onSyncAction,
     overlay,
@@ -741,6 +765,13 @@ export const VaultNavigator = ({
       }
       if (kind === "note") {
         void current.onOpenNote?.(path, opts);
+      } else if (kind === "image") {
+        void current.onOpenPicture?.(path, opts);
+      } else if (kind === "pdf") {
+        void current.onOpenPdf?.(path);
+      } else if (kind === "file") {
+        // Never run or open an unknown file from a click: show it in its folder.
+        void current.onRevealEntry(path);
       } else {
         void current.onOpenDrawing(path, opts);
       }
@@ -887,6 +918,7 @@ export const VaultNavigator = ({
     exportMany: onExportBatch && exportMany,
     // command audit (S8): the row menu's items as list.* commands
     row: {
+      insertPicture: onInsertPicture && ((path) => void onInsertPicture(path)),
       duplicate: (path) => void onDuplicateDrawing(path),
       reveal: (path) => void onRevealEntry(path),
       // The Gallery plugin's menu item, run for the focused folder; absent while the plugin is off.
@@ -1296,7 +1328,11 @@ export const VaultNavigator = ({
             aria-live="polite"
           >
             <span className="vault-tree-drag-ghost__name">
-              {drag.source.kind === "folder" ? <IconFolder /> : <IconDrawing />}
+              {drag.source.kind === "folder" ? (
+                <IconFolder />
+              ) : (
+                <EntryIcon kind={drag.source.kind} />
+              )}
               {(() => {
                 const paths = dragTargets(drag.source);
                 return paths.length > 1
@@ -1304,6 +1340,9 @@ export const VaultNavigator = ({
                   : drawingStem(drag.source.name);
               })()}
             </span>
+            {drag.onCanvas && (
+              <span className="vault-tree-drag-ghost__hint">{drag.reason}</span>
+            )}
             {drag.targetFolder !== null && (
               <span className="vault-tree-drag-ghost__hint">
                 {drag.allowed
@@ -1385,6 +1424,8 @@ export const VaultNavigator = ({
             history:
               onShowHistory && ((entry) => void onShowHistory(entry.path)),
             syncAction: onSyncAction,
+            insertPicture:
+              onInsertPicture && ((entry) => void onInsertPicture(entry.path)),
             copyPath: (entry, kind) =>
               void copyEntryPath(
                 kind,
@@ -1522,7 +1563,7 @@ export const VaultNavigator = ({
       {/* Trash Confirm Modal */}
       {trashTarget && (
         <ConfirmModal
-          title={`Delete ${entryWord(trashTarget.kind).toLowerCase()}`}
+          title={`Delete ${entryWordInSentence(trashTarget.kind)}`}
           message={
             trashTarget.kind === "folder"
               ? folderTrashMessage(trashTarget.name, trashCount)
@@ -1726,7 +1767,7 @@ const TreeRow = memo(
             </span>
           ) : (
             <span className="vault-tree-item__icon">
-              {entry.kind === "note" ? <IconNote /> : <IconDrawing />}
+              <EntryIcon kind={entry.kind} />
             </span>
           )}
 

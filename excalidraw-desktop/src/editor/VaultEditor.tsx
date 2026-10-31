@@ -88,6 +88,8 @@ import { PluginToolbar } from "../plugins/PluginToolbar";
 import { usePluginOn } from "../plugins/usePluginOn";
 
 import { usePens } from "../pens/usePens";
+import { imageOptionsFor } from "../attachments/assetSettings";
+import { useGlobalPref } from "../vault/useGlobalPref";
 import {
   readDrawingMarkdown,
   readDrawingStyles,
@@ -261,6 +263,14 @@ const VaultEditorComponent = ({
     libraryApi,
   );
   const pens = usePens(apiRef, !readOnly && !disabled);
+  // images.*: Excalidraw's own shrink and size check for pictures put into the drawing.
+  const [imagesCompress] = useGlobalPref(window, "imagesCompress");
+  const [imagesMaxSide] = useGlobalPref(window, "imagesMaxSide");
+  const [imagesMaxInsertMb] = useGlobalPref(window, "imagesMaxInsertMb");
+  const imageOptions = useMemo(
+    () => imageOptionsFor({ imagesCompress, imagesMaxSide, imagesMaxInsertMb }),
+    [imagesCompress, imagesMaxSide, imagesMaxInsertMb],
+  );
   const onPenAppState = pens.onAppState;
   const scheduleSaveRef = useRef<() => void>(() => {});
   const toolDefaults = useToolDefaults(apiRef, !readOnly && !disabled, {
@@ -1153,6 +1163,7 @@ const VaultEditorComponent = ({
         onPaste={(data) => onEditorPaste(data, apiRef.current)}
         canvasContextMenuItems={canvasContextMenuItems}
         validateEmbeddable={false}
+        imageOptions={imageOptions}
         viewModeEnabled={readOnly}
         interaction={disabled ? false : undefined}
         onExportImage={handleExportImage}

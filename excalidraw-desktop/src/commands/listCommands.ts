@@ -83,6 +83,7 @@ export const LIST_COMMANDS: readonly CommandDefinition[] = [
   list("selectAll", "Select all items", []),
   list("clearSelection", "Clear selection", []),
   list("exportFolder", "Export folder as images…", []),
+  list("insertPicture", "Insert picture into the open drawing", []),
   {
     id: FOCUS_TREE_COMMAND_ID,
     title: "Navigator: Focus file tree",

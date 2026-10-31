@@ -145,6 +145,11 @@ import {
 import { getNoteFiles } from "./notes/noteBackend";
 import { NoteConflictError } from "./notes/noteFiles";
 import { isNotePath } from "./notes/register";
+import { ensurePictureKind, isPicturePath } from "./attachments/register";
+import { insertVaultPicture } from "./attachments/insertPicture";
+import { ASSET_COMMAND_IDS } from "./attachments/assetCommands";
+import { getActiveEditor } from "./editor/editorApi";
+import { userError } from "./components/userError";
 import { useNotes } from "./notes/useNotes";
 import { ActiveTabGate } from "./tabs/ActiveTabGate";
 import "./tabs/editorBody.css";
@@ -1573,6 +1578,33 @@ export const VaultApp = ({
       void loadDirectory(dir, undefined, true);
     }
   };
+  // files.show_assets: every listing from here on includes pictures and PDFs (or every file).
+  // Set during render so the first listing of a vault already has them; a change re-lists.
+  const showAssets = prefsNow.filesShowAssets;
+  repository.setAssetListing?.(showAssets);
+  const listedAssets = useRef(showAssets);
+  const reloadForAssets = useRef(reloadLoadedFolders);
+  reloadForAssets.current = reloadLoadedFolders;
+  useEffect(() => {
+    if (listedAssets.current !== showAssets) {
+      listedAssets.current = showAssets;
+      reloadForAssets.current();
+    }
+  }, [showAssets]);
+  useEffect(() => ensurePictureKind(), []);
+  useEffect(
+    () =>
+      registerCommandHandlers({
+        [ASSET_COMMAND_IDS.toggleAssets]: () => {
+          const now = getPreferences(win).filesShowAssets;
+          updatePreferences(
+            { filesShowAssets: now === "none" ? "media" : "none" },
+            win,
+          );
+        },
+      }),
+    [win],
+  );
   const refreshFiles = () => {
     reloadLoadedFolders();
     startIndexing();
@@ -1832,6 +1864,44 @@ export const VaultApp = ({
   };
 
   // Notes (toimprove 182, Obsidian's New note and Make a copy): opened like a click in the tree.
+  // A picture opens in the picture viewer: a tab, or the main pane with tabs off.
+  const openPicture = (path: string, opts?: { target?: OpenTarget }) => {
+    if (tabs.enabled) {
+      return tabs.open(path, opts?.target);
+    }
+    yieldOverlay();
+    void (activeDoc ? closeDoc() : Promise.resolve()).then(() =>
+      setPlainNote(path),
+    );
+  };
+  const openPdf = (path: string) => {
+    if (!vault || !repository.openPdf) {
+      return;
+    }
+    void repository.openPdf(vault.handle, path).catch((err: unknown) =>
+      toastStore.push({
+        message: `Couldn't open the PDF. ${userError(err, "")}`.trim(),
+      }),
+    );
+  };
+  const insertPicture = (path: string, at?: { x: number; y: number }) => {
+    const read = repository.readAsset;
+    if (!vault || !read) {
+      return;
+    }
+    const prefs = getPreferences(win);
+    void insertVaultPicture(
+      {
+        read: (p) => read(vault.handle, p),
+        editor: getActiveEditor(),
+        prefs,
+        notify: (message) => toastStore.push({ message }),
+      },
+      path,
+      at,
+    );
+  };
+
   const openNote = (path: string, opts?: { target?: OpenTarget }) => {
     if (ext.notes && tabs.enabled) {
       return tabs.open(path, opts?.target);
@@ -2705,6 +2775,34 @@ export const VaultApp = ({
   const kindVault = useMemo(
     () => ({
       handle: vault?.handle ?? null,
+      readAsset:
+        vault && repository.readAsset
+          ? (path: string) => repository.readAsset!(vault.handle, path)
+          : undefined,
+      watch: (
+        listener: (paths: readonly string[], rescan: boolean) => void,
+      ) => {
+        let off: (() => void) | null = null;
+        let gone = false;
+        const handle = vault?.handle;
+        void repository
+          .subscribe((e) => {
+            if (e.handle === handle) {
+              listener(e.paths, e.rescan);
+            }
+          })
+          .then((u) => {
+            if (gone) {
+              u();
+            } else {
+              off = u;
+            }
+          });
+        return () => {
+          gone = true;
+          off?.();
+        };
+      },
       ensurePaths: () => {
         needFileListRef.current();
         scanNotes();
@@ -2718,12 +2816,15 @@ export const VaultApp = ({
           : []),
       ],
     }),
-    [vault?.handle, allIndexedEntries, noteList, scanNotes],
+    [vault, repository, allIndexedEntries, noteList, scanNotes],
   );
   tabsRef.current = tabs;
   useEffect(() => {
-    if (activeDoc || tabs.enabled || !ext.notes) {
+    if (activeDoc || tabs.enabled) {
       setPlainNote(null);
+    } else if (!ext.notes) {
+      // Notes turned off: a note shown with tabs off goes; a picture stays.
+      setPlainNote((p) => (p && isNotePath(p) ? null : p));
     }
   }, [activeDoc, tabs.enabled, ext.notes]);
   const layout = useLayout(
@@ -3674,7 +3775,7 @@ export const VaultApp = ({
                   tabs.enabled
                     ? tabs.gateProps?.onOpenPath
                     : (path, opts) => {
-                        if (isNotePath(path)) {
+                        if (isNotePath(path) || isPicturePath(path)) {
                           yieldOverlay();
                           setPlainNote(path);
                         } else {
@@ -3758,6 +3859,13 @@ export const VaultApp = ({
           onToggleCollapse={handleToggleNavigator}
           onRefresh={refreshFiles}
           onOpenNote={openNote}
+          onOpenPicture={openPicture}
+          onOpenPdf={repository.openPdf ? openPdf : undefined}
+          onInsertPicture={
+            activeDoc && !vault.readOnly && repository.readAsset
+              ? insertPicture
+              : undefined
+          }
           onOpenSettings={() => openSettings()}
           onOpenGraph={
             layout.shown.activity_bar || !ext.graph ? undefined : openGraph

@@ -3,6 +3,8 @@
  * create / organise / copy path / reveal / plugin items / rename and trash.
  * Pure: `buildRowMenu` returns data; VaultNavigator supplies the actions.
  */
+import { isAssetKind } from "../../vault/fileKind";
+
 import { joinGroups, type MenuNode } from "./menuModel";
 
 import type { ExplorerExportFormat } from "../../export/exportFromFile";
@@ -33,6 +35,8 @@ export interface RowMenuActions {
   history?: (entry: VaultEntry) => void;
   syncAction?: (entry: VaultEntry, action: "compare" | "download") => void;
   copyPath: (entry: VaultEntry, kind: CopyPathKind) => void;
+  /** Present while a writable drawing is open: a picture row offers "Insert into drawing". */
+  insertPicture?: (entry: VaultEntry) => void;
 }
 
 export interface RowMenuInput {
@@ -102,6 +106,16 @@ export function buildRowMenu({
       : [];
 
   const organise: MenuNode[] = [
+    ...(entry.kind === "image" && a.insertPicture
+      ? [
+          item(
+            "insertPicture",
+            "Insert into drawing",
+            () => a.insertPicture?.(entry),
+            { commandId: "list.insertPicture" },
+          ),
+        ]
+      : []),
     ...((isDrawing || entry.kind === "note") && !readOnly
       ? [
           item("duplicate", "Duplicate", () => a.duplicate(entry), {
@@ -203,8 +217,8 @@ export function buildRowMenu({
           commandId: "list.copyAbsolutePath",
         },
       ),
-      // A vaultdraw:// link opens drawings and notes, not folders.
-      ...(isFolder
+      // A vaultdraw:// link opens drawings and notes, not folders, pictures or other files.
+      ...(isFolder || isAssetKind(entry.kind)
         ? []
         : [
             item(

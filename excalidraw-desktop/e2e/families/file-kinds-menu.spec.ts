@@ -52,6 +52,12 @@ const seedDrawing = (page: Page, path: string) =>
     path,
   );
 
+const seedAsset = (page: Page, path: string) =>
+  page.evaluate(
+    (p) => (window as any).__vaultRepo.seedAsset(p, new Uint8Array([1, 2, 3])),
+    path,
+  );
+
 const KINDS: Kind[] = [
   {
     name: "note",
@@ -73,6 +79,20 @@ const KINDS: Kind[] = [
     renamed: "Canvas.excalidraw.md",
     seed: seedNote,
     word: "Drawing",
+  },
+  {
+    name: "picture",
+    file: "Photo.png",
+    renamed: "Snapshot.png",
+    seed: seedAsset,
+    word: "Picture",
+  },
+  {
+    name: "PDF",
+    file: "Paper.pdf",
+    renamed: "Article.pdf",
+    seed: seedAsset,
+    word: "PDF",
   },
 ];
 
@@ -96,7 +116,9 @@ for (const kind of KINDS) {
     // Rename keeps the extension.
     await (await menuItem(page, kind.file, "Rename…")).click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog).toContainText(`Rename ${kind.word.toLowerCase()}`);
+    await expect(dialog).toContainText(
+      `Rename ${kind.word === "PDF" ? "PDF" : kind.word.toLowerCase()}`,
+    );
     await dialog.getByLabel("New name").fill(kind.renamed.split(".")[0]);
     await dialog.getByRole("button", { name: "Rename" }).click();
     await expect(dialog).toHaveCount(0);
@@ -105,7 +127,9 @@ for (const kind of KINDS) {
 
     // Move into a folder.
     await (await menuItem(page, kind.renamed, "Move to…")).click();
-    await expect(dialog).toContainText(`Move ${kind.word.toLowerCase()}`);
+    await expect(dialog).toContainText(
+      `Move ${kind.word === "PDF" ? "PDF" : kind.word.toLowerCase()}`,
+    );
     await page.keyboard.type("dest");
     await page.keyboard.press("Enter");
     await expect(dialog).toHaveCount(0);
@@ -116,7 +140,9 @@ for (const kind of KINDS) {
     // Trash.
     await expect(row(page, moved)).toBeVisible();
     await (await menuItem(page, moved, "Move to Trash")).click();
-    await expect(dialog).toContainText(`Delete ${kind.word.toLowerCase()}`);
+    await expect(dialog).toContainText(
+      `Delete ${kind.word === "PDF" ? "PDF" : kind.word.toLowerCase()}`,
+    );
     await dialog.getByRole("button", { name: "Move to Trash" }).click();
     await expect(dialog).toHaveCount(0);
     await expect.poll(() => exists(page, moved)).toBe(false);

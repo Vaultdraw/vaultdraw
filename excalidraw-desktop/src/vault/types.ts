@@ -1,3 +1,5 @@
+import type { AssetListing } from "./fileKind";
+
 /** Why a vault opened read-only (reported by the native side). */
 export type ReadOnlyReason =
   | "notWritable"
@@ -22,8 +24,18 @@ export type WatchFallback = {
   intervalMs: number;
 };
 
-/** What the tree lists: folders, drawings (`.excalidraw`), Markdown notes and Obsidian Excalidraw files (`.excalidraw.md`). */
-export type EntryKind = "folder" | "drawing" | "note" | "excalidrawMd";
+/**
+ * What the tree lists: folders, drawings (`.excalidraw`), Markdown notes, Obsidian Excalidraw files
+ * (`.excalidraw.md`) and, under `files.show_assets`, pictures, PDFs and other files.
+ */
+export type EntryKind =
+  | "folder"
+  | "drawing"
+  | "note"
+  | "excalidrawMd"
+  | "image"
+  | "pdf"
+  | "file";
 
 export type VaultEntry = {
   path: string;
@@ -64,6 +76,15 @@ export interface VaultRepository {
   /** Opens the vault behind `handle` again as a new handle (writable if its lock is free now). */
   retryVault?(handle: string): Promise<VaultInfo>;
   listDirectory(handle: string, path: string): Promise<VaultEntry[]>;
+  /**
+   * `files.show_assets`: which other files every later `listDirectory` includes (default none).
+   * Absent in fakes that list drawings and notes only.
+   */
+  setAssetListing?(mode: AssetListing): void;
+  /** Opens a vault PDF in the system's PDF app (absent in fakes without one). */
+  openPdf?(handle: string, path: string): Promise<void>;
+  /** The bytes of a vault picture (the viewer tab and a drag onto a drawing). */
+  readAsset?(handle: string, path: string): Promise<Uint8Array>;
   readDrawing(handle: string, path: string): Promise<DrawingFile>;
   /** Cheap revision probe (no content transfer); null when the file is missing. */
   readRevision?(handle: string, path: string): Promise<string | null>;

@@ -20,6 +20,28 @@
     ["notes", false],
     ["a.excalidraw", false]
   ],
+  "assets": [
+    ["a.png", "image"],
+    ["Pics/A.JPG", "image"],
+    ["b.jpeg", "image"],
+    ["c.gif", "image"],
+    ["d.webp", "image"],
+    ["e.avif", "image"],
+    ["f.bmp", "image"],
+    ["g.svg", "image"],
+    ["Sketch.excalidraw.png", "image"],
+    ["Sketch.excalidraw.svg", "image"],
+    ["doc.pdf", "pdf"],
+    ["Doc.PDF", "pdf"],
+    ["data.csv", "file"],
+    ["README", "file"],
+    ["archive.tar.gz", "file"],
+    ["trailing.", "file"],
+    ["png", "file"],
+    ["a.excalidraw", "none"],
+    ["a.md", "none"],
+    ["a.excalidraw.md", "none"]
+  ],
   "strip": [
     ["Graphs/BFS.excalidraw", "Graphs/BFS"],
     ["X.Excalidraw", "X"],

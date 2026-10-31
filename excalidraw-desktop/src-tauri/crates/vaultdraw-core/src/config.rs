@@ -115,6 +115,15 @@ roughness = 1
 # Decoded-pixel budget per import in megapixels; large PDFs get a lower resolution (10 to 400)
 # pixel_budget_mp = 60
 
+[images]
+# Pictures pasted, dropped or dragged into a drawing (the file on disk is never changed).
+# Shrink a picture whose longest side is over max_side: auto | off
+# compress = "auto"
+# Longest side, in pixels, of a shrunk picture
+# max_side = 1440
+# Largest picture, in megabytes after shrinking, a drawing takes
+# max_insert_mb = 4
+
 [saving]
 # Milliseconds of idle time before an edit is written to disk
 autosave_delay_ms = 500
@@ -164,6 +173,8 @@ autosave_delay_ms = 500
 # auto_reload = true
 # Linux: how often (ms) a vault is polled when the system's inotify watch limit stops the normal file watcher
 # watch_poll_ms = 5000
+# Other files the tree lists beside drawings and notes: media (pictures and PDFs) | all | none
+# show_assets = "media"
 
 [hotkeys]
 # Override a command's keys; [] removes them. Example:
@@ -1685,7 +1696,7 @@ mod tests {
             "{out}"
         );
         assert!(
-            out.contains("# activity_bar_hidden = []\n\n[navigator]\n# name_asc | name_desc | modified_desc | modified_asc\nsort = \"modified_desc\"\n\n[files]\n# Ask before moving a drawing to the Trash\n# confirm_delete = true\n# Folder for new drawings, relative to the vault root (empty = next to the open drawing)\nnew_drawing_folder = \"Inbox\"\n# Vault folder holding your templates, relative to the vault root (empty falls back to \"Templates\")\n# templates_folder = \"Templates\"\n# When every vault folder is listed (recent drawings, file switcher, link suggestions): open | idle | use\n# list_start = \"idle\"\n# Read and parse a drawing when you press on it (tree, tab, switcher), before the click, so it opens sooner\n# speculative_open = true\n# Watch the vault folder and update the tree, search and open drawings when files change outside the app\n# auto_reload = true\n# Linux: how often (ms) a vault is polled when the system's inotify watch limit stops the normal file watcher\n# watch_poll_ms = 5000\n\n[hotkeys]\n"),
+            out.contains("# activity_bar_hidden = []\n\n[navigator]\n# name_asc | name_desc | modified_desc | modified_asc\nsort = \"modified_desc\"\n\n[files]\n# Ask before moving a drawing to the Trash\n# confirm_delete = true\n# Folder for new drawings, relative to the vault root (empty = next to the open drawing)\nnew_drawing_folder = \"Inbox\"\n# Vault folder holding your templates, relative to the vault root (empty falls back to \"Templates\")\n# templates_folder = \"Templates\"\n# When every vault folder is listed (recent drawings, file switcher, link suggestions): open | idle | use\n# list_start = \"idle\"\n# Read and parse a drawing when you press on it (tree, tab, switcher), before the click, so it opens sooner\n# speculative_open = true\n# Watch the vault folder and update the tree, search and open drawings when files change outside the app\n# auto_reload = true\n# Linux: how often (ms) a vault is polled when the system's inotify watch limit stops the normal file watcher\n# watch_poll_ms = 5000\n# Other files the tree lists beside drawings and notes: media (pictures and PDFs) | all | none\n# show_assets = \"media\"\n\n[hotkeys]\n"),
             "{out}"
         );
         assert_eq!(out.matches("[interface]").count(), 1);

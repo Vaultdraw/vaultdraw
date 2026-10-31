@@ -3681,6 +3681,16 @@
    "palette": true
   },
   {
+   "id": "list.insertPicture",
+   "title": "List: Insert picture into the open drawing",
+   "category": "Navigator",
+   "keys": [],
+   "when": [
+    "listFocus"
+   ],
+   "palette": true
+  },
+  {
    "id": "navigator.focusTree",
    "title": "Navigator: Focus file tree",
    "category": "Navigator",
@@ -4054,6 +4064,87 @@
     "notes.active",
     "!modalOpen",
     "notes.editing"
+   ],
+   "palette": true
+  },
+  {
+   "id": "picture.zoomIn",
+   "title": "Picture: Zoom in",
+   "category": "View",
+   "keys": [
+    "Mod+="
+   ],
+   "when": [
+    "vaultOpen",
+    "!drawingOpen",
+    "picture.active",
+    "!modalOpen"
+   ],
+   "palette": true
+  },
+  {
+   "id": "picture.zoomOut",
+   "title": "Picture: Zoom out",
+   "category": "View",
+   "keys": [
+    "Mod+-"
+   ],
+   "when": [
+    "vaultOpen",
+    "!drawingOpen",
+    "picture.active",
+    "!modalOpen"
+   ],
+   "palette": true
+  },
+  {
+   "id": "picture.fit",
+   "title": "Picture: Fit to window",
+   "category": "View",
+   "keys": [
+    "Mod+0"
+   ],
+   "when": [
+    "vaultOpen",
+    "!drawingOpen",
+    "picture.active",
+    "!modalOpen"
+   ],
+   "palette": true
+  },
+  {
+   "id": "picture.actualSize",
+   "title": "Picture: Actual size",
+   "category": "View",
+   "keys": [],
+   "when": [
+    "vaultOpen",
+    "!drawingOpen",
+    "picture.active",
+    "!modalOpen"
+   ],
+   "palette": true
+  },
+  {
+   "id": "picture.reload",
+   "title": "Picture: Reload from disk",
+   "category": "View",
+   "keys": [],
+   "when": [
+    "vaultOpen",
+    "!drawingOpen",
+    "picture.active",
+    "!modalOpen"
+   ],
+   "palette": true
+  },
+  {
+   "id": "files.toggleAssets",
+   "title": "Files: Show or hide pictures and PDFs in the tree",
+   "category": "Navigator",
+   "keys": [],
+   "when": [
+    "vaultOpen"
    ],
    "palette": true
   },
@@ -5479,6 +5570,34 @@
    "page": "files",
    "label": "Reload when files change outside the app",
    "configKey": "files.auto_reload",
+   "section": null
+  },
+  {
+   "id": "files-show-assets",
+   "page": "files",
+   "label": "Other files in the tree",
+   "configKey": "files.show_assets",
+   "section": null
+  },
+  {
+   "id": "images-compress",
+   "page": "files",
+   "label": "Shrink big pictures",
+   "configKey": "images.compress",
+   "section": null
+  },
+  {
+   "id": "images-max-side",
+   "page": "files",
+   "label": "Longest side of a shrunk picture",
+   "configKey": "images.max_side",
+   "section": null
+  },
+  {
+   "id": "images-max-insert-mb",
+   "page": "files",
+   "label": "Largest picture a drawing takes",
+   "configKey": "images.max_insert_mb",
    "section": null
   },
   {

@@ -107,6 +107,7 @@ import { setImporterOverrides } from "../plugins/importerMap";
 import { resolveOfficial } from "../plugins/officialPlugins";
 
 import { WATCH_MAPPINGS, type WatchField } from "../watch/watchSettings";
+import { ASSET_MAPPINGS, type AssetField } from "../attachments/assetSettings";
 
 import { isWatchPollMs, WATCH_POLL_LIMITS } from "./watchPoll";
 
@@ -430,6 +431,7 @@ type ConfigField =
   | ServicesField
   | SpeculativeField
   | WatchField
+  | AssetField
   | ToolField;
 
 export interface ConfigMapping {
@@ -1152,6 +1154,7 @@ export const CONFIG_MAPPING: readonly ConfigMapping[] = [
   ...SERVICES_MAPPINGS,
   ...SPECULATIVE_MAPPINGS,
   ...WATCH_MAPPINGS,
+  ...ASSET_MAPPINGS,
   ...TOOL_MAPPINGS,
 ];
 

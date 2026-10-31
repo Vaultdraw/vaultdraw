@@ -11,7 +11,12 @@ import {
   numberedCopiesAreConflicts,
   numberedCopyOriginal,
 } from "../vault/syncNames";
-import { fileKind } from "../vault/fileKind";
+import {
+  assetKind,
+  fileKind,
+  isAssetKind,
+  type AssetListing,
+} from "../vault/fileKind";
 import { nameProblem } from "../../../sdk/api/shared/vaultPaths";
 
 import type {
@@ -226,6 +231,46 @@ export class FakeVaultRepository implements VaultRepository {
 
   private notes = new Set<string>();
 
+  /** Pictures, PDFs and other files (listed under `files.show_assets`, like the native listing). */
+  private assets = new Map<string, Uint8Array>();
+  private assetListing: AssetListing = "none";
+
+  setAssetListing(mode: AssetListing): void {
+    this.assetListing = mode;
+  }
+
+  /** A picture, PDF or other file with these bytes. */
+  seedAsset(path: string, bytes: Uint8Array = new Uint8Array()): void {
+    assertValidRelativePath(path);
+    this.seedFolder(
+      path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "",
+    );
+    this.assets.set(path, bytes);
+  }
+
+  /** PDFs "opened in the system's PDF app", for tests. */
+  openedPdfs: string[] = [];
+
+  async openPdf(handle: string, path: string): Promise<void> {
+    this.ensureOpen(handle);
+    if (!this.assets.has(path) || assetKind(path) !== "pdf") {
+      throw makeError("NOT_FOUND", `PDF not found: ${path}`);
+    }
+    this.openedPdfs.push(path);
+  }
+
+  /** The bytes of a picture (the viewer and a drag onto a drawing read it). */
+  async readAsset(handle: string, path: string): Promise<Uint8Array> {
+    this.ensureOpen(handle);
+    assertValidRelativePath(path);
+    await this.delay();
+    const bytes = this.assets.get(path);
+    if (!bytes || assetKind(path) !== "image") {
+      throw makeError("NOT_FOUND", `picture not found: ${path}`);
+    }
+    return bytes;
+  }
+
   seedFolder(path: string): void {
     if (path === "") {
       return;
@@ -353,6 +398,12 @@ export class FakeVaultRepository implements VaultRepository {
           touched.push(n);
         }
       }
+      for (const a of [...this.assets.keys()]) {
+        if (under(a, path)) {
+          this.assets.delete(a);
+          touched.push(a);
+        }
+      }
       for (const d of [...this.folders]) {
         if (d !== "" && under(d, path)) {
           this.folders.delete(d);
@@ -378,6 +429,13 @@ export class FakeVaultRepository implements VaultRepository {
           this.notes.add(re(n));
           this.noteText?.moveOnDisk(n, re(n));
           touched.push(n, re(n));
+        }
+      }
+      for (const [a, bytes] of [...this.assets]) {
+        if (under(a, path)) {
+          this.assets.delete(a);
+          this.assets.set(re(a), bytes);
+          touched.push(a, re(a));
         }
       }
       for (const d of [...this.folders]) {
@@ -477,6 +535,7 @@ export class FakeVaultRepository implements VaultRepository {
       this.files.clear();
       this.folders = new Set([""]);
       this.notes.clear();
+      this.assets.clear();
       this.mtimes.clear();
       this.listeners.clear();
       Object.assign(this.vault, info);
@@ -546,10 +605,29 @@ export class FakeVaultRepository implements VaultRepository {
         }
       }
     }
+    for (const [assetPath, bytes] of this.assets) {
+      const kind = assetKind(assetPath);
+      const listed =
+        kind !== null &&
+        (this.assetListing === "all" ||
+          (this.assetListing === "media" && kind !== "file"));
+      if (listed && assetPath.startsWith(prefix)) {
+        const rest = assetPath.slice(prefix.length);
+        if (rest && !rest.includes("/") && !rest.startsWith(".")) {
+          rows.set(rest, {
+            path: assetPath,
+            name: rest,
+            kind,
+            modifiedAt: Date.now(),
+            size: bytes.length,
+          });
+        }
+      }
+    }
     // Conflict copies, as the native listing flags them (the fake has no iCloud placeholders).
     const numbered = numberedCopiesAreConflicts(this.vault.path, false);
     for (const row of rows.values()) {
-      if (row.kind === "folder") {
+      if (row.kind === "folder" || isAssetKind(row.kind)) {
         continue;
       }
       const original =
@@ -625,7 +703,12 @@ export class FakeVaultRepository implements VaultRepository {
     const fold = (n: string) =>
       n.normalize("NFC").toLowerCase().normalize("NFC");
     const name = fold(path.slice(slash + 1));
-    const siblings = [...this.files.keys(), ...this.folders, ...this.notes];
+    const siblings = [
+      ...this.files.keys(),
+      ...this.folders,
+      ...this.notes,
+      ...this.assets.keys(),
+    ];
     for (const other of siblings) {
       const s = other.lastIndexOf("/");
       if (
@@ -726,6 +809,7 @@ export class FakeVaultRepository implements VaultRepository {
     if (
       this.files.has(path) ||
       this.notes.has(path) ||
+      this.assets.has(path) ||
       this.folders.has(path)
     ) {
       throw makeError("NAME_COLLISION", `already exists: ${path}`);
@@ -749,17 +833,32 @@ export class FakeVaultRepository implements VaultRepository {
     await this.delay();
     const isFile = this.files.has(from);
     const isNote = this.notes.has(from);
+    const isAsset = this.assets.has(from);
     const isFolder = this.folders.has(from);
-    if (!isFile && !isNote && !isFolder) {
+    if (!isFile && !isNote && !isAsset && !isFolder) {
       throw makeError("NOT_FOUND", `source not found: ${from}`);
     }
-    if (this.files.has(to) || this.notes.has(to) || this.folders.has(to)) {
+    if (
+      this.files.has(to) ||
+      this.notes.has(to) ||
+      this.assets.has(to) ||
+      this.folders.has(to)
+    ) {
       throw makeError("NAME_COLLISION", `destination exists: ${to}`);
     }
     this.checkNewName(to, from);
     const toParent = to.includes("/") ? to.slice(0, to.lastIndexOf("/")) : "";
     if (toParent !== "" && !this.folders.has(toParent)) {
       throw makeError("NOT_FOUND", "Destination folder not found");
+    }
+    if (isAsset) {
+      // Like the native move: any file moves, its bytes unchanged.
+      this.seedFolder(toParent);
+      const bytes = this.assets.get(from)!;
+      this.assets.delete(from);
+      this.assets.set(to, bytes);
+      this.emit({ handle: this.vault.handle, paths: [from, to], rescan: true });
+      return;
     }
     if (isNote) {
       // Like the native move: any file moves; the note keeps its text.
@@ -815,6 +914,14 @@ export class FakeVaultRepository implements VaultRepository {
         moved.push(next);
       }
     }
+    for (const [asset, bytes] of [...this.assets]) {
+      if (asset.startsWith(`${from}/`)) {
+        const next = `${to}/${asset.slice(from.length + 1)}`;
+        this.assets.delete(asset);
+        this.assets.set(next, bytes);
+        moved.push(next);
+      }
+    }
     this.emit({ handle: this.vault.handle, paths: moved, rescan: true });
   }
 
@@ -837,6 +944,11 @@ export class FakeVaultRepository implements VaultRepository {
       this.emit({ handle: this.vault.handle, paths: [path], rescan: false });
       return;
     }
+    if (this.assets.has(path)) {
+      this.assets.delete(path);
+      this.emit({ handle: this.vault.handle, paths: [path], rescan: false });
+      return;
+    }
     if (this.folders.has(path)) {
       // Like the native trash: the folder and everything under it go.
       const prefix = `${path}/`;
@@ -849,6 +961,11 @@ export class FakeVaultRepository implements VaultRepository {
       for (const f of [...this.files.keys()]) {
         if (f.startsWith(prefix)) {
           this.files.delete(f);
+        }
+      }
+      for (const a of [...this.assets.keys()]) {
+        if (a.startsWith(prefix)) {
+          this.assets.delete(a);
         }
       }
       for (const f of [...this.folders]) {

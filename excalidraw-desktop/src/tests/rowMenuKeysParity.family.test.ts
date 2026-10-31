@@ -30,6 +30,7 @@ const ROW_ACTIONS = {
   history: noop,
   export: noop,
   copyPath: noop,
+  insertPicture: noop,
 };
 
 const MENU_ACTIONS = {
@@ -45,6 +46,7 @@ const MENU_ACTIONS = {
   history: noop,
   syncAction: noop,
   copyPath: noop,
+  insertPicture: noop,
 };
 
 const entryOf = (kind: EntryKind): VaultEntry => {
@@ -53,6 +55,9 @@ const entryOf = (kind: EntryKind): VaultEntry => {
     drawing: "Plan.excalidraw",
     note: "Idea.md",
     excalidrawMd: "Sketch.excalidraw.md",
+    image: "Photo.png",
+    pdf: "Paper.pdf",
+    file: "data.csv",
   }[kind];
   return { path: `Sub/${name}`, name, kind, modifiedAt: 0, size: 0 };
 };
@@ -87,6 +92,7 @@ const ROW_SPECIFIC = new Set<string>([
   "copyPath",
   "copyAbsolutePath",
   "copyLink",
+  "insertPicture",
 ]);
 // Offered from the keyboard without a menu item on purpose: "trash" is the menu's Delete
 // (commandId list.delete is not set on it); "showAsGrid" comes from the Gallery plugin's menu
@@ -148,7 +154,7 @@ const sorted = (s: Set<string>) => [...s].sort();
 const KNOWN = new Set<string>([]);
 
 const ROWS: Array<[EntryKind, boolean]> = (
-  ["folder", "drawing", "note", "excalidrawMd"] as const
+  ["folder", "drawing", "note", "excalidrawMd", "image", "pdf", "file"] as const
 ).flatMap((kind) => [
   [kind, false],
   [kind, true],

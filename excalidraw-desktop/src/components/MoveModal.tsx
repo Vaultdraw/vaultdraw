@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { entryWord } from "../vault/fileKind";
+import { entryWord, entryWordInSentence } from "../vault/fileKind";
+
 import { getBaseName, getParentPath, isMoveAllowed } from "../vault/treeStore";
 
 import { userError } from "./userError";
@@ -9,11 +10,13 @@ import { Dialog } from "./Dialog";
 import { IconChevronDown, IconChevronRight, IconFolder } from "./Icons";
 import { moveRows } from "./moveTree";
 
+import type { EntryKind } from "../vault/types";
+
 import type { KeyboardEvent } from "react";
 
 interface MoveModalProps {
   sourcePath: string;
-  sourceKind: "drawing" | "folder" | "note" | "excalidrawMd";
+  sourceKind: EntryKind;
   folders: string[]; // List of all known folder paths in vault, e.g. ["", "DSA", "DSA/Dynamic Programming"]
   onMove: (destinationParentPath: string) => void | Promise<void>;
   onCancel: () => void;
@@ -188,7 +191,7 @@ export const MoveModal = ({
       title={
         multi && label
           ? `Move ${label}`
-          : `Move ${entryWord(sourceKind).toLowerCase()}`
+          : `Move ${entryWordInSentence(sourceKind)}`
       }
       titleId="move-modal-title"
       className="vd-dialog--wide"

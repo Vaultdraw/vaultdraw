@@ -29,6 +29,7 @@ import { EXTENSION_COMMANDS } from "../extensionSwitches/extensionCommandDefs";
 import { VAULT_THEME_COMMANDS } from "../theme/vaultThemeCommands";
 
 import { NOTES_COMMANDS } from "../notes/notesCommands";
+import { ASSET_COMMANDS } from "../attachments/assetCommands";
 
 import { IMPORT_UPGRADE_COMMANDS } from "../importUpgrade/commands";
 
@@ -725,6 +726,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   ...SYNC_COMMANDS,
   ...EXTENSION_COMMANDS,
   ...NOTES_COMMANDS,
+  ...ASSET_COMMANDS,
   ...AI_COMMANDS,
   ...WATCHDOG_COMMANDS,
   ...WINDOW_COMMANDS,

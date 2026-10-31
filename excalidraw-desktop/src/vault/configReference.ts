@@ -153,6 +153,22 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
     },
   },
   {
+    table: "images",
+    intro:
+      "Pictures you paste, drop or drag from the file tree into a drawing. The drawing keeps its own copy; the picture file on disk is never changed. See [Pictures and other files](#pictures-and-other-files).",
+    keys: {
+      compress: {
+        doc: '`"auto"` shrinks a picture whose longest side is over `max_side` before it goes into the drawing; `"off"` keeps it at full size.',
+      },
+      max_side: {
+        doc: "Longest side, in pixels, a shrunk picture keeps.",
+      },
+      max_insert_mb: {
+        doc: "Largest picture, in megabytes after shrinking, a drawing takes; a bigger one is refused with a notice that says so.",
+      },
+    },
+  },
+  {
     table: "saving",
     intro: "Writing drawings to disk.",
     keys: {
@@ -242,6 +258,9 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
       },
       auto_reload: {
         doc: "Watch the vault folder and update the tree, search and open drawings when files change outside the app (file manager, sync, git). Off stops the watcher and costs nothing; Refresh in the navigator header (Cmd+Shift+R) still updates. See [Files changed outside the app](#files-changed-outside-the-app).",
+      },
+      show_assets: {
+        doc: 'Other files the tree lists beside drawings and notes: `"media"` (pictures and PDFs), `"all"` (every file, like Obsidian\'s "Detect all file extensions") or `"none"`. Only names are read; no file is opened. See [Pictures and other files](#pictures-and-other-files).',
       },
       watch_poll_ms: {
         doc: "Linux: how often, in milliseconds, a vault is checked for changes when the system's inotify watch limit stops the normal file watcher. Read when the vault opens; unused (and never read) while the normal watcher works. See [Large vaults on Linux](#large-vaults-on-linux).",

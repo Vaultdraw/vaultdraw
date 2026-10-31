@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { isInTemplatesFolder } from "../templates/listTemplates";
+import { isAssetKind } from "../vault/fileKind";
 import { sortEntries, type SortOrder } from "../vault/sortOrder";
 
 import type { VaultEntry } from "../vault/types";
@@ -34,9 +35,16 @@ export const FolderProvider = ({
 }) => <FolderContext.Provider value={value}>{children}</FolderContext.Provider>;
 
 /** The sorted entries of `path` (templates folder left out), loading it when needed. */
+/** A folder entry plugins see: drawings, notes and folders (not pictures or other files). */
+type PluginEntry = VaultEntry & {
+  kind: "folder" | "drawing" | "note" | "excalidrawMd";
+};
+
+const isPluginEntry = (e: VaultEntry): e is PluginEntry => !isAssetKind(e.kind);
+
 export function useFolderEntries(
   path: string,
-): readonly VaultEntry[] | undefined {
+): readonly PluginEntry[] | undefined {
   const src = useContext(FolderContext);
   const entries = src?.directoryMap.get(path);
   const load = src?.loadDirectory;
@@ -48,9 +56,11 @@ export function useFolderEntries(
   return useMemo(
     () =>
       entries && sort
-        ? sortEntries(entries, sort).filter(
-            (e) => !isInTemplatesFolder(e.path, templates),
-          )
+        ? sortEntries(entries, sort)
+            // Plugins see drawings, notes and folders (FolderItem); pictures and other files
+            // are not part of that API yet.
+            .filter(isPluginEntry)
+            .filter((e) => !isInTemplatesFolder(e.path, templates))
         : undefined,
     [entries, sort, templates],
   );

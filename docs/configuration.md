@@ -1654,6 +1654,22 @@ Vaultdraw watches the vault folder, so a file or folder you create, rename, move
 auto_reload = false
 ```
 
+## Pictures and other files
+
+Pictures and PDFs in your vault folder show in the file tree beside drawings and notes, as Obsidian shows attachments.
+
+| You do | What happens |
+| --- | --- |
+| Click a picture | It opens in a viewer tab, fitted to the pane. Zoom: the buttons, Cmd+= / Cmd+- / Cmd+0 (Fit), a pinch or Ctrl and the wheel. Drag to pan; double-click for 100%. |
+| Drag a picture onto a drawing | It is added where you drop it. **Insert into drawing** in the picture's menu adds it in the middle of the view. |
+| Click a PDF | It opens in your PDF app. |
+| Click another file (`show_assets = "all"`) | It is shown in its folder; the app never runs it. |
+| Rename, move, Trash | As for drawings; the extension is kept. |
+
+`files.show_assets` picks what is listed: `"media"` (pictures and PDFs, the default), `"all"` or `"none"`. Listing reads names only.
+
+A picture you paste, drop or drag into a drawing follows `[images]`: with `compress = "auto"` a picture whose longest side is over `max_side` is shrunk first; a picture still over `max_insert_mb` is not added, and a notice says so. The drawing keeps its own copy; the picture file is never changed.
+
 ## Large vaults on Linux
 
 Vaultdraw watches the vault folder so the tree, search and open drawings follow changes made outside the app. Linux's inotify needs one watch per folder, and a vault with a big Git history or `node_modules` can pass the system limit `fs.inotify.max_user_watches`.
@@ -2058,6 +2074,16 @@ Importing PDF pages as images. See [PDF import](#pdf-import).
 | `warn_pages` | `50` | a whole number between 1 and 500 |  | Ask before importing more pages than this. |
 | `pixel_budget_mp` | `60` | a number of megapixels between 10 and 400 |  | Decoded-pixel budget per import; large PDFs get a lower resolution. |
 
+### `[images]`
+
+Pictures you paste, drop or drag from the file tree into a drawing. The drawing keeps its own copy; the picture file on disk is never changed. See [Pictures and other files](#pictures-and-other-files).
+
+| Key | Default | Accepts | Per vault | What it does |
+| --- | --- | --- | --- | --- |
+| `compress` | `"auto"` | "off" or "auto" |  | `"auto"` shrinks a picture whose longest side is over `max_side` before it goes into the drawing; `"off"` keeps it at full size. |
+| `max_side` | `1440` | a whole number from 256 to 8192 |  | Longest side, in pixels, a shrunk picture keeps. |
+| `max_insert_mb` | `4` | a whole number from 1 to 25 |  | Largest picture, in megabytes after shrinking, a drawing takes; a bigger one is refused with a notice that says so. |
+
 ### `[saving]`
 
 Writing drawings to disk.
@@ -2114,6 +2140,7 @@ Creating and deleting drawings.
 | `list_start` | `"idle"` | "open", "idle" or "use" |  | When every vault folder is listed for recent drawings, the file switcher, link suggestions and the move dialog: `open`, `idle` or `use` (the first of those). The file tree loads at open either way. See [Startup](#startup). |
 | `speculative_open` | `true` | true or false |  | Read and parse a drawing when you press on it in the file tree, a tab or the switcher, before the click lands, so it opens sooner. Holds one drawing for a moment; costs nothing when off or unused. See [Speed trade-offs](#speed-trade-offs). |
 | `auto_reload` | `true` | true or false |  | Watch the vault folder and update the tree, search and open drawings when files change outside the app (file manager, sync, git). Off stops the watcher and costs nothing; Refresh in the navigator header (Cmd+Shift+R) still updates. See [Files changed outside the app](#files-changed-outside-the-app). |
+| `show_assets` | `"media"` | "none", "media" or "all" |  | Other files the tree lists beside drawings and notes: `"media"` (pictures and PDFs), `"all"` (every file, like Obsidian's "Detect all file extensions") or `"none"`. Only names are read; no file is opened. See [Pictures and other files](#pictures-and-other-files). |
 | `watch_poll_ms` | `5000` | a whole number of milliseconds between 500 and 600000 |  | Linux: how often, in milliseconds, a vault is checked for changes when the system's inotify watch limit stops the normal file watcher. Read when the vault opens; unused (and never read) while the normal watcher works. See [Large vaults on Linux](#large-vaults-on-linux). |
 
 ### `[links]`

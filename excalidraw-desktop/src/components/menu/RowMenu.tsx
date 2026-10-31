@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 
+import { isAssetKind } from "../../vault/fileKind";
+
 import {
   getMenuItems,
   menuItemShown,
@@ -52,10 +54,12 @@ export const RowMenu = ({
       : entry.kind === "drawing"
       ? "drawing"
       : "note";
+  // Pictures, PDFs and other files are neither: plugins see "other" and only their kind-less items show.
+  const asset = isAssetKind(entry.kind);
   const target: MenuTarget = {
     surface: "tree",
     path: entry.path,
-    kind: entry.kind === "excalidrawMd" ? "other" : rowKind,
+    kind: entry.kind === "excalidrawMd" || asset ? "other" : rowKind,
   };
   const facts = useMenuFacts(getMenuItems("tree"), target);
   const nodes = useMemo(
@@ -70,7 +74,10 @@ export const RowMenu = ({
       }
       // Items plugins declared for tree rows (`[[contributes.menus]]`), filtered by the row's kind.
       const pluginItems: PluginRowItem[] = getMenuItems("tree")
-        .filter((it) => it.kinds.length === 0 || it.kinds.includes(rowKind))
+        .filter(
+          (it) =>
+            it.kinds.length === 0 || (!asset && it.kinds.includes(rowKind)),
+        )
         .filter((it) => menuItemShown(it, facts))
         .map((it) => ({
           command: it.command,

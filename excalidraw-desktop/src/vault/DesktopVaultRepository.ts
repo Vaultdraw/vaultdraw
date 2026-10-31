@@ -9,6 +9,7 @@ import {
 } from "./types";
 
 import type { ExportFolder, FolderCount } from "./types";
+import type { AssetListing } from "./fileKind";
 
 export type InvokeFn = <T>(
   cmd: string,
@@ -153,6 +154,9 @@ export class DesktopVaultRepository implements VaultRepository {
     this.releaseVault = this.releaseVault.bind(this);
     this.retryVault = this.retryVault.bind(this);
     this.listDirectory = this.listDirectory.bind(this);
+    this.setAssetListing = this.setAssetListing.bind(this);
+    this.readAsset = this.readAsset.bind(this);
+    this.openPdf = this.openPdf.bind(this);
     this.readDrawing = this.readDrawing.bind(this);
     this.readRevision = this.readRevision.bind(this);
     this.readOnlyState = this.readOnlyState.bind(this);
@@ -235,10 +239,45 @@ export class DesktopVaultRepository implements VaultRepository {
     }
   }
 
+  private assetListing: AssetListing = "none";
+
+  setAssetListing(mode: AssetListing): void {
+    this.assetListing = mode;
+  }
+
+  async openPdf(handle: string, path: string): Promise<void> {
+    const invoke = await this.getInvoke();
+    try {
+      await invoke<void>("open_vault_pdf", { handle, path });
+    } catch (err) {
+      throw normalizeError(err);
+    }
+  }
+
+  async readAsset(handle: string, path: string): Promise<Uint8Array> {
+    const invoke = await this.getInvoke();
+    try {
+      const bytes = await invoke<ArrayBuffer | number[]>("read_vault_image", {
+        handle,
+        path,
+      });
+      return bytes instanceof ArrayBuffer
+        ? new Uint8Array(bytes)
+        : new Uint8Array(bytes);
+    } catch (err) {
+      throw normalizeError(err);
+    }
+  }
+
   async listDirectory(handle: string, path: string): Promise<VaultEntry[]> {
     const invoke = await this.getInvoke();
     try {
-      return await invoke<VaultEntry[]>("list_directory", { handle, path });
+      return await invoke<VaultEntry[]>(
+        "list_directory",
+        this.assetListing === "none"
+          ? { handle, path }
+          : { handle, path, assets: this.assetListing },
+      );
     } catch (err) {
       throw normalizeError(err);
     }

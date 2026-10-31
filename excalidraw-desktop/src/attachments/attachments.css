@@ -1,0 +1,86 @@
+/* The picture viewer tab (PictureView.tsx). */
+.picture-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--vault-bg);
+  color: var(--vault-text);
+}
+.picture-view__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--vault-border);
+  min-width: 0;
+  font-size: var(--vd-fs-small);
+}
+.picture-view__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.picture-view__facts {
+  color: var(--vault-text-muted);
+  white-space: nowrap;
+}
+.picture-view__spacer {
+  flex: 1;
+}
+.picture-view__btn {
+  min-width: 28px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--vault-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.picture-view__btn[aria-pressed="true"] {
+  background: var(--vault-primary-light);
+}
+.picture-view__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.picture-view__zoom {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.picture-view__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.picture-view__stage:active {
+  cursor: grabbing;
+}
+.picture-view__img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  max-width: none;
+  user-select: none;
+  image-rendering: auto;
+}
+.picture-view__note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  text-align: center;
+}

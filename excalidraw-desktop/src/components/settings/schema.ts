@@ -18,6 +18,7 @@ import { SERVICES_SETTINGS_SCHEMA } from "../../services/servicesSettingsSchema"
 import { TABS_SETTINGS_SCHEMA } from "../../tabs/tabsSettingsSchema";
 import { LAYOUT_SETTINGS_SCHEMA } from "../../layout/layoutSettingsSchema";
 import { WATCH_SETTINGS_SCHEMA } from "../../watch/watchSettingsSchema";
+import { ASSET_SETTINGS_SCHEMA } from "../../attachments/assetSettingsSchema";
 import { SPECULATIVE_SETTINGS_SCHEMA } from "../../speculative/speculativeSettingsSchema";
 import { MEMORY_SETTINGS_SCHEMA } from "../../memory/memorySettingsSchema";
 import { SYNC_SETTINGS_SCHEMA } from "../../sync/syncSettingsSchema";
@@ -1065,6 +1066,7 @@ export const SETTINGS_SCHEMA: readonly SettingSchema[] = [
   ...SERVICES_SETTINGS_SCHEMA,
   ...SPECULATIVE_SETTINGS_SCHEMA,
   ...WATCH_SETTINGS_SCHEMA,
+  ...ASSET_SETTINGS_SCHEMA,
 
   // ---- Hotkeys ----
   {

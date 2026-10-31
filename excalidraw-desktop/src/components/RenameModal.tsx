@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 
-import { entryExtension, entryWord } from "../vault/fileKind";
+import {
+  entryExtension,
+  entryWordInSentence,
+  isAssetKind,
+} from "../vault/fileKind";
+
 import { validateEntryName } from "../vault/treeStore";
 
 import { userError } from "./userError";
 
 import { Dialog } from "./Dialog";
 
+import type { EntryKind } from "../vault/types";
+
 interface RenameModalProps {
   initialName: string;
   /** The entry kind: decides the word in the title and the extension kept. */
-  kind: "drawing" | "folder" | "note" | "excalidrawMd";
+  kind: EntryKind;
   onRename: (newName: string) => void | Promise<void>;
   onCancel: () => void;
 }
@@ -73,7 +80,7 @@ export const RenameModal = ({
 
   return (
     <Dialog
-      title={`Rename ${entryWord(kind).toLowerCase()}`}
+      title={`Rename ${entryWordInSentence(kind)}`}
       titleId="rename-modal-title"
       onClose={onCancel}
       onSubmit={handleSubmit}
@@ -118,6 +125,8 @@ export const RenameModal = ({
             ? "Drawings inside keep their names."
             : kind === "note"
             ? "Links to this note are updated. The .md extension is kept automatically."
+            : isAssetKind(kind)
+            ? "The extension is kept automatically."
             : "Links to this drawing are updated. The extension is kept automatically."}
         </span>
         {error && <div className="vault-error-text">{error}</div>}

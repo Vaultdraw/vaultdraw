@@ -103,9 +103,66 @@ export const entryExtension = (name: string): string => {
   if (kind === "note") {
     return name.slice(name.length - NOTE_EXT.length);
   }
-  return "";
+  // A picture, PDF or other file keeps its own extension, like Obsidian's rename.
+  const dot = name.lastIndexOf(".");
+  return dot > 0 && dot < name.length - 1 ? name.slice(dot) : "";
 };
 
-/** The word for an entry in dialogs: Drawing, Note or Folder. */
-export const entryWord = (kind: string): "Drawing" | "Note" | "Folder" =>
-  kind === "folder" ? "Folder" : kind === "note" ? "Note" : "Drawing";
+/** The word for an entry in dialogs: Drawing, Note, Folder, Picture, PDF or File. */
+export const entryWord = (
+  kind: string,
+): "Drawing" | "Note" | "Folder" | "Picture" | "PDF" | "File" =>
+  kind === "folder"
+    ? "Folder"
+    : kind === "note"
+    ? "Note"
+    : kind === "image"
+    ? "Picture"
+    : kind === "pdf"
+    ? "PDF"
+    : kind === "file"
+    ? "File"
+    : "Drawing";
+
+/** Picture extensions the tree lists, the viewer shows and a drag inserts (twin of `IMAGE_EXTS`). */
+export const IMAGE_EXTS = [
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "avif",
+  "bmp",
+  "svg",
+] as const;
+
+/** A vault file that is neither a drawing nor a note (twin of `AssetKind`). */
+export type AssetKind = "image" | "pdf" | "file";
+
+/** What a non-drawing, non-note file is; null for drawings and notes. */
+export const assetKind = (name: string): AssetKind | null => {
+  if (fileKind(name) !== "other") {
+    return null;
+  }
+  const file = name.slice(name.lastIndexOf("/") + 1);
+  const dot = file.lastIndexOf(".");
+  const ext =
+    dot > 0 && dot + 1 < file.length ? file.slice(dot + 1).toLowerCase() : "";
+  if ((IMAGE_EXTS as readonly string[]).includes(ext)) {
+    return "image";
+  }
+  return ext === "pdf" ? "pdf" : "file";
+};
+
+/** `files.show_assets`: which other files the tree lists beside drawings and notes. */
+export type AssetListing = "none" | "media" | "all";
+
+/** True for the tree's asset kinds (pictures, PDFs, other files). */
+export const isAssetKind = (kind: string): kind is AssetKind =>
+  kind === "image" || kind === "pdf" || kind === "file";
+
+/** `entryWord` inside a sentence: "drawing", "picture", but "PDF" keeps its capitals. */
+export const entryWordInSentence = (kind: string): string => {
+  const word = entryWord(kind);
+  return word === "PDF" ? word : word.toLowerCase();
+};

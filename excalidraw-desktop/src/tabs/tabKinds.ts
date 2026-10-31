@@ -20,6 +20,12 @@ export interface TabKindVault {
   paths: () => readonly string[];
   /** Starts the vault-wide file walk when it has not run (paths() is partial until then). */
   ensurePaths?: () => void;
+  /** The bytes of a vault picture (absent outside the desktop app and its test harness). */
+  readAsset?: (path: string) => Promise<Uint8Array>;
+  /** Calls `listener` with the paths that changed on disk; returns the unsubscribe. */
+  watch?: (
+    listener: (paths: readonly string[], rescan: boolean) => void,
+  ) => () => void;
 }
 
 /** What the host gives a kind's view. */

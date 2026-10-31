@@ -1,6 +1,7 @@
 import { pdfImportControls } from "../../../pdfImport/PdfImportSettings";
 
 import { watchControls } from "../../../watch/watchSettingsControls";
+import { assetControls } from "../../../attachments/assetSettingsControls";
 import { speculativeControls } from "../../../speculative/speculativeSettingsControls";
 import { servicesControls } from "../../../services/servicesSettingsControls";
 import { tabsControls } from "../../../tabs/tabsSettingsControls";
@@ -48,6 +49,7 @@ export const SETTING_CONTROLS: SettingControls = {
   ...servicesControls,
   ...speculativeControls,
   ...watchControls,
+  ...assetControls,
   ...drawingControls,
   ...pensControls,
   ...toolDefaultsControls,

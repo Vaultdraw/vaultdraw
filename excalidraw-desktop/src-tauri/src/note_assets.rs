@@ -96,15 +96,27 @@ pub(crate) fn locate(root: &Path, from: &str, target: &str) -> Result<String> {
 
 fn read_asset(root: &Path, from: &str, target: &str) -> Result<Vec<u8>> {
     let path = locate(root, from, target)?;
-    let full = asset_file(root, &path)?;
+    read_inside(root, &path, MAX_ASSET_BYTES)
+}
+
+/// Largest picture the viewer tab opens (a camera photo is well under this).
+pub(crate) const MAX_VIEW_BYTES: u64 = 64 * 1024 * 1024;
+
+/// The bytes of the image at exactly `path` (vault-relative): the path rules of [`asset_file`], no
+/// symlink out of the vault, at most `cap` bytes.
+fn read_inside(root: &Path, path: &str, cap: u64) -> Result<Vec<u8>> {
+    let full = asset_file(root, path)?;
     let real = dunce::canonicalize(full).map_err(|_| err("NOT_FOUND", "Image not found"))?;
     let base = dunce::canonicalize(root).map_err(|_| err("NOT_FOUND", "Vault not found"))?;
     if !real.starts_with(&base) {
         return Err(err("INVALID_PATH", "Image is outside the vault"));
     }
     let meta = std::fs::metadata(&real).map_err(|_| err("NOT_FOUND", "Image not found"))?;
-    if !meta.is_file() || meta.len() > MAX_ASSET_BYTES {
-        return Err(err("INVALID_FILE", "Not an image of a size the reading view loads"));
+    if !meta.is_file() {
+        return Err(err("NOT_FOUND", "Image not found"));
+    }
+    if meta.len() > cap {
+        return Err(err("INVALID_FILE", &format!("The picture is larger than {} MB.", cap / (1024 * 1024))));
     }
     std::fs::read(&real).map_err(|e| err("IO", &e.to_string()))
 }
@@ -114,6 +126,16 @@ fn read_asset(root: &Path, from: &str, target: &str) -> Result<Vec<u8>> {
 pub(crate) async fn read_note_asset(handle: String, from: String, target: String, state: State<'_, Service>) -> Result<tauri::ipc::Response> {
     let root = vault_for(&state, &handle)?.root.clone();
     let bytes = tauri::async_runtime::spawn_blocking(move || read_asset(&root, &from, &target))
+        .await
+        .map_err(|e| err("INTERNAL", &e.to_string()))??;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// The bytes of the vault picture at `path` for the picture viewer tab, off the async runtime.
+#[tauri::command]
+pub(crate) async fn read_vault_image(handle: String, path: String, state: State<'_, Service>) -> Result<tauri::ipc::Response> {
+    let root = vault_for(&state, &handle)?.root.clone();
+    let bytes = tauri::async_runtime::spawn_blocking(move || read_inside(&root, &path, MAX_VIEW_BYTES))
         .await
         .map_err(|e| err("INTERNAL", &e.to_string()))??;
     Ok(tauri::ipc::Response::new(bytes))

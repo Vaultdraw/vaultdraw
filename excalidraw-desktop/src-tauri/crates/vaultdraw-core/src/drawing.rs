@@ -34,6 +34,12 @@ pub struct VaultEntry {
 /// directory read supplies names, types, sizes and times (see `fsbulk`); names are checked
 /// per component, since the folder's own path was validated by `safe_path`.
 pub fn list_directory_in(v: &Vault, path: &str) -> Result<Vec<VaultEntry>> {
+    list_directory_with(v, path, crate::filekind::AssetListing::None)
+}
+/// [`list_directory_in`] plus the other files `assets` names (pictures, PDFs, every file): the
+/// tree's listing under `files.show_assets`. Only names and the directory read's metadata are used;
+/// no file is opened.
+pub fn list_directory_with(v: &Vault, path: &str, assets: crate::filekind::AssetListing) -> Result<Vec<VaultEntry>> {
     let dir = safe_path(&v.root, path, false)?;
     if !dir.is_dir() {
         return Err(err("NOT_FOUND", "Directory not found"));
@@ -46,7 +52,11 @@ pub fn list_directory_in(v: &Vault, path: &str) -> Result<Vec<VaultEntry>> {
         let placeholder = !is_dir && crate::sync_names::placeholder_real_name(name).is_some();
         (placeholder || !crate::filekind::is_hidden_name(name))
             && !name.eq_ignore_ascii_case(META_DIR)
-            && (is_dir || placeholder || (crate::filekind::file_kind(name) != crate::filekind::FileKind::Other && !crate::sync_names::is_sync_temp_name(name)))
+            && (is_dir
+                || placeholder
+                || ((crate::filekind::file_kind(name) != crate::filekind::FileKind::Other
+                    || crate::filekind::asset_kind(name).is_some_and(|k| assets.accepts(k)))
+                    && !crate::sync_names::is_sync_temp_name(name)))
             && !component_is_invalid(name)
             && prefix_len + name.len() <= MAX_REL_PATH_BYTES
     };
@@ -78,7 +88,11 @@ pub fn list_directory_in(v: &Vault, path: &str) -> Result<Vec<VaultEntry>> {
                 sync = Some("conflict");
             }
         }
-        let kind = if e.is_dir { "folder" } else { crate::filekind::file_kind(&name).as_str() };
+        let kind = if e.is_dir {
+            "folder"
+        } else {
+            crate::filekind::asset_kind(&name).map_or_else(|| crate::filekind::file_kind(&name).as_str(), crate::filekind::AssetKind::as_str)
+        };
         out.push(VaultEntry { path: rel_of(&name), name, kind: kind.into(), modified_at: e.modified_ms, size: e.size, sync, conflict_of });
     }
     // Folders first, then names case-insensitively; the exact name breaks ties so the order

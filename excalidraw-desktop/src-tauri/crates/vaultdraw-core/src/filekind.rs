@@ -70,6 +70,82 @@ pub fn file_kind(name: &str) -> FileKind {
     }
 }
 
+/// Picture extensions the tree lists, the viewer shows and a drag inserts (lower case).
+pub const IMAGE_EXTS: [&str; 8] = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg"];
+
+/// A vault file that is neither a drawing nor a note: what the tree shows it as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AssetKind {
+    /// A picture ([`IMAGE_EXTS`]), `.excalidraw.png` and `.excalidraw.svg` included.
+    Image,
+    /// `*.pdf`.
+    Pdf,
+    /// Any other file (listed only with `files.show_assets = "all"`).
+    File,
+}
+
+impl AssetKind {
+    /// The wire name in `VaultEntry.kind`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AssetKind::Image => "image",
+            AssetKind::Pdf => "pdf",
+            AssetKind::File => "file",
+        }
+    }
+}
+
+/// The lower-case extension after the last dot of the file name, if the name has a stem before it.
+fn extension_lower(name: &str) -> Option<String> {
+    let file = name.rsplit('/').next().unwrap_or(name);
+    let dot = file.rfind('.')?;
+    (dot > 0 && dot + 1 < file.len()).then(|| file[dot + 1..].to_ascii_lowercase())
+}
+
+/// What a non-drawing, non-note file is; `None` for drawings and notes (see [`file_kind`]).
+pub fn asset_kind(name: &str) -> Option<AssetKind> {
+    if file_kind(name) != FileKind::Other {
+        return None;
+    }
+    Some(match extension_lower(name).as_deref() {
+        Some(e) if IMAGE_EXTS.contains(&e) => AssetKind::Image,
+        Some("pdf") => AssetKind::Pdf,
+        _ => AssetKind::File,
+    })
+}
+
+/// Which other files a tree listing includes (`files.show_assets`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AssetListing {
+    /// Drawings and notes only (the control API and the CLI always list this way).
+    #[default]
+    None,
+    /// Pictures and PDFs too.
+    Media,
+    /// Every file (Obsidian's "Detect all file extensions").
+    All,
+}
+
+impl AssetListing {
+    /// `"media"`, `"all"`; anything else (or nothing) is `None`.
+    pub fn parse(value: Option<&str>) -> Self {
+        match value {
+            Some("media") => AssetListing::Media,
+            Some("all") => AssetListing::All,
+            _ => AssetListing::None,
+        }
+    }
+
+    /// Whether a file of this kind is listed.
+    pub fn accepts(self, kind: AssetKind) -> bool {
+        match self {
+            AssetListing::None => false,
+            AssetListing::Media => kind != AssetKind::File,
+            AssetListing::All => true,
+        }
+    }
+}
+
 /// A name starting with a dot (`.obsidian`, `.trash`, `.git`, ...): never listed,
 /// scanned, indexed or watched.
 pub fn is_hidden_name(name: &str) -> bool {
@@ -108,6 +184,9 @@ mod tests {
         }
         for c in fx["hidden"].as_array().unwrap() {
             assert_eq!(is_hidden_name(c[0].as_str().unwrap()), c[1].as_bool().unwrap(), "{}", c[0]);
+        }
+        for c in fx["assets"].as_array().unwrap() {
+            assert_eq!(asset_kind(c[0].as_str().unwrap()).map_or("none", AssetKind::as_str), c[1].as_str().unwrap(), "{}", c[0]);
         }
         for c in fx["strip"].as_array().unwrap() {
             assert_eq!(strip_drawing_ext(c[0].as_str().unwrap()), c[1].as_str().unwrap(), "{}", c[0]);
@@ -216,6 +295,38 @@ mod tests {
                 ("Drawings/Sketch.excalidraw".into(), "drawing".into()),
             ]
         );
+    }
+
+    #[test]
+    fn the_tree_lists_assets_only_when_asked() {
+        let d = fixture_copy();
+        fs::write(d.path().join("report.pdf"), b"%PDF-1.4").unwrap();
+        fs::write(d.path().join("data.csv"), b"a,b").unwrap();
+        fs::write(d.path().join(".hidden.png"), b"x").unwrap();
+        fs::write(d.path().join("~$lock.png"), b"x").unwrap();
+        let v = vault(d.path());
+        let kinds = |mode| -> Vec<String> {
+            crate::list_directory_with(&v, "", mode).unwrap().into_iter().map(|e| format!("{}:{}", e.path, e.kind)).collect()
+        };
+        let base = ["Daily:folder", "Drawings:folder", "Ideas.md:note", "Welcome.md:note"];
+        assert_eq!(kinds(AssetListing::None), base);
+        assert_eq!(kinds(AssetListing::Media), ["Daily:folder", "Drawings:folder", "Ideas.md:note", "photo.png:image", "report.pdf:pdf", "Welcome.md:note"]);
+        assert_eq!(
+            kinds(AssetListing::All),
+            ["Daily:folder", "Drawings:folder", "data.csv:file", "Ideas.md:note", "photo.png:image", "report.pdf:pdf", "Welcome.md:note"]
+        );
+        // The control API and CLI listing never changes.
+        let plain: Vec<String> = crate::list_directory_in(&v, "").unwrap().into_iter().map(|e| format!("{}:{}", e.path, e.kind)).collect();
+        assert_eq!(plain, base);
+    }
+
+    #[test]
+    fn asset_listing_parses_the_setting() {
+        assert_eq!(AssetListing::parse(Some("media")), AssetListing::Media);
+        assert_eq!(AssetListing::parse(Some("all")), AssetListing::All);
+        assert_eq!(AssetListing::parse(Some("none")), AssetListing::None);
+        assert_eq!(AssetListing::parse(Some("MEDIA")), AssetListing::None);
+        assert_eq!(AssetListing::parse(None), AssetListing::None);
     }
 
     #[test]

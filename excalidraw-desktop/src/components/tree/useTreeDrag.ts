@@ -25,6 +25,8 @@ export interface TreeDragState {
   targetFolder: string | null;
   allowed: boolean;
   reason?: string;
+  /** Over the drawing (a picture being dragged in): the drop inserts it there. */
+  onCanvas?: boolean;
 }
 
 interface Options {
@@ -35,6 +37,12 @@ interface Options {
   onDrop: (source: DragSource, targetFolder: string) => void;
   isExpanded: (folderPath: string) => boolean;
   onExpandFolder: (folderPath: string) => void;
+  /**
+   * A row dropped outside the tree, on the drawing (`.vault-editor`): pictures go into the drawing.
+   * Absent, or false for this source, keeps such a drop a no-op.
+   */
+  canDropOnCanvas?: (source: DragSource) => boolean;
+  onDropOnCanvas?: (source: DragSource, x: number, y: number) => void;
 }
 
 export const DRAG_THRESHOLD = 4;
@@ -97,7 +105,8 @@ export function useTreeDrag(options: Options) {
         if (
           next.targetFolder !== current.targetFolder ||
           next.allowed !== current.allowed ||
-          next.reason !== current.reason
+          next.reason !== current.reason ||
+          next.onCanvas !== current.onCanvas
         ) {
           current = next;
           setDrag(next);
@@ -133,6 +142,22 @@ export function useTreeDrag(options: Options) {
         const el = doc.elementFromPoint(lastX, lastY);
         let folder: string | null = null;
         let hoveredFolderRow: string | null = null;
+        if (
+          el &&
+          !(tree && tree.contains(el)) &&
+          el.closest(".vault-editor") &&
+          optionsRef.current.canDropOnCanvas?.(entry)
+        ) {
+          setHoverFolder(null);
+          publish({
+            source: entry,
+            targetFolder: null,
+            allowed: true,
+            onCanvas: true,
+            reason: "Insert into the drawing",
+          });
+          return;
+        }
         if (tree && el && tree.contains(el)) {
           const row = el.closest<HTMLElement>("[data-tree-path]");
           if (row && tree.contains(row)) {
@@ -265,7 +290,9 @@ export function useTreeDrag(options: Options) {
         const result = current;
         swallowNextClick();
         finish();
-        if (result.allowed && result.targetFolder !== null) {
+        if (result.allowed && result.onCanvas) {
+          optionsRef.current.onDropOnCanvas?.(result.source, lastX, lastY);
+        } else if (result.allowed && result.targetFolder !== null) {
           optionsRef.current.onDrop(result.source, result.targetFolder);
         }
       }

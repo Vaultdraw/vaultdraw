@@ -145,6 +145,11 @@ import {
 } from "../toolDefaults/toolStyles";
 
 import {
+  ASSET_DEFAULTS,
+  normalizeAssetPreferences,
+  type AssetPreferences,
+} from "../attachments/assetSettings";
+import {
   WATCH_DEFAULTS,
   normalizeWatchPreferences,
   type WatchPreferences,
@@ -433,6 +438,7 @@ export type VaultPreferences = VaultPreferencesBase &
   ServicesPreferences &
   SpeculativePreferences &
   WatchPreferences &
+  AssetPreferences &
   LayoutPreferences &
   UserCommandsPreferences &
   Record<ToolField, ToolStyle>;
@@ -589,6 +595,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   ...SERVICES_DEFAULTS,
   ...SPECULATIVE_DEFAULTS,
   ...WATCH_DEFAULTS,
+  ...ASSET_DEFAULTS,
   ...LAYOUT_DEFAULTS,
   ...USER_COMMANDS_DEFAULTS,
   ...emptyToolStyles(),
@@ -1168,6 +1175,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
     ...normalizeServicesPreferences(parsed as Record<string, unknown>),
     ...normalizeSpeculativePreferences(parsed as Record<string, unknown>),
     ...normalizeWatchPreferences(parsed as Record<string, unknown>),
+    ...normalizeAssetPreferences(parsed as Record<string, unknown>),
     ...normalizeLayoutPreferences(parsed as Record<string, unknown>),
     ...normalizeUserCommandsPreferences(parsed as Record<string, unknown>),
     ...normalizeToolStyles(parsed as Partial<Record<ToolField, unknown>>),
