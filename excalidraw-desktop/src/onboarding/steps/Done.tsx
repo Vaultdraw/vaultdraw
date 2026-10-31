@@ -67,7 +67,12 @@ export const Done = ({ env }: StepProps) => {
       ).toLowerCase()} lines`,
     ],
     ["Internet", isOffline(prefs) ? "Offline mode" : "Online"],
-    ["Extras", `${extrasOn} of ${SETUP_EXTRAS.length} on, AI assistant off`],
+    [
+      "Extras",
+      `${extrasOn} of ${SETUP_EXTRAS.length} on, AI assistant ${on(
+        prefs.aiEnabled,
+      )}`,
+    ],
     ["Vault", vaultSummary(env.vaultChoice)],
   ];
   const path = getSettingsStatus().configPath ?? "config.toml";

@@ -68,9 +68,11 @@ export const Extras = ({ env }: StepProps) => {
           }
         />
       ))}
+      {/* Read the setting: on a re-run the AI assistant may be on (toimprove 326). */}
       <p className="vault-setup__note" data-testid="setup-ai-note">
-        AI assistant: off. It sends nothing until you turn it on in Settings,
-        where its privacy note is shown first.
+        {prefs.aiEnabled
+          ? "AI assistant: on. Turn it off in Settings."
+          : "AI assistant: off. It sends nothing until you turn it on in Settings, where its privacy note is shown first."}
       </p>
     </>
   );
