@@ -247,6 +247,28 @@ describe("row menu items as list commands (command audit)", () => {
     }
   });
 
+  it("notes: duplicate (Obsidian's Make a copy) and New note here only while notes are on", () => {
+    const rows: TreeRow[] = [
+      ...ROWS,
+      { entry: entry("Plan.md", "note"), depth: 0, expanded: false },
+    ];
+    const r = row();
+    const t = deps("Plan.md", { row: r, rows, notes: true });
+    t.run("duplicate");
+    expect(r.duplicate).toHaveBeenCalledWith("Plan.md");
+    expect(t.actions.exportPng).toBeUndefined();
+    const f = deps("a", { notes: true });
+    f.run("newNote");
+    expect(f.d.create).toHaveBeenCalledWith("a", "note");
+    expect(deps("a").actions.newNote).toBeUndefined();
+    expect(
+      deps("a", { notes: true, readOnly: true }).actions.newNote,
+    ).toBeUndefined();
+    expect(
+      deps("Plan.md", { row: row(), rows, readOnly: true }).actions.duplicate,
+    ).toBeUndefined();
+  });
+
   it("need a focused row; duplicate is hidden when read-only", () => {
     expect(deps(null, { row: row() }).actions.reveal).toBeUndefined();
     const t = deps("c.excalidraw", { row: row(), readOnly: true });

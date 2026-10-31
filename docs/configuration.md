@@ -655,12 +655,15 @@ When a command gets a new id (it moved into an official extension, say), the old
 | `palette.files` | Go to drawing (palette, files mode) | ⌘P | Ctrl+P |
 | `palette.commands` | Show all commands (palette, commands mode) | ⇧⌘P, ⌘/ | Ctrl+Shift+P, Ctrl+/ |
 | `vault.newDrawing` | New drawing | ⌘N | Ctrl+N |
+| `vault.newNote` | New note: `Untitled.md` where a new drawing would go, opened at once (with `extensions.notes`) | — | — |
 | `vault.newFromTemplate` | Templates: New drawing from template | ⌥⌘N, ⌃⌥N | Ctrl+Alt+N |
 | `view.toggleNavigator` | Toggle navigator | ⌘\  | Ctrl+\  |
 | `view.focusMode` | View: Focus mode | ⇧⌘↩ | Ctrl+Shift+Enter |
 | `vault.switch` | Open another vault | — | — |
 | `file.revealInFinder` | Reveal drawing in file manager | — | — |
 | `file.duplicate` | Duplicate drawing | — | — |
+| `navigator.duplicateSelected` | Navigator: Duplicate selected file (the focused row, else the open file; drawings and notes) | — | — |
+| `navigator.newNoteInFolder` | Navigator: New note in selected folder (asks for the name) | — | — |
 | `appearance.toggleMode` | Toggle light/dark mode | — | — |
 | `app.restart` | Restart Vaultdraw | — | — |
 | `settings.openHotkeys` | Settings: Hotkeys | — | — |
@@ -685,6 +688,7 @@ The file tree, the Tags list, the Links panel and the Settings page list share o
 | `list.rename` | Rename the row (file tree, tags) | `R`, `F2` |
 | `list.delete` | Move the row to the Trash | `D`, `Delete`, `Backspace` |
 | `list.newItem` / `list.newFolder` | New drawing / folder in the focused folder | `A` / `Shift+A` |
+| `list.newNote` | New note in the focused folder (with `extensions.notes`) | none |
 | `list.move` | Move the row to another folder | `M` |
 | `list.menu` | The row's menu | `Shift+F10`, `ContextMenu` |
 | `list.nextView` | Switch Backlinks / Outgoing (Links panel) | `Tab` |
@@ -696,7 +700,7 @@ The file tree's row menu items are commands too, with no default key. They act o
 
 | Command id | Action |
 | --- | --- |
-| `list.duplicate` | Duplicate the drawing |
+| `list.duplicate` | Duplicate the drawing or note (`Plan copy.md`, with the note's text) |
 | `list.saveAsTemplate` | Save the drawing as a template |
 | `list.reveal` | Reveal the row in the file manager |
 | `list.showAsGrid` | Show the folder as a grid |

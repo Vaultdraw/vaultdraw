@@ -83,10 +83,14 @@ describe("row menu groups", () => {
     ]);
   });
 
-  it.each(["note", "excalidrawMd"] as const)(
-    "%s: move, copy path, reveal, rename and trash (like Obsidian and Finder)",
-    (kind) => {
+  it.each([
+    ["note", ["Duplicate"]],
+    ["excalidrawMd", []],
+  ] as const)(
+    "%s: (duplicate for notes, Obsidian's Make a copy), move, copy path, reveal, rename and trash",
+    (kind, first) => {
       expect(shape(menu(entry(kind)))).toEqual([
+        ...first,
         "Move to…",
         "|",
         "Copy path>",

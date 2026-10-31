@@ -47,6 +47,8 @@ export class FakeNoteFiles implements NoteFiles {
   private readonly folders = new Set<string>();
   private clock = 1;
   readOnly = false;
+  /** Harness seam: a note written that did not exist (the file list shows it, as the disk would). */
+  onCreate?: (path: string) => void;
 
   /** Test seam: put a note on "disk" as if another program wrote it. */
   setOnDisk(path: string, text: string): void {
@@ -143,6 +145,9 @@ export class FakeNoteFiles implements NoteFiles {
     }
     const mtimeMs = ++this.clock;
     this.files.set(path, { text: content, mtimeMs });
+    if (!cur) {
+      this.onCreate?.(path);
+    }
     return { revision, bytes, mtimeMs, historyCopy };
   }
 }

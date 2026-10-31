@@ -46,6 +46,7 @@ export const LIST_COMMANDS: readonly CommandDefinition[] = [
   list("delete", "Delete item", ["D", "Delete", "Backspace"]),
   list("newItem", "New drawing here", ["A"]),
   list("newFolder", "New folder here", ["Shift+A"]),
+  list("newNote", "New note here", []),
   list("move", "Move item", ["M"]),
   list("menu", "Show item menu", ["Shift+F10", "ContextMenu"]),
   list("nextView", "Switch view", ["Tab"]),

@@ -32,7 +32,9 @@ export interface TreeKeyDeps {
   rename(entry: VaultEntry): void;
   trash(entry: VaultEntry): void;
   move(entry: VaultEntry): void;
-  create(parentFolder: string, kind: "drawing" | "folder"): void;
+  create(parentFolder: string, kind: "drawing" | "note" | "folder"): void;
+  /** Notes are on (`extensions.notes`): "New note here" is offered. */
+  notes?: boolean;
   menu(entry: VaultEntry): void;
   exit(): void;
   /** Row menu items (command audit S8); absent = not offered. */
@@ -71,6 +73,7 @@ export const TREE_ACTIONS: readonly TreeAction[] = [
   "delete",
   "newItem",
   "newFolder",
+  "newNote",
   "move",
   "menu",
   "exit",
@@ -127,8 +130,8 @@ export function treeActions(d: TreeKeyDeps): TreeActions {
   // Every row (folder, drawing, note) can be renamed, moved and deleted from the keyboard.
   const edit = (fn: (entry: VaultEntry) => void) =>
     item && !d.readOnly ? () => fn(item) : undefined;
-  const createIn = (kind: "drawing" | "folder") =>
-    d.readOnly
+  const createIn = (kind: "drawing" | "note" | "folder") =>
+    d.readOnly || (kind === "note" && !d.notes)
       ? undefined
       : () =>
           d.create(
@@ -182,6 +185,7 @@ export function treeActions(d: TreeKeyDeps): TreeActions {
     move: edit(d.move),
     newItem: createIn("drawing"),
     newFolder: createIn("folder"),
+    newNote: createIn("note"),
     menu: item ? () => d.menu(item) : undefined,
     exit: d.dragging ? undefined : d.exit,
     ...rowMenuActions(item, d),
@@ -225,7 +229,11 @@ function rowMenuActions(
   const exportAs = (format: ExplorerExportFormat) =>
     drawing && r.export ? () => r.export?.(path, format) : undefined;
   return {
-    duplicate: bind(r.duplicate, drawing && !d.readOnly),
+    // Notes too, as Obsidian's "Make a copy" (toimprove 182).
+    duplicate: bind(
+      r.duplicate,
+      (drawing || item.kind === "note") && !d.readOnly,
+    ),
     saveAsTemplate: bind(r.saveAsTemplate, drawing),
     reveal: bind(r.reveal),
     localGraph: bind(r.localGraph, drawing),

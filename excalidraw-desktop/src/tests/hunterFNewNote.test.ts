@@ -30,15 +30,15 @@ const labels = (e: VaultEntry) =>
     .filter(Boolean);
 
 describe("hunter F-8: notes can be made and copied from the app", () => {
-  it.fails("the palette has a command that creates a note", () => {
+  it("the palette has a command that creates a note", () => {
     expect(
       BUILTIN_COMMANDS.some((c) => /new note|create note/i.test(c.title)),
     ).toBe(true);
   });
-  it.fails("the folder menu offers New note", () => {
+  it("the folder menu offers New note", () => {
     expect(labels(entry("folder", "Ideas"))).toContain("New note");
   });
-  it.fails("a note's menu offers Duplicate (Obsidian: Make a copy)", () => {
+  it("a note's menu offers Duplicate (Obsidian: Make a copy)", () => {
     expect(labels(entry("note", "Ideas/Plan.md"))).toContain("Duplicate");
   });
 });

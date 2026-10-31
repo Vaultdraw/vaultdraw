@@ -28,6 +28,7 @@ export const LIST_ACTIONS = [
   "delete",
   "newItem",
   "newFolder",
+  "newNote",
   "move",
   "menu",
   "nextView",

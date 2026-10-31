@@ -56,6 +56,11 @@ export interface AppCommandActions {
   searchTags?: () => void;
   newFolder(): void;
   newDrawingInFolder(): void;
+  /** Off with `extensions.notes`. */
+  newNote?: () => void | Promise<void>;
+  /** Off with `extensions.notes`. */
+  newNoteInFolder?: () => void;
+  duplicateSelected(): void;
   collapseAllFolders(): void;
   refreshFiles(): void;
   renameActive(): void;
@@ -121,6 +126,9 @@ export function appCommandHandlers(
     "navigator.searchTags": actions.searchTags,
     "navigator.newFolder": actions.newFolder,
     "navigator.newDrawingInFolder": actions.newDrawingInFolder,
+    "vault.newNote": actions.newNote,
+    "navigator.newNoteInFolder": actions.newNoteInFolder,
+    "navigator.duplicateSelected": actions.duplicateSelected,
     "navigator.collapseAll": actions.collapseAllFolders,
     "navigator.refresh": actions.refreshFiles,
     "file.rename": actions.renameActive,

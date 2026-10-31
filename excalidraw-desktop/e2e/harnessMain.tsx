@@ -130,6 +130,7 @@ if (params.get("seed") !== "empty") {
     noteFiles.setOnDisk("Daily/2026-10-27.md", "# Daily\n");
     setNoteFiles(noteFiles);
     repository.noteText = noteFiles; // outside changes move note text too
+    noteFiles.onCreate = (path) => repository.seedNote(path); // New note, Duplicate
     (ownerWindow as unknown as { __noteFiles: FakeNoteFiles }).__noteFiles =
       noteFiles;
     repository.seedDrawing("Drawings/Sketch.excalidraw", SAMPLE_SCENE);

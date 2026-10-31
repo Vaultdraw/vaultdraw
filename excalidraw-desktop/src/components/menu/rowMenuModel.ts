@@ -17,7 +17,9 @@ export interface PluginRowItem {
 }
 
 export interface RowMenuActions {
-  newInside: (folderPath: string, kind: "folder" | "drawing") => void;
+  newInside: (folderPath: string, kind: "folder" | "drawing" | "note") => void;
+  /** Present while notes are on: the folder menu offers "New note". */
+  newNote?: (folderPath: string) => void;
   duplicate: (entry: VaultEntry) => void;
   saveAsTemplate?: (entry: VaultEntry) => void;
   rename: (entry: VaultEntry) => void;
@@ -47,8 +49,9 @@ export function buildRowMenu({
 }: RowMenuInput): MenuNode[] {
   const isFolder = entry.kind === "folder";
   const isDrawing = entry.kind === "drawing";
-  // Every entry can be renamed, moved and trashed, like Obsidian and Finder; only drawings
-  // also get duplicate, export, history and the rest.
+  // Every entry can be renamed, moved and trashed, like Obsidian; drawings and notes can be
+  // duplicated (Obsidian's "Make a copy", toimprove 182); only drawings get export, history
+  // and the rest.
   const editable = !readOnly;
   const item = (
     id: string,
@@ -66,6 +69,13 @@ export function buildRowMenu({
             () => a.newInside(entry.path, "drawing"),
             { commandId: "list.newItem" },
           ),
+          ...(a.newNote
+            ? [
+                item("newNote", "New note", () => a.newNote?.(entry.path), {
+                  commandId: "list.newNote",
+                }),
+              ]
+            : []),
           item(
             "newFolder",
             "New folder",
@@ -90,7 +100,7 @@ export function buildRowMenu({
       : [];
 
   const organise: MenuNode[] = [
-    ...(isDrawing && !readOnly
+    ...((isDrawing || entry.kind === "note") && !readOnly
       ? [
           item("duplicate", "Duplicate", () => a.duplicate(entry), {
             commandId: "list.duplicate",

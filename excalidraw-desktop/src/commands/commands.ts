@@ -405,6 +405,14 @@ export const COMMANDS: readonly CommandDefinition[] = [
     when: ["vaultOpen", "writable", "!modalOpen"],
   },
   {
+    // Obsidian's New note; Mod+N stays New drawing (rebind either in [hotkeys]).
+    id: "vault.newNote",
+    title: "New note",
+    category: "Vault",
+    keys: { default: [] },
+    when: ["vaultOpen", "writable", "!modalOpen"],
+  },
+  {
     id: "vault.newFromTemplate",
     title: "Templates: New drawing from template",
     category: "Templates",
@@ -605,6 +613,21 @@ export const COMMANDS: readonly CommandDefinition[] = [
   {
     id: "navigator.newDrawingInFolder",
     title: "Navigator: New drawing in selected folder",
+    category: "Navigator",
+    keys: { default: [] },
+    when: ["vaultOpen", "writable", "!modalOpen"],
+  },
+  {
+    id: "navigator.newNoteInFolder",
+    title: "Navigator: New note in selected folder",
+    category: "Navigator",
+    keys: { default: [] },
+    when: ["vaultOpen", "writable", "!modalOpen"],
+  },
+  {
+    // Obsidian's "Make a copy": the selected row, else the open file; drawings and notes.
+    id: "navigator.duplicateSelected",
+    title: "Navigator: Duplicate selected file",
     category: "Navigator",
     keys: { default: [] },
     when: ["vaultOpen", "writable", "!modalOpen"],

@@ -142,6 +142,8 @@ import {
   NotesUnsavedError,
   unsavedNotePaths,
 } from "./notes/openNotes";
+import { getNoteFiles } from "./notes/noteBackend";
+import { NoteConflictError } from "./notes/noteFiles";
 import { isNotePath } from "./notes/register";
 import { useNotes } from "./notes/useNotes";
 import { ActiveTabGate } from "./tabs/ActiveTabGate";
@@ -1817,6 +1819,105 @@ export const VaultApp = ({
     }
   };
 
+  // Notes (toimprove 182, Obsidian's New note and Make a copy): opened like a click in the tree.
+  const openNote = (path: string, opts?: { target?: OpenTarget }) => {
+    if (ext.notes && tabs.enabled) {
+      return tabs.open(path, opts?.target);
+    }
+    if (ext.notes) {
+      // Tabs off: show the note in the main pane instead.
+      yieldOverlay();
+      void (activeDoc ? closeDoc() : Promise.resolve()).then(() =>
+        setPlainNote(path),
+      );
+      return;
+    }
+    toastStore.push({
+      message: "Markdown notes are turned off (Settings, Extensions).",
+    });
+  };
+
+  // Writes `text` as a new note (never over an existing file) and opens it. Throws on failure.
+  const writeNewNote = async (path: string, text: string) => {
+    await getNoteFiles().write(vault!.handle, path, text, null);
+    await showNewNote(path);
+  };
+
+  // Lists a just-written note in its folder and opens it.
+  const showNewNote = async (path: string) => {
+    const parent = getParentPath(path);
+    await loadDirectory(parent);
+    if (parent) {
+      handleExpandFolder(parent);
+    }
+    startIndexing();
+    await openNote(path);
+  };
+
+  // The New note dialog: throws so the dialog stays open and says why.
+  const createNoteOrThrow = async (parentPath: string, name: string) => {
+    setIsBusy(true);
+    setGlobalAlert(null);
+    try {
+      await writeNewNote(joinPath(parentPath, name), "");
+    } catch (err) {
+      // A create never replaces a note: the native write answers CONFLICT for an existing file.
+      throw err instanceof NoteConflictError
+        ? new Error(`"${name}" already exists`)
+        : err;
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  // "New note" (palette): "Untitled.md" where a new drawing would go, as Obsidian's Cmd+N.
+  const handleNewNote = async () => {
+    const parent = await prepareNewDrawingParent();
+    if (parent === null) {
+      return;
+    }
+    let taken: string[] = [];
+    try {
+      taken = (await repository.listDirectory(vault!.handle, parent)).map(
+        (e) => e.name,
+      );
+    } catch {
+      // folder not created yet: every name is free
+    }
+    const name = uniqueName("Untitled", ".md", taken);
+    try {
+      await createNoteOrThrow(parent, name);
+    } catch (err) {
+      setGlobalAlert({
+        message: `Couldn't create "${name}": ${errorMessage(err)}`,
+        type: "error",
+      });
+    }
+  };
+
+  // Duplicate a note: "Plan copy.md" next to it, with the text on disk (saved edits included).
+  const duplicateNote = async (path: string) => {
+    const file = await getNoteFiles().read(vault!.handle, path);
+    const known = new Set(allIndexedEntries.map((e) => e.path));
+    let target = duplicateName(path);
+    while (known.has(target)) {
+      target = duplicateName(target);
+    }
+    // The index can lag a copy made a moment ago: a create that finds the name taken moves on.
+    for (let tries = 0; ; tries++) {
+      try {
+        await getNoteFiles().write(vault!.handle, target, file.content, null);
+        break;
+      } catch (err) {
+        if (!(err instanceof NoteConflictError) || tries >= 50) {
+          throw err;
+        }
+        target = duplicateName(target);
+      }
+    }
+    await showNewNote(target);
+  };
+
   // Create a drawing from a ready scene JSON (templates).
   const handleCreateFromJson = async (
     parentPath: string,
@@ -2089,6 +2190,10 @@ export const VaultApp = ({
     setIsBusy(true);
     setGlobalAlert(null);
     try {
+      if (isNotePath(path)) {
+        await duplicateNote(path);
+        return;
+      }
       if (activeDoc && activeDoc.path === path) {
         await flushDoc({ commitText: false });
       }
@@ -2604,6 +2709,17 @@ export const VaultApp = ({
       : undefined,
     newFolder: () => requestNavigator({ kind: "newFolder" }),
     newDrawingInFolder: () => requestNavigator({ kind: "newDrawingInFolder" }),
+    newNote: ext.notes
+      ? () => {
+          if (idle) {
+            return handleNewNote();
+          }
+        }
+      : undefined,
+    newNoteInFolder: ext.notes
+      ? () => requestNavigator({ kind: "newNoteInFolder" })
+      : undefined,
+    duplicateSelected: () => requestNavigator({ kind: "duplicateSelected" }),
     collapseAllFolders: handleCollapseAllFolders,
     refreshFiles,
     renameActive: () => {
@@ -3499,22 +3615,7 @@ export const VaultApp = ({
           overlay={layout.narrow}
           onToggleCollapse={handleToggleNavigator}
           onRefresh={refreshFiles}
-          onOpenNote={(path, opts) => {
-            if (ext.notes && tabs.enabled) {
-              return tabs.open(path, opts?.target);
-            }
-            if (ext.notes) {
-              // Tabs off: show the note in the main pane instead.
-              yieldOverlay();
-              void (activeDoc ? closeDoc() : Promise.resolve()).then(() =>
-                setPlainNote(path),
-              );
-              return;
-            }
-            toastStore.push({
-              message: "Markdown notes are turned off (Settings, Extensions).",
-            });
-          }}
+          onOpenNote={openNote}
           onOpenSettings={() => openSettings()}
           onOpenGraph={
             layout.shown.activity_bar || !ext.graph ? undefined : openGraph
@@ -3531,6 +3632,7 @@ export const VaultApp = ({
           request={navigatorRequest}
           onCreateDrawing={createDrawingOrThrow}
           onCreateFolder={createFolderOrThrow}
+          onCreateNote={ext.notes ? createNoteOrThrow : undefined}
           onRenameEntry={handleRenameEntry}
           onMoveEntry={handleMoveEntry}
           onDuplicateDrawing={handleDuplicateDrawing}

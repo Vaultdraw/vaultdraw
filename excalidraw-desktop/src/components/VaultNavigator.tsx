@@ -108,6 +108,16 @@ import type {
 
 import type { ExplorerExportFormat } from "../export/exportFromFile";
 
+type CreateKind = "drawing" | "note" | "folder";
+const CREATE_PLACEHOLDER: Record<CreateKind, string> = {
+  drawing: "My drawing",
+  note: "My note",
+  folder: "Folder name",
+};
+/** `name` with `.md` added unless it already ends in it (any case). */
+const withNoteExt = (name: string) =>
+  /\.md$/i.test(name.trim()) ? name.trim() : `${name.trim()}.md`;
+
 const DEFAULT_WIDTH = 280;
 const clampWidth = (value: number) =>
   Math.round(Math.min(480, Math.max(200, value || DEFAULT_WIDTH)));
@@ -119,6 +129,9 @@ const clampWidth = (value: number) =>
 export type NavigatorAction =
   | { kind: "newFolder" }
   | { kind: "newDrawingInFolder" }
+  | { kind: "newNoteInFolder" }
+  /** Duplicate the focused row (else the open file): drawings and notes. */
+  | { kind: "duplicateSelected" }
   | { kind: "rename" | "move" | "trash"; path: string }
   | { kind: "search"; query: string }
   /** Focus and scroll to a row (the caller expanded its folders). */
@@ -154,6 +167,8 @@ interface VaultNavigatorProps {
   request?: NavigatorRequest | null;
   onCreateDrawing: (parentPath: string, name: string) => void | Promise<void>;
   onCreateFolder: (parentPath: string, name: string) => void | Promise<void>;
+  /** Creates an empty note (`name` ends in .md); absent while notes are off. */
+  onCreateNote?: (parentPath: string, name: string) => void | Promise<void>;
   onRenameEntry: (path: string, newName: string) => void | Promise<void>;
   onMoveEntry: (
     sourcePath: string,
@@ -224,6 +239,7 @@ export const VaultNavigator = ({
   request = null,
   onCreateDrawing,
   onCreateFolder,
+  onCreateNote,
   onRenameEntry,
   onMoveEntry,
   onDuplicateDrawing,
@@ -264,9 +280,7 @@ export const VaultNavigator = ({
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
 
   // Modals state
-  const [createKind, setCreateKind] = useState<"drawing" | "folder" | null>(
-    null,
-  );
+  const [createKind, setCreateKind] = useState<CreateKind | null>(null);
   const [createParent, setCreateParent] = useState<string>("");
   const [createName, setCreateName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
@@ -478,15 +492,29 @@ export const VaultNavigator = ({
       setCreateError(null);
       return;
     }
-    if (request.kind === "newDrawingInFolder") {
+    if (request.kind === "newNoteInFolder" && !onCreateNote) {
+      return; // notes are off
+    }
+    if (
+      request.kind === "newDrawingInFolder" ||
+      request.kind === "newNoteInFolder"
+    ) {
       // The focused folder, else the focused row's (or open drawing's) folder.
       onRowNewInside(
         targetFolder(
           focusedPath ?? activePath,
           (p) => rows.find((r) => r.entry.path === p)?.entry.kind === "folder",
         ),
-        "drawing",
+        request.kind === "newNoteInFolder" ? "note" : "drawing",
       );
+      return;
+    }
+    if (request.kind === "duplicateSelected") {
+      const path = focusedPath ?? activePath;
+      const kind = path ? fileKind(path) : null;
+      if (path && (kind === "drawing" || kind === "note")) {
+        void onDuplicateDrawing(path);
+      }
       return;
     }
     const entry = allIndexedEntries.find((e) => e.path === request.path) ?? {
@@ -580,15 +608,12 @@ export const VaultNavigator = ({
     (path: string) => live.current.onToggleFolder(path),
     [],
   );
-  const onRowNewInside = useCallback(
-    (folderPath: string, kind: "folder" | "drawing") => {
-      setCreateParent(folderPath);
-      setCreateKind(kind);
-      setCreateName("");
-      setCreateError(null);
-    },
-    [],
-  );
+  const onRowNewInside = useCallback((folderPath: string, kind: CreateKind) => {
+    setCreateParent(folderPath);
+    setCreateKind(kind);
+    setCreateName("");
+    setCreateError(null);
+  }, []);
   const onRowMenu = useCallback(
     (entry: VaultEntry, x: number, y: number) => setMenu({ entry, x, y }),
     [],
@@ -638,6 +663,7 @@ export const VaultNavigator = ({
     trash: requestTrash,
     move: setMoveTarget,
     create: onRowNewInside,
+    notes: !!onCreateNote,
     menu: openRowMenu,
     exit: exitTree,
     // command audit (S8): the row menu's items as list.* commands
@@ -721,7 +747,10 @@ export const VaultNavigator = ({
     }
     setCreateError(null);
     // Say it in the dialog before it closes, as the core would refuse it later.
-    const checked = validateEntryName(createName, createKind);
+    const checked = validateEntryName(
+      createName,
+      createKind === "folder" ? "folder" : "drawing",
+    );
     if (!checked.valid) {
       setCreateError(checked.error ?? "That name cannot be used");
       return;
@@ -729,6 +758,14 @@ export const VaultNavigator = ({
     try {
       if (createKind === "drawing") {
         await onCreateDrawing(createParent, withDrawingExt(createName));
+      } else if (createKind === "note") {
+        const name = withNoteExt(createName);
+        if (/\.excalidraw\.md$/i.test(name)) {
+          // That name is an Obsidian drawing, not a note.
+          setCreateError("A note name cannot end in .excalidraw");
+          return;
+        }
+        await onCreateNote?.(createParent, name);
       } else {
         await onCreateFolder(createParent, createName.trim());
       }
@@ -1057,6 +1094,9 @@ export const VaultNavigator = ({
           onClose={() => setMenu(null)}
           actions={{
             newInside: onRowNewInside,
+            newNote: onCreateNote
+              ? (folder) => onRowNewInside(folder, "note")
+              : undefined,
             duplicate: (entry) => void onDuplicateDrawing(entry.path),
             saveAsTemplate:
               onSaveAsTemplate && ((entry) => onSaveAsTemplate(entry.path)),
@@ -1087,7 +1127,7 @@ export const VaultNavigator = ({
       {/* Create Modal */}
       {createKind && (
         <Dialog
-          title={`New ${createKind === "drawing" ? "drawing" : "folder"}${
+          title={`New ${createKind}${
             createParent ? ` in /${createParent}` : ""
           }`}
           titleId="create-entry-title"
@@ -1126,13 +1166,12 @@ export const VaultNavigator = ({
                   setCreateError(null);
                 }
               }}
-              placeholder={
-                createKind === "drawing" ? "My drawing" : "Folder name"
-              }
+              placeholder={CREATE_PLACEHOLDER[createKind]}
             />
-            {createKind === "drawing" && (
+            {createKind !== "folder" && (
               <span className="vd-dialog__hint">
-                Extension .excalidraw will be added automatically
+                Extension {createKind === "note" ? ".md" : ".excalidraw"} will
+                be added automatically
               </span>
             )}
             {createError && (
