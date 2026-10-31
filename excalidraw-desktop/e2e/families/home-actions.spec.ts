@@ -28,6 +28,7 @@ test("Import Obsidian vault… on the home screen imports a vault", async ({
 
 test("the home buttons all run something", async ({ page }) => {
   await openVault(page);
+  await page.locator(".vault-home .vault-home__action").first().waitFor();
   const labels = await page
     .locator(".vault-home .vault-home__action .vault-home__label")
     .allInnerTexts();

@@ -21,7 +21,8 @@ test("right-click a folder: grouped menu, a submenu, then New drawing", async ({
   const items = await menu.getByRole("menuitem").allTextContents();
   const labels = items.map((t) => t.replace(/\s+/g, " ").trim());
   expect(labels[0]).toMatch(/^New drawing/);
-  expect(labels[1]).toMatch(/^New folder/);
+  // New note (Obsidian's order) sits between New drawing and New folder.
+  expect(labels.slice(1, 4).some((l) => /^New folder/.test(l))).toBe(true);
   expect(labels.some((l) => l.startsWith("Copy path"))).toBe(true);
   expect(labels[labels.length - 2]).toMatch(/^Rename…/);
   expect(labels[labels.length - 1]).toMatch(/^Move to Trash/);
