@@ -58,6 +58,8 @@ jobs:
         run: cargo test --workspace -j 2 --manifest-path excalidraw-desktop/src-tauri/Cargo.toml
 
   e2e:
+    # Both Playwright projects run: "webkit" (the macOS profile the suite was written for) and
+    # "linux" (a Linux user agent: Ctrl labels and Linux words, e2e/linuxProfile.spec.ts).
     name: end-to-end (WebKit, shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-24.04
     timeout-minutes: 60

@@ -11,6 +11,11 @@
       if (/Macintosh/.test(navigator.userAgent) && !/Mac/.test(navigator.platform)) {
         Object.defineProperty(navigator, "platform", { get: () => "MacIntel" });
       }
+      // The "linux" project (playwright.config.ts) sends a Linux user agent: the app then takes
+      // its Linux paths (Ctrl labels, "file manager" words), whatever machine runs the tests.
+      if (/X11; Linux/.test(navigator.userAgent) && !/Linux/.test(navigator.platform)) {
+        Object.defineProperty(navigator, "platform", { get: () => "Linux x86_64" });
+      }
     </script>
     <style>
       html,

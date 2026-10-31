@@ -61,6 +61,13 @@ const factor = Number(process.env.E2E_TIMEOUT_FACTOR) || 1;
 
 const viewport = { width: 1280, height: 850 };
 
+// The Linux profile (toimprove 325): the same WebKit, with a Linux user agent, so the key and
+// wording paths a Linux user sees (Ctrl, "file manager") run on every machine, Mac included.
+// Only the specs named here run in it; they are skipped by the default (macOS) project.
+const LINUX_SPECS = ["linuxProfile.spec.ts"];
+const LINUX_UA =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
+
 export default defineConfig({
   testDir: "./e2e",
   testIgnore: full ? [] : ["gallery.spec.ts"],
@@ -94,9 +101,22 @@ export default defineConfig({
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"], viewport },
+      // A project's testIgnore replaces the top-level one: repeat it.
+      testIgnore: full ? LINUX_SPECS : ["gallery.spec.ts", ...LINUX_SPECS],
+    },
+    {
+      name: "linux",
+      use: { ...devices["Desktop Safari"], viewport, userAgent: LINUX_UA },
+      testMatch: LINUX_SPECS,
     },
     ...(full
-      ? [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport } }]
+      ? [
+          {
+            name: "chromium",
+            use: { ...devices["Desktop Chrome"], viewport },
+            testIgnore: LINUX_SPECS,
+          },
+        ]
       : []),
   ],
 });
