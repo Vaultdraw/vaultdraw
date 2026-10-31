@@ -9,60 +9,26 @@
 import { isTauriAvailable } from "../vault/DesktopVaultRepository";
 import { InstallError } from "../theme/install/types";
 
+import { isBlockedIpLiteral } from "../../../sdk/api/shared/blockedAddress";
+
 import { webFetchBlockReason, type WebFetchField } from "./webFetchPolicy";
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-const v4 = (host: string): number[] | null => {
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  return m ? m.slice(1).map(Number) : null;
-};
-
 /** True for a host name or IP literal that points into this machine or a private network. */
 export const isLocalOrPrivateHost = (hostname: string): boolean => {
   const host = hostname.toLowerCase().replace(/\.$/, "");
-  if (
+  return (
     host === "localhost" ||
     host.endsWith(".localhost") ||
     host.endsWith(".local") ||
     host.endsWith(".internal") ||
     host.endsWith(".lan") ||
     host.endsWith(".home.arpa") ||
-    (!host.includes(".") && !host.startsWith("["))
-  ) {
-    return true;
-  }
-  const o = v4(host);
-  if (o) {
-    const [a, b] = o;
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 192 && b === 0 && o[2] === 0) ||
-      (a === 198 && (b === 18 || b === 19)) ||
-      a >= 224
-    );
-  }
-  if (host.startsWith("[")) {
-    const h = host.slice(1, -1);
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(h);
-    if (mapped) {
-      return isLocalOrPrivateHost(mapped[1]);
-    }
-    return (
-      h === "::" ||
-      h === "::1" ||
-      /^f[cd]/.test(h) ||
-      /^fe[89ab]/.test(h) ||
-      /^::ffff:/.test(h)
-    );
-  }
-  return false;
+    (!host.includes(".") && !host.startsWith("[")) ||
+    // IP literals: the one TypeScript copy of network.rs, pinned by private_host_cases.json.
+    isBlockedIpLiteral(host)
+  );
 };
 
 /**

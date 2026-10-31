@@ -18,6 +18,7 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 ### Fixed
 
 - **Run setup again tells the truth about the AI assistant.** With the AI assistant on, the Extras screen and the summary said it was off; both now read the setting.
+- **Browser build: theme and list downloads refuse the same private addresses as the desktop app.** The page's own check let through some IPv6 forms that carry a private address and refused public `::ffff:` addresses; it now shares one copy of the rule with the plugin test kit, and one case table pins it against the desktop app's.
 - **Plugin API 1.3.0: `PluginErrorCode` lists every code a call can reject with.** `INTERNAL` and the seven `ctx.net` codes (`ABORTED`, `INVALID_URL`, `NETWORK_DISABLED`, `NETWORK_TIMEOUT`, `PRIVATE_ADDRESS`, `SECRET_MISSING`, `TOO_MANY_STREAMS`) reached plugins but were missing from the type.
 - **Plugin API: removing an export that cannot go to the Trash rejects with `IO_ERROR`.** It rejected with `TRASH_FAILED`, a code not in `PluginErrorCode`.
 - **File conflict → Save as copy adds `.excalidraw` to a name typed without it**, like the New dialog, instead of refusing the name (toimprove 318).
