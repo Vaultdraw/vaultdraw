@@ -396,8 +396,9 @@ test("Re-import from its Markdown rebuilds an old import with a real table and i
     {
       path,
       elements: [
-        text("Line one Line two", 60, 5),
-        text("Concept │ Meaning │ Paging │ Pages of…", 100, 3),
+        // Every element of a real import carries the one stamp the import writes (recognise.ts).
+        text("Line one Line two", 60, 5, { created: 1 }),
+        text("Concept │ Meaning │ Paging │ Pages of…", 100, 3, { created: 1 }),
       ],
       imported: true,
     },
