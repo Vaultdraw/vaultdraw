@@ -103,6 +103,8 @@ export interface QuickSwitcherProps {
   pickLabel?: string;
   /** Enter: the shell closes the palette, then runs it. Mod+Enter (keepOpen): the shell runs it in place. */
   onRunItem(item: PaletteItem, keepOpen: boolean): void;
+  /** The highlighted row's `previewKey` while the keyboard moved it, else null (restore). */
+  onPreview?(key: string | null): void;
   /** Esc, backdrop click, or the current mode's own shortcut. */
   onClose(): void;
   ownerDocument?: Document | null;
@@ -325,6 +327,7 @@ export const QuickSwitcher = ({
   pickLabel,
   onCreateDrawing,
   onRunItem,
+  onPreview,
   onClose,
   ownerDocument,
 }: QuickSwitcherProps) => {
@@ -334,6 +337,8 @@ export const QuickSwitcher = ({
   );
   const mode = modeOf(query);
   const [active, setActive] = useState(0);
+  // True once Up/Down/Page keys moved the highlight (typing and the mouse reset it).
+  const [keyboardMoved, setKeyboardMoved] = useState(false);
   // null until commands mode first shows: files mode never pays for it.
   const [items, setItems] = useState<readonly PaletteItem[] | null>(() =>
     initialMode === "commands" ? collectItems() : null,
@@ -385,6 +390,20 @@ export const QuickSwitcher = ({
     [rows, mode, query, recent],
   );
   const selected = Math.min(active, Math.max(0, rows.length - 1));
+  const selectedRow = rows[selected];
+  const previewKey =
+    keyboardMoved && selectedRow?.kind === "item"
+      ? selectedRow.entry.item.previewKey ?? null
+      : null;
+  const onPreviewRef = useRef(onPreview);
+  onPreviewRef.current = onPreview;
+  useEffect(() => {
+    onPreviewRef.current?.(previewKey);
+  }, [previewKey]);
+  const onRowHover = useCallback((index: number) => {
+    setActive(index);
+    setKeyboardMoved(false);
+  }, []);
   // First paint shows FIRST_ROWS rows; the rest follows in a transition.
   const [shown, setShown] = useState(FIRST_ROWS);
   const rendered = Math.min(rows.length, Math.max(shown, selected + 1));
@@ -433,6 +452,7 @@ export const QuickSwitcher = ({
     }
     setQuery(next);
     setActive(0);
+    setKeyboardMoved(false);
     setShown(FIRST_ROWS);
     if (items === null && modeOf(next) === "commands") {
       setItems(collectItems());
@@ -521,6 +541,7 @@ export const QuickSwitcher = ({
       swallow();
       if (rows.length > 0) {
         setActive(to);
+        setKeyboardMoved(true);
       }
     };
     if (e.key === "Escape") {
@@ -643,7 +664,7 @@ export const QuickSwitcher = ({
                 row={row}
                 index={i}
                 active={i === selected}
-                onHover={setActive}
+                onHover={onRowHover}
                 onPick={onPick}
               />
             </Fragment>

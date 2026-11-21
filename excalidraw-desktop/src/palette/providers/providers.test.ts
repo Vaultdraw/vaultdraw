@@ -90,6 +90,9 @@ describe("themes provider", () => {
       checked: true,
     });
     expect(items.filter((i) => i.checked)).toHaveLength(1);
+    // Every theme row can be previewed; the family row cannot.
+    expect(items.map((i) => i.previewKey)).toEqual(summaries.map((s) => s.key));
+    expect(all[0].previewKey).toBeUndefined();
     void items[1].run();
     expect(select).toHaveBeenCalledWith(summaries[1].key);
   });

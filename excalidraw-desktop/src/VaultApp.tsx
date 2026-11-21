@@ -551,7 +551,11 @@ export const VaultApp = ({
     useVaultAppearance(win, vault?.handle ?? null, vaultSettings),
   );
   useSnippets(doc, win);
-  const { refresh: refreshAppearance } = appearance;
+  const {
+    refresh: refreshAppearance,
+    previewTheme,
+    endPreview: endThemePreview,
+  } = appearance;
   const setupVisible = useSetupVisible(!!vault, win);
   const appTheme = appearance.snapshot.mode;
   // The thumbnail service lives in ThumbnailsRoot (see there); save notices
@@ -3404,18 +3408,36 @@ export const VaultApp = ({
   }, [win]);
 
   const closeSwitcher = () => setSwitcher(null);
+  // A palette closing for any reason puts the saved theme back, unless Enter
+  // is about to keep the previewed one (heldPreview): no flash back.
+  const heldPreview = useRef(false);
+  useEffect(() => {
+    if (!switcher && !palettePick.pick && !heldPreview.current) {
+      previewTheme(null);
+    }
+  }, [switcher, palettePick.pick, previewTheme]);
   const runPaletteItem = (item: PaletteItem, keepOpen: boolean) => {
+    const keepsPreview = item.previewKey !== undefined;
     const execute = async () => {
       try {
         await item.run();
+        if (keepsPreview) {
+          endThemePreview();
+        }
       } catch (err) {
         console.error(`Palette entry "${item.key}" failed`, err);
+        if (keepsPreview) {
+          previewTheme(null);
+        }
+      } finally {
+        heldPreview.current = false;
       }
     };
     if (keepOpen) {
       void execute();
       return;
     }
+    heldPreview.current = keepsPreview;
     setSwitcher(null);
     // After the palette's backdrop has unmounted, so `!modalOpen` holds.
     const timers = win ?? window;
@@ -4089,6 +4111,12 @@ export const VaultApp = ({
                 }
           }
           onRunItem={runPaletteItem}
+          onPreview={(key) => {
+            // Live: the key is read when the highlight moves.
+            if (key === null || getPreferences(win).paletteThemePreview) {
+              previewTheme(key);
+            }
+          }}
           onClose={() => {
             if (palettePick.pick) {
               palettePick.finish(null);

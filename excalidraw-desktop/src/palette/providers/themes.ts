@@ -27,6 +27,7 @@ export function createThemesProvider({
           group: "Appearance",
           keywords: ["colour", "color", "theme"],
           checked: key === current,
+          previewKey: key,
           run: () => select(key),
         }),
       );

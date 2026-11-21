@@ -41,6 +41,14 @@ export interface AppearanceState {
   registry: ThemeRegistry;
   /** Re-read preferences after a local change (Settings, editor menu). */
   refresh: () => void;
+  /**
+   * Show a theme live (CSS variables and canvas sync only), or put the saved
+   * one back with null. Never saved, never re-renders React: a crash or
+   * reload during a preview leaves the saved theme.
+   */
+  previewTheme: (key: string | null) => void;
+  /** The previewed theme was chosen: stop re-showing it, paint nothing. */
+  endPreview: () => void;
 }
 
 /** What the open vault overrides (`<vault>/.excalidraw-vault/settings.toml`). */
@@ -117,21 +125,75 @@ export const useAppearance = (
   }, [registry, tick, win, vaultTheme, vaultMode, vaultAccent]);
   shown.current = snapshot;
 
-  // Layout effect: tokens land before the browser paints the new state.
+  const paint = useCallback(
+    (snap: AppearanceSnapshot) => {
+      if (doc) {
+        applyAppearance(doc, snap);
+      }
+      // The canvas palette follows the theme, not the accent.
+      const source = {
+        variant: snap.entry.theme[snap.mode],
+        mode: snap.mode,
+        key: snap.key,
+      };
+      // Page mode's "match current theme" paper needs it even with sync off.
+      setCanvasThemeSource(source);
+      setCanvasSync(snap.syncCanvas ? source : null);
+    },
+    [doc],
+  );
+
+  // Transient palette preview: same pipeline, no state, nothing saved.
+  const wanted = useRef<string | null>(null);
+  const live = useRef({ vaultMode, vaultAccent });
+  live.current = { vaultMode, vaultAccent };
+  const previewTheme = useCallback(
+    (key: string | null) => {
+      wanted.current = key;
+      const saved = shown.current;
+      if (!doc || !saved) {
+        return;
+      }
+      if (key === null) {
+        paint(saved);
+        return;
+      }
+      const { vaultMode: mode, vaultAccent: accent } = live.current;
+      const reg = getThemeRegistry();
+      const global = getPreferences(win);
+      const prefs = {
+        ...global,
+        colorTheme: key,
+        theme: mode ?? global.theme,
+        accentColor: accent ?? global.accentColor,
+      };
+      const { entry } = resolveSelectedTheme(reg, key);
+      if (!isThemeReady(entry)) {
+        // A lazy built-in: load it, then show it if still the wanted one.
+        void loadThemeEntry(entry).then(() => {
+          if (wanted.current === key) {
+            previewTheme(key);
+          }
+        });
+        return;
+      }
+      paint(computeAppearance(prefs, reg, win));
+    },
+    [doc, win, paint],
+  );
+
+  const endPreview = useCallback(() => {
+    wanted.current = null;
+  }, []);
+
+  // Layout effect: tokens land before the browser paints the new state. A
+  // preview in progress is shown again on top (the registry may have changed).
   useLayoutEffect(() => {
-    if (doc) {
-      applyAppearance(doc, snapshot);
+    paint(snapshot);
+    if (wanted.current !== null) {
+      previewTheme(wanted.current);
     }
-    // The canvas palette follows the theme, not the accent.
-    const source = {
-      variant: snapshot.entry.theme[snapshot.mode],
-      mode: snapshot.mode,
-      key: snapshot.key,
-    };
-    // Page mode's "match current theme" paper needs it even with sync off.
-    setCanvasThemeSource(source);
-    setCanvasSync(snapshot.syncCanvas ? source : null);
-  }, [doc, snapshot]);
+  }, [paint, previewTheme, snapshot]);
 
   // `appearance.invert_svg_in_dark`, live from config.toml and Settings.
   const invertSvg = useMemo(
@@ -164,5 +226,5 @@ export const useAppearance = (
     }
   }, [removed]);
 
-  return { snapshot, registry, refresh };
+  return { snapshot, registry, refresh, previewTheme, endPreview };
 };

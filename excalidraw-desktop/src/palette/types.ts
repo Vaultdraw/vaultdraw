@@ -35,6 +35,11 @@ export interface PaletteItem {
    * The row shows a "Tab browse" hint.
    */
   family?: boolean;
+  /**
+   * Set on rows that can be shown live (a theme's key): moving the highlight
+   * onto the row with the keyboard previews it; leaving the row restores.
+   */
+  previewKey?: string;
   /** Runs the entry. Called after the palette closed, or in place (Mod+Enter). */
   run(): void | Promise<void>;
 }
