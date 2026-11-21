@@ -1420,7 +1420,7 @@ local_depth = 3
 
 | Key | Default | Range | What it does (Obsidian's name) |
 | --- | --- | --- | --- |
-| `text_fade` | 0.5 | 0-4 | Zoom at which labels start to appear: higher shows labels only when zoomed in (Text fade threshold) |
+| `text_fade` | 0.5 | 0-4 | Zoom at which labels start to appear: higher shows labels only when zoomed in (Text fade threshold). A shown label hides only about 10% further out, so small zoom changes never make it blink |
 | `node_size` | 1 | 0.2-5 | Dot size (Node size) |
 | `link_thickness` | 1 | 0.2-5 | Line thickness (Link thickness) |
 | `force_centre` | 0.3 | 0-1 | Pull of every node towards the middle (Center force) |
