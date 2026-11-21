@@ -220,12 +220,14 @@ describe("durable state: what each feature keeps across a restart", () => {
       activeId: "t2",
       mru: ["t2", "t1", "t3"],
       closed: [],
+      nextId: 10,
     } as TabsState);
     before.scheduleSave("/v/two", {
       tabs: [tab(9)],
       activeId: "t9",
       mru: ["t9"],
       closed: [],
+      nextId: 10,
     } as TabsState);
     before.flush(); // the quit barrier's prepareLeave
     await restart(disk);
