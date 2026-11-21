@@ -249,6 +249,8 @@ interface VaultPreferencesBase {
   gitNoticeDismissed: string[];
   /** The command palette's recent items, most recent first, per mode (machine state). */
   paletteRecent: PaletteRecent;
+  /** Each vault's last appearance overrides, so its theme paints first at launch (machine state). */
+  vaultAppearance: Record<string, VaultAppearanceEntry>;
   exportOptions: ExportOptions;
   /** The user has panned the canvas once: the "move canvas" hint stays hidden (machine state). */
   hasPanned: boolean;
@@ -504,6 +506,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   linksDock: false,
   gitNoticeDismissed: [],
   paletteRecent: { files: [], commands: [] },
+  vaultAppearance: {},
   exportOptions: DEFAULT_EXPORT_OPTIONS,
   hasPanned: false,
   profileChoice: null,
@@ -832,6 +835,44 @@ export const normalizePaletteRecent = (value: unknown): PaletteRecent => {
   };
 };
 
+/** A vault's own theme, mode and accent, as its settings.toml last set them. */
+export type VaultAppearanceEntry = {
+  colorTheme?: string;
+  theme?: VaultTheme;
+  accentColor?: string;
+};
+
+/** Vaults whose appearance is remembered; the oldest are dropped first. */
+export const MAX_VAULT_APPEARANCE = 32;
+
+export const normalizeVaultAppearance = (
+  value: unknown,
+): Record<string, VaultAppearanceEntry> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const out: Record<string, VaultAppearanceEntry> = {};
+  const entries = Object.entries(value).slice(-MAX_VAULT_APPEARANCE);
+  for (const [vault, raw] of entries) {
+    if (!raw || typeof raw !== "object") {
+      continue;
+    }
+    const e = raw as Record<string, unknown>;
+    const entry: VaultAppearanceEntry = {};
+    if (typeof e.colorTheme === "string") {
+      entry.colorTheme = e.colorTheme;
+    }
+    if (isVaultTheme(e.theme)) {
+      entry.theme = e.theme;
+    }
+    if (typeof e.accentColor === "string") {
+      entry.accentColor = e.accentColor;
+    }
+    out[vault] = entry;
+  }
+  return out;
+};
+
 /** Vaults whose open tabs are remembered; the oldest written are dropped first. */
 export const MAX_TABS_SESSIONS = 20;
 
@@ -950,6 +991,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
     linksDock: pick(parsed.linksDock, isBoolean, d.linksDock),
     gitNoticeDismissed: stringList(parsed.gitNoticeDismissed),
     paletteRecent: normalizePaletteRecent(parsed.paletteRecent),
+    vaultAppearance: normalizeVaultAppearance(parsed.vaultAppearance),
     exportOptions: normalizeExportOptions(parsed.exportOptions),
     hasPanned: pick(parsed.hasPanned, isBoolean, d.hasPanned),
     profileChoice:

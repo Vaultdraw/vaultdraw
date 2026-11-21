@@ -15,6 +15,16 @@ import {
   type VaultPreferences,
 } from "../vault/preferences";
 import { createWorkspaceStore } from "../tabs/workspaceStore";
+import { getDockVisible, setDockVisible } from "../links/dockState";
+import {
+  dismissGitNotice,
+  isGitNoticeDismissed,
+} from "../history/gitNoticeState";
+import { getRecent, recordRecent } from "../palette/recent";
+import {
+  cachedVaultAppearance,
+  rememberVaultAppearance,
+} from "../theme/useVaultAppearance";
 
 import {
   CONFIG_MAPPING,
@@ -113,6 +123,10 @@ const SAMPLES: { [K in typeof STATE_FIELDS[number]]: VaultPreferences[K] } = {
     pattern: false,
     pageShaped: true,
   },
+  linksDock: true,
+  gitNoticeDismissed: ["/v/one"],
+  paletteRecent: { files: ["drawing:a.excalidraw"], commands: ["command:x"] },
+  vaultAppearance: { "/v/one": { colorTheme: "Nord", theme: "dark" } },
   hasPanned: true,
   profileChoice: "work",
   focusOn: true,
@@ -229,5 +243,55 @@ describe("durable state: what each feature keeps across a restart", () => {
     after.clear("/v/two");
     await restart(disk);
     expect(createWorkspaceStore().load("/v/two", () => true)).toBeNull();
+  });
+
+  it("the Links dock stays shown after a restart", async () => {
+    const disk = createDisk();
+    await launch(disk);
+    expect(getDockVisible(window)).toBe(false);
+    setDockVisible(true, window);
+    await restart(disk);
+    expect(getDockVisible(window)).toBe(true);
+    setDockVisible(false, window);
+    await restart(disk);
+    expect(getDockVisible(window)).toBe(false);
+  });
+
+  it("the git notice's Not now is remembered per vault after a restart", async () => {
+    const disk = createDisk();
+    await launch(disk);
+    dismissGitNotice("/v/one", window);
+    await restart(disk);
+    expect(isGitNoticeDismissed("/v/one", window)).toBe(true);
+    expect(isGitNoticeDismissed("/v/two", window)).toBe(false);
+  });
+
+  it("the palette's recent drawings and commands come back after a restart", async () => {
+    const disk = createDisk();
+    await launch(disk);
+    recordRecent("drawing:a.excalidraw", window);
+    recordRecent("drawing:b.excalidraw", window);
+    recordRecent("command:view.toggleTheme", window);
+    await restart(disk);
+    expect(getRecent("files", window)).toEqual([
+      "drawing:b.excalidraw",
+      "drawing:a.excalidraw",
+    ]);
+    expect(getRecent("commands", window)).toEqual(["command:view.toggleTheme"]);
+  });
+
+  it("a vault's own theme is known at the next launch before its settings load (no flash)", async () => {
+    const disk = createDisk();
+    await launch(disk);
+    rememberVaultAppearance(window, "/v/one", {
+      colorTheme: "Nord",
+      theme: "dark",
+    });
+    await restart(disk);
+    expect(cachedVaultAppearance(window, "/v/one")).toEqual({
+      colorTheme: "Nord",
+      theme: "dark",
+    });
+    expect(cachedVaultAppearance(window, "/v/two")).toEqual({});
   });
 });

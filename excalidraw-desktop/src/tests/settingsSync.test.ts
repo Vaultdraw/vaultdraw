@@ -525,6 +525,7 @@ describe("settingsSync mapping", () => {
       linksDock: false,
       gitNoticeDismissed: [],
       paletteRecent: { files: [], commands: [] },
+      vaultAppearance: {},
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
@@ -710,6 +711,7 @@ describe("settingsSync runtime", () => {
       linksDock: false,
       gitNoticeDismissed: [],
       paletteRecent: { files: [], commands: [] },
+      vaultAppearance: {},
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
