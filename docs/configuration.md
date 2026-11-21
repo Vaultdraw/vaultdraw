@@ -105,7 +105,7 @@ stroke_style = "dotted"
 - **Typos are safe.** If the file can't be parsed, the app keeps the last good settings and shows a banner such as `config.toml line 7: <error>`. A value of the wrong type falls back to its default and is reported the same way. A key the app doesn't know, such as `zom` for `zoom` (or `stroke_colour` inside `[tools.arrow]`), is a warning: only that key is ignored, the rest applies, and a notice names the closest real key: `config.toml: unknown key interface.zom (ignored; did you mean interface.zoom?)`. A vault's `settings.toml` is checked the same way. Errors stay in the banner until fixed; every current error and warning is listed under **Settings → General → Config file**.
 - **Settings → General → Config files** lists both files with their paths and status, an **Open** button for each, **Open config folder**, **Reload**, and **Reset all Settings changes**. All of these are palette commands too: see [Where a value comes from](#where-a-value-comes-from).
 
-`state.json` holds machine state (recent vaults, navigator width, expanded folders, the Tags section's open/closed, sort and collapsed branches per vault, last-used image export options). It is not meant for hand editing.
+`state.json` holds machine state: recent vaults, navigator width, expanded folders, the Tags section's open/closed, sort and collapsed branches per vault, open tabs per vault (when `tabs.restore` is on), whether the Links dock is shown, the vaults where the git notice got "Not now", the command palette's recent items, focus mode (when `layout.focus_remember` is on), each vault's last theme overrides (so it paints in its own theme at launch) and last-used image export options. It is not meant for hand editing.
 
 ### Layers
 
