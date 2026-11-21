@@ -1,33 +1,18 @@
 /**
  * "Not now" of the git notice, remembered per vault (keyed by vault path) in
- * local storage like the other per-vault UI state (tags pane, links dock).
+ * machine state (state.json in the app), so it survives a restart: the app's
+ * webview forgets its localStorage at every quit (toimprove 343).
  */
-const KEY = "vaultdraw.historyGitNotice.v1";
-
-type All = Record<string, true>;
-
-const readAll = (win?: Window | null): All => {
-  try {
-    const raw = (win ?? window).localStorage.getItem(KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? (parsed as All) : {};
-  } catch {
-    return {};
-  }
-};
+import { getPreferences, updatePreferences } from "../vault/preferences";
 
 export const isGitNoticeDismissed = (
   vaultKey: string,
   win?: Window | null,
-): boolean => readAll(win)[vaultKey] === true;
+): boolean => getPreferences(win).gitNoticeDismissed.includes(vaultKey);
 
-/** Silent when storage is unavailable: the notice just comes back next time. */
 export function dismissGitNotice(vaultKey: string, win?: Window | null): void {
-  try {
-    const all = readAll(win);
-    all[vaultKey] = true;
-    (win ?? window).localStorage.setItem(KEY, JSON.stringify(all));
-  } catch {
-    // not remembered
+  const list = getPreferences(win).gitNoticeDismissed;
+  if (!list.includes(vaultKey)) {
+    updatePreferences({ gitNoticeDismissed: [...list, vaultKey] }, win);
   }
 }

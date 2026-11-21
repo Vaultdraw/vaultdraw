@@ -245,6 +245,8 @@ interface VaultPreferencesBase {
   tabsSessions: Record<string, WorkspaceSessionV1>;
   /** The Links dock is shown (machine state). */
   linksDock: boolean;
+  /** Vaults where the history panel's git notice got "Not now" (machine state). */
+  gitNoticeDismissed: string[];
   exportOptions: ExportOptions;
   /** The user has panned the canvas once: the "move canvas" hint stays hidden (machine state). */
   hasPanned: boolean;
@@ -498,6 +500,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   tagsPane: {},
   tabsSessions: {},
   linksDock: false,
+  gitNoticeDismissed: [],
   exportOptions: DEFAULT_EXPORT_OPTIONS,
   hasPanned: false,
   profileChoice: null,
@@ -803,6 +806,12 @@ export const normalizeTagsPane = (
   return result;
 };
 
+/** The strings of a list; anything else is an empty list. */
+export const stringList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === "string")
+    : [];
+
 /** Vaults whose open tabs are remembered; the oldest written are dropped first. */
 export const MAX_TABS_SESSIONS = 20;
 
@@ -919,6 +928,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
     tagsPane: normalizeTagsPane(parsed.tagsPane),
     tabsSessions: normalizeTabsSessions(parsed.tabsSessions),
     linksDock: pick(parsed.linksDock, isBoolean, d.linksDock),
+    gitNoticeDismissed: stringList(parsed.gitNoticeDismissed),
     exportOptions: normalizeExportOptions(parsed.exportOptions),
     hasPanned: pick(parsed.hasPanned, isBoolean, d.hasPanned),
     profileChoice:

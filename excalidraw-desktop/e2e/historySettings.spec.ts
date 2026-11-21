@@ -15,7 +15,14 @@ import {
 } from "./historyHelpers";
 
 const PREFS_KEY = "excalidraw-vault-preferences-v1";
-const NOTICE_KEY = "vaultdraw.historyGitNotice.v1";
+/** Vaults whose git notice got "Not now": a preference (state.json in the app). */
+const dismissedVaults = (page: Page) =>
+  page.evaluate(
+    (k) =>
+      (JSON.parse(window.localStorage.getItem(k) ?? "{}").gitNoticeDismissed ??
+        []) as string[],
+    PREFS_KEY,
+  );
 const MB = 1024 * 1024;
 
 const anchor = rectEl("anc", 0, 0, null, 200, 120, 9);
@@ -485,11 +492,7 @@ test.describe("panel notices", () => {
     await expect(notice).toContainText("This vault is a git repository");
     await notice.getByRole("button", { name: "Not now" }).click();
     await expect(notice).toHaveCount(0);
-    const stored = await page.evaluate(
-      (k) => JSON.parse(window.localStorage.getItem(k) ?? "{}"),
-      NOTICE_KEY,
-    );
-    expect(Object.values(stored)).toEqual([true]);
+    expect(await dismissedVaults(page)).toHaveLength(1);
 
     // Closing and reopening the panel keeps it hidden.
     await page.keyboard.press("Meta+Shift+KeyH");
@@ -510,16 +513,7 @@ test.describe("panel notices", () => {
       .getByRole("button", { name: "Not now" })
       .click();
     // The dismissal is stored before the page goes away.
-    await expect
-      .poll(() =>
-        page.evaluate(
-          (k) =>
-            Object.keys(JSON.parse(window.localStorage.getItem(k) ?? "{}"))
-              .length,
-          NOTICE_KEY,
-        ),
-      )
-      .toBe(1);
+    await expect.poll(async () => (await dismissedVaults(page)).length).toBe(1);
     // `reload`: setup waits for the reloaded app to boot. A reload followed by
     // a goto cancels the boot chunks and reports "Importing a module script
     // failed" (a navigation artefact that only shows when the server is slow).

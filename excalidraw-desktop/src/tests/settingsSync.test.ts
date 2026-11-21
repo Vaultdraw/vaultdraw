@@ -523,6 +523,7 @@ describe("settingsSync mapping", () => {
       focusOn: false,
       tabsSessions: {},
       linksDock: false,
+      gitNoticeDismissed: [],
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
@@ -706,6 +707,7 @@ describe("settingsSync runtime", () => {
       focusOn: false,
       tabsSessions: {},
       linksDock: false,
+      gitNoticeDismissed: [],
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
