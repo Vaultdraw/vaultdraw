@@ -9,9 +9,8 @@
  * new key in an allowed file) fails here until someone checks it is not user
  * state. A removed use fails too, so the list stays true.
  */
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -59,11 +58,11 @@ const ALLOWED: Record<string, [number, string]> = {
   ],
 };
 
-const files = execFileSync("git", ["ls-files", "src"], {
-  cwd: DESKTOP,
-  encoding: "utf8",
-})
-  .split("\n")
+// The file system, not git: a new file is checked before it is committed.
+const files = (
+  readdirSync(join(DESKTOP, "src"), { recursive: true }) as string[]
+)
+  .map((f) => `src/${f.split(sep).join("/")}`)
   .filter(
     (f) => /\.tsx?$/.test(f) && !/\.(test|spec)\.|\/tests?\/|\.d\.ts$/.test(f),
   );
