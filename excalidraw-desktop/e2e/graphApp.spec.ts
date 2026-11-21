@@ -327,7 +327,9 @@ for (const theme of ["light", "dark"] as const) {
       await page.mouse.wheel(0, 500); // zoom far out
       await page.waitForTimeout(40);
     }
-    await page.waitForTimeout(900); // ease and fade-out
+    // The graph shrank around the pointer: move it to an empty corner so no hover label is forced.
+    await page.mouse.move(box.x + 4, box.y + 4);
+    await page.waitForTimeout(900); // ease, hover fade and label fade-out
     expect(await inked()).toBe(0);
   });
 }
