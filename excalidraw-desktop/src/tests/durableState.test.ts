@@ -1,0 +1,166 @@
+/**
+ * toimprove 343: the app's webview is incognito, so localStorage is empty at
+ * every launch. Only config.toml and state.json survive a quit. These tests
+ * simulate a restart the way the packaged app does it: the settings runtime
+ * stops, localStorage is cleared, and the runtime starts again from what the
+ * fake native side kept. Playwright cannot see this bug: it keeps
+ * localStorage across reloads.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  DEFAULT_PREFERENCES,
+  getPreferences,
+  updatePreferences,
+  type VaultPreferences,
+} from "../vault/preferences";
+import {
+  CONFIG_MAPPING,
+  disposeSettings,
+  flushSettings,
+  initSettings,
+  STATE_FIELDS,
+} from "../vault/settingsSync";
+
+const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+
+/** The native side: config.toml and state.json, which outlive the webview. */
+export const createDisk = () => {
+  const disk = {
+    config: {} as Record<string, Record<string, unknown>>,
+    state: {} as Record<string, unknown>,
+    invoke: vi.fn(async (cmd: string, args?: Record<string, unknown>) => {
+      switch (cmd) {
+        case "load_settings":
+          return {
+            configDir: "/home/u/.config/vaultdraw",
+            configPath: "/home/u/.config/vaultdraw/config.toml",
+            statePath: "/home/u/.local/state/vaultdraw/state.json",
+            config: clone(disk.config),
+            configError: null,
+            state: clone(disk.state),
+          };
+        case "update_config":
+          for (const { key, value } of (args as any).changes) {
+            const [table, name] = key.split(".");
+            disk.config[table] ??= {};
+            if (value === null) {
+              delete disk.config[table][name];
+            } else {
+              disk.config[table][name] = value;
+            }
+          }
+          return undefined;
+        case "write_state":
+          disk.state = clone((args as any).state);
+          return undefined;
+        default:
+          return undefined;
+      }
+    }),
+    listen: vi.fn(async () => () => undefined),
+  };
+  return disk;
+};
+
+export type Disk = ReturnType<typeof createDisk>;
+
+export const launch = (disk: Disk) =>
+  initSettings(window, {
+    tauri: true,
+    invoke: disk.invoke as any,
+    listen: disk.listen as any,
+  });
+
+/** Quit (pending state is written, as the quit barrier does) and launch again. */
+export const restart = async (disk: Disk) => {
+  await flushSettings();
+  disposeSettings();
+  window.localStorage.clear();
+  await launch(disk);
+};
+
+/**
+ * One non-default value per state.json field. Typed as a full record, so a
+ * new STATE_FIELDS entry without a sample fails the type check.
+ */
+const SAMPLES: { [K in typeof STATE_FIELDS[number]]: VaultPreferences[K] } = {
+  recentVaults: ["/v/one", "/v/two"],
+  lastVaultPath: "/v/one",
+  navigatorCollapsed: true,
+  navigatorWidth: 333,
+  expandedFolders: { "/v/one": ["", "notes"] },
+  tagsPane: { "/v/one": { sort: "count", open: false, collapsed: ["a"] } },
+  exportOptions: {
+    scale: 3,
+    background: false,
+    embedScene: true,
+    pattern: false,
+    pageShaped: true,
+  },
+  hasPanned: true,
+  profileChoice: "work",
+  focusOn: true,
+};
+
+/**
+ * Preference fields that are on purpose NOT kept across a restart, each
+ * with its reason. Everything else must be in config.toml or state.json.
+ */
+const SESSION_ONLY: Record<string, string> = {};
+
+/** Written to config.toml outside CONFIG_MAPPING (dynamic tables). */
+const CONFIG_EXTRAS = [
+  "hotkeys",
+  "pluginSettings",
+  "keysLabels",
+  "userCommands",
+];
+
+describe("durable state: every choice survives a restart", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    disposeSettings();
+    vi.useRealTimers();
+    window.localStorage.clear();
+  });
+
+  it("has a sample for exactly the state.json fields", () => {
+    expect(Object.keys(SAMPLES).sort()).toEqual([...STATE_FIELDS].sort());
+  });
+
+  it.each(STATE_FIELDS.map((f) => [f]))(
+    "keeps %s across a restart",
+    async (field) => {
+      const disk = createDisk();
+      await launch(disk);
+      const value = SAMPLES[field as keyof typeof SAMPLES];
+      expect(getPreferences(window)[field]).not.toEqual(value);
+      updatePreferences(
+        { [field]: value } as Partial<VaultPreferences>,
+        window,
+      );
+      await restart(disk);
+      expect(getPreferences(window)[field]).toEqual(value);
+    },
+  );
+
+  it("every preference is kept in config.toml or state.json, or listed as per-session with a reason", () => {
+    const config = new Set<string>([
+      ...CONFIG_MAPPING.map((m) => m.field as string),
+      ...CONFIG_EXTRAS,
+    ]);
+    const state = new Set<string>(STATE_FIELDS);
+    const lost = Object.keys(DEFAULT_PREFERENCES).filter(
+      (k) => !config.has(k) && !state.has(k) && !(k in SESSION_ONLY),
+    );
+    expect(lost).toEqual([]);
+    for (const [field, reason] of Object.entries(SESSION_ONLY)) {
+      expect(field in DEFAULT_PREFERENCES, field).toBe(true);
+      expect(reason.length).toBeGreaterThan(10);
+    }
+  });
+});

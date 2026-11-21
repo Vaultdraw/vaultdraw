@@ -1218,6 +1218,7 @@ export const STATE_FIELDS = [
   "exportOptions",
   "hasPanned",
   "profileChoice",
+  "focusOn",
 ] as const;
 
 type StateField = typeof STATE_FIELDS[number];
@@ -1504,6 +1505,7 @@ export function stateToPreferences(
     hasPanned: typeof s.hasPanned === "boolean" ? s.hasPanned : d.hasPanned,
     profileChoice:
       typeof s.profileChoice === "string" ? s.profileChoice : d.profileChoice,
+    focusOn: typeof s.focusOn === "boolean" ? s.focusOn : d.focusOn,
   };
 }
 
@@ -1518,6 +1520,7 @@ export function preferencesToState(prefs: PreferencesSnapshot): PersistedState {
     exportOptions: prefs.exportOptions,
     hasPanned: prefs.hasPanned,
     profileChoice: prefs.profileChoice,
+    focusOn: prefs.focusOn,
   };
 }
 

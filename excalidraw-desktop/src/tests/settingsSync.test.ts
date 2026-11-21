@@ -520,6 +520,7 @@ describe("settingsSync mapping", () => {
       navigatorWidth: 300,
       expandedFolders: { "/a": ["", "x"] },
       tagsPane: {},
+      focusOn: false,
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
@@ -700,6 +701,7 @@ describe("settingsSync runtime", () => {
       navigatorWidth: 300,
       expandedFolders: {},
       tagsPane: {},
+      focusOn: false,
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
