@@ -231,7 +231,22 @@ export class GraphSession {
       label: (i) => displayName(this.g, this.gid(i)),
     });
     this.loop = new FrameLoop((t) => this.render(t), d.loop);
+    // Reduced motion: labels switch without a fade (the zoom hysteresis stays); followed live.
+    const mq =
+      typeof matchMedia === "function"
+        ? matchMedia("(prefers-reduced-motion: reduce)")
+        : null;
+    if (mq) {
+      const follow = () => {
+        this.labels.reducedMotion = mq.matches;
+      };
+      follow();
+      mq.addEventListener?.("change", follow);
+      this.unwatchMotion = () => mq.removeEventListener?.("change", follow);
+    }
   }
+
+  private unwatchMotion: (() => void) | null = null;
 
   // ---- public API --------------------------------------------------------------------------
 
@@ -364,6 +379,8 @@ export class GraphSession {
     this.layout?.terminate();
     this.layout = null;
     this.loop.dispose();
+    this.unwatchMotion?.();
+    this.unwatchMotion = null;
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
       this.saveTimer = null;

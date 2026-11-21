@@ -1,7 +1,13 @@
 /**
- * Canvas2D label overlay. Zoom LOD (high-degree nodes appear first, fading in), top-degree first,
- * grid collision culling, at most `maxLabels` per frame. Label strings come from a lazy callback
- * and are only requested for candidates that survive the on-screen test.
+ * Canvas2D label overlay. Zoom LOD (high-degree nodes appear first), top-degree first, grid
+ * collision culling, at most `maxLabels` per frame. Label strings come from a lazy callback and are
+ * only requested for candidates that survive the on-screen test.
+ *
+ * Zoom never makes a label blink (toimprove 342): whether a label is wanted is a yes/no decision
+ * with hysteresis (shown at its zoom, hidden only ZOOM_HYST lower), each node's zoom is spread a
+ * little (ZOOM_SPREAD) so a group of same-degree nodes does not switch at one zoom, a label pushed
+ * out by a collision while the zoom moves stays away until the zoom settles, and every change is a
+ * short time fade (none with reduced motion).
  */
 import type { CameraState } from "./renderer/types";
 
@@ -21,7 +27,17 @@ export interface LabelOptions {
   /** Zoom at which the least important nodes start to show text (setting). */
   fadeScale?: number;
   font?: string;
+  /** No fades: labels switch at once (prefers-reduced-motion). The zoom hysteresis stays. */
+  reducedMotion?: boolean;
 }
+
+/** Stable spread factor in [1 - ZOOM_SPREAD, 1 + ZOOM_SPREAD] for node i (integer hash). */
+const spread = (i: number): number => {
+  let h = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  h ^= h >>> 16;
+  return 1 + ZOOM_SPREAD * (((h >>> 0) / 0xffffffff) * 2 - 1);
+};
 
 /** Fade-in and fade-out times of a label (ms). Out is slower: a label never pops away. */
 export const FADE_IN_MS = 140;
@@ -30,6 +46,14 @@ export const FADE_OUT_MS = 260;
 const RESELECT_LN = 0.12;
 /** A label the layout dropped (a collision) cannot come back for this long: no flicker cycles. */
 export const COOLDOWN_MS = 600;
+/** A shown label hides only when the zoom is this fraction below the zoom that showed it. */
+export const ZOOM_HYST = 0.1;
+/** Each node's show zoom is spread by up to this fraction (stable per node) so groups stagger. */
+export const ZOOM_SPREAD = 0.12;
+/** The zoom counts as settled this long after its last change. */
+export const SETTLE_MS = 180;
+/** px: a shown label stays while its node is this far outside the viewport. */
+const STICKY_EDGE = 48;
 /** px: a shown label tolerates this much overlap; a new one needs this much clear space. */
 const STICKY_SLACK = 5;
 const NEW_MARGIN = 5;
@@ -55,10 +79,15 @@ export class LabelLayer {
   maxLabels: number;
   fadeScale: number;
   font: string;
+  reducedMotion: boolean;
 
   private n = 0;
   private order = new Uint32Array(0);
   private importance = new Float32Array(0);
+  /** Per node: show zoom / fadeScale, spread included. */
+  private zoomAt = new Float32Array(0);
+  /** Layout id in which the node's zoom gate was last open (hysteresis memory). */
+  private gate = new Uint32Array(0);
   private stamp = new Uint32Array(0);
   private stampId = 0;
   private cols = 0;
@@ -71,6 +100,9 @@ export class LabelLayer {
   private prevScale = 0;
   private clock = 0;
   private dropAt = new Float64Array(0);
+  /** Clock of the last zoom change, and of the start of the current zoom gesture. */
+  private zoomedAt = -1e9;
+  private gestureAt = -1e9;
 
   // Fade state (see `draw`): the displayed alpha of every node that has a label now or is fading out.
   private cur = new Float32Array(0);
@@ -102,6 +134,7 @@ export class LabelLayer {
     this.maxLabels = opts.maxLabels ?? MAX_LABELS;
     this.fadeScale = opts.fadeScale ?? 0.5;
     this.font = opts.font ?? "11px sans-serif";
+    this.reducedMotion = opts.reducedMotion ?? false;
     this.index = new Uint32Array(this.maxLabels);
     this.sx = new Float32Array(this.maxLabels);
     this.sy = new Float32Array(this.maxLabels);
@@ -139,9 +172,12 @@ export class LabelLayer {
     }
     this.importance = new Float32Array(n);
     const norm = 1 / Math.sqrt(Math.max(1, maxDeg));
+    this.zoomAt = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       this.importance[i] = Math.min(1, Math.sqrt(degree[i]) * norm);
+      this.zoomAt[i] = (1 - 0.85 * this.importance[i]) * spread(i) + 1e-4;
     }
+    this.gate = new Uint32Array(n);
     this.stamp = new Uint32Array(n);
     this.stampId = 0;
     this.dropAt = new Float64Array(n).fill(-COOLDOWN_MS);
@@ -232,20 +268,29 @@ export class LabelLayer {
     alpha: number,
     force: boolean,
     pad = 0,
+    edge = 0,
   ): boolean {
     const { camera: c, positions: p } = f;
     const x = (p[2 * i] - c.x) * c.scale + f.width / 2;
     const y = (p[2 * i + 1] - c.y) * c.scale + f.height / 2;
-    if (x < 0 || y < 0 || x > f.width || y > f.height) {
+    if (x < -edge || y < -edge || x > f.width + edge || y > f.height + edge) {
       return false;
     }
     return this.place(x, y, i, alpha, force, pad);
   }
 
-  /** Zoom LOD: alpha 0..1 of node `i` at `scale` (continuous in scale: no steps). */
-  private lod(i: number, scale: number): number {
-    const z = this.fadeScale * (1 - 0.85 * this.importance[i]) + 1e-4;
-    return Math.min(1, Math.max(0, (scale / z - 1) * 2));
+  /**
+   * Zoom LOD gate of node `i` at `scale`, with hysteresis: a node opens at its show zoom and, once
+   * open (`wasOpen`), closes only ZOOM_HYST below it. A wobble of a few percent never toggles it.
+   */
+  private open(i: number, scale: number, wasOpen: boolean): boolean {
+    const z = this.fadeScale * this.zoomAt[i];
+    return scale >= (wasOpen ? z * (1 - ZOOM_HYST) : z);
+  }
+
+  /** Pure form of the gate for tests: is a label wanted at `scale`, given it was or was not. */
+  wanted(i: number, scale: number, wasShown: boolean): boolean {
+    return this.open(i, scale, wasShown);
   }
 
   /**
@@ -290,6 +335,16 @@ export class LabelLayer {
     const scale = cam.scale;
     const hw = f.width / 2;
     const hh = f.height / 2;
+    if (
+      this.prevScale > 0 &&
+      Math.abs(Math.log(scale / this.prevScale)) > 1e-5
+    ) {
+      if (this.clock - this.zoomedAt >= SETTLE_MS) {
+        this.gestureAt = this.clock; // a new zoom gesture starts
+      }
+      this.zoomedAt = this.clock;
+    }
+    const zooming = this.clock - this.zoomedAt < SETTLE_MS;
     const sticky =
       this.prevScale > 0 &&
       Math.abs(Math.log(scale / this.prevScale)) < RESELECT_LN;
@@ -299,12 +354,20 @@ export class LabelLayer {
         if (this.stamp[i] === id || (mask && mask[i])) {
           continue;
         }
-        const a = this.lod(i, scale);
-        if (a > 0 && this.tryAdd(f, i, a, false, -STICKY_SLACK)) {
+        if (!this.open(i, scale, true)) {
+          continue; // zoomed out past its hide zoom: fades out, may return at its show zoom
+        }
+        this.gate[i] = id;
+        if (this.tryAdd(f, i, 1, false, -STICKY_SLACK, STICKY_EDGE)) {
           this.stamp[i] = id;
+        } else {
+          this.dropAt[i] = this.clock; // pushed out (collision or off screen)
         }
       }
     }
+    // The first node that cannot open even at its lowest spread ends the scan (zoom is
+    // non-decreasing along `order` before the spread).
+    const lowest = this.fadeScale * (1 - ZOOM_SPREAD) * (1 - ZOOM_HYST);
     let tried = 0;
     for (
       let k = 0;
@@ -312,16 +375,23 @@ export class LabelLayer {
       k++
     ) {
       const i = this.order[k];
-      // importance is non-increasing along `order`, so the first invisible one ends the scan
-      const a = this.lod(i, scale);
-      if (a <= 0) {
+      if (scale < lowest * (1 - 0.85 * this.importance[i])) {
         break;
       }
+      if (!this.open(i, scale, this.gate[i] >= id - 1 && this.gate[i] > 0)) {
+        continue;
+      }
+      this.gate[i] = id;
       if (this.stamp[i] === id || (mask && mask[i])) {
         continue;
       }
-      if (sticky && this.clock - this.dropAt[i] < COOLDOWN_MS) {
-        continue; // dropped a moment ago: stays away until the cooldown is over
+      if (
+        sticky &&
+        (this.clock - this.dropAt[i] < COOLDOWN_MS ||
+          // pushed out during this zoom gesture: stays away until the zoom settles
+          (zooming && this.dropAt[i] >= this.gestureAt))
+      ) {
+        continue;
       }
       const x = (f.positions[2 * i] - cam.x) * scale + hw;
       const y = (f.positions[2 * i + 1] - cam.y) * scale + hh;
@@ -329,14 +399,7 @@ export class LabelLayer {
         continue;
       }
       tried++;
-      this.place(x, y, i, a, false, sticky ? NEW_MARGIN : 0);
-    }
-    // Note which labels were just dropped, then remember the set.
-    for (let k = 0; k < this.prevCount; k++) {
-      const i = this.prev[k];
-      if (this.stamp[i] !== id && sticky) {
-        this.dropAt[i] = this.clock;
-      }
+      this.place(x, y, i, 1, false, sticky ? NEW_MARGIN : 0);
     }
     this.prevCount = 0;
     for (let k = 0; k < this.count; k++) {
@@ -361,8 +424,8 @@ export class LabelLayer {
     ctx.clearRect(0, 0, f.width, f.height);
     const count = this.layout(f);
     const dt = Math.min(MAX_DT_MS, Math.max(0, f.dtMs ?? 1000 / 60));
-    const up = dt / FADE_IN_MS;
-    const down = dt / FADE_OUT_MS;
+    const up = this.reducedMotion ? 1 : dt / FADE_IN_MS;
+    const down = this.reducedMotion ? 1 : dt / FADE_OUT_MS;
     const id = this.stampId; // this frame's chosen labels carry it in `stamp`
     const cap = this.nextIdx.length;
     let n = 0;
@@ -413,7 +476,8 @@ export class LabelLayer {
     [this.liveAlpha, this.nextAlpha] = [this.nextAlpha, this.liveAlpha];
     [this.liveText, this.nextText] = [this.nextText, this.liveText];
     this.liveCount = n;
-    this.animating = animating;
+    // While the zoom settles, labels pushed out during the gesture may come back: keep frames coming.
+    this.animating = animating || this.clock - this.zoomedAt < SETTLE_MS;
 
     ctx.font = this.font;
     ctx.fillStyle = colour;
