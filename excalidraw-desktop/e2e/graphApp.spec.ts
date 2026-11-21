@@ -281,3 +281,53 @@ test("labels fade smoothly while the graph moves: no label pops in or out", asyn
   // 1 = the fastest the fade allows; a label that popped would read far above it.
   expect(worst).toBeLessThanOrEqual(1.001);
 });
+
+for (const theme of ["light", "dark"] as const) {
+  // eslint-disable-next-line no-loop-func
+  test(`labels show when zoomed in and none when zoomed far out (${theme})`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await openLinksVault(page, "Hub", null, GRAPH_PLUGIN);
+    // Reach the graph like a user: the Graph view button in the navigator toolbar.
+    await page.getByRole("button", { name: "Graph view" }).first().click();
+    await expect(graph(page)).toBeVisible();
+    await page.waitForFunction(
+      () => (window as unknown as Win).__graphApp?.metrics.settledMs! > 0,
+      undefined,
+      { timeout: 20_000 },
+    );
+    const stage = page.getByTestId("graph-stage");
+    const box = (await stage.boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    // Painted label pixels on the overlay canvas (arrows are off by default, so it holds only text).
+    const inked = () =>
+      page.evaluate(() => {
+        const c =
+          document.querySelector<HTMLCanvasElement>(".vd-graph__overlay")!;
+        const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height);
+        let n = 0;
+        for (let i = 3; i < d.data.length; i += 4) {
+          if (d.data[i] > 40) {
+            n++;
+          }
+        }
+        return n;
+      });
+    await page.mouse.move(cx, cy);
+    for (let i = 0; i < 4; i++) {
+      await page.mouse.wheel(0, -300); // zoom in
+      await page.waitForTimeout(60);
+    }
+    await page.waitForTimeout(800); // zoom ease, settle and fade-in
+    expect(await inked()).toBeGreaterThan(200);
+    await stage.screenshot({ path: `${SHOTS}/labels-zoomed-in-${theme}.png` });
+    for (let i = 0; i < 14; i++) {
+      await page.mouse.wheel(0, 500); // zoom far out
+      await page.waitForTimeout(40);
+    }
+    await page.waitForTimeout(900); // ease and fade-out
+    expect(await inked()).toBe(0);
+  });
+}
