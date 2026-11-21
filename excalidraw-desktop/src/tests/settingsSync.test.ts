@@ -524,6 +524,7 @@ describe("settingsSync mapping", () => {
       tabsSessions: {},
       linksDock: false,
       gitNoticeDismissed: [],
+      paletteRecent: { files: [], commands: [] },
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
@@ -708,6 +709,7 @@ describe("settingsSync runtime", () => {
       tabsSessions: {},
       linksDock: false,
       gitNoticeDismissed: [],
+      paletteRecent: { files: [], commands: [] },
       hasPanned: false,
       profileChoice: null,
       exportOptions: {

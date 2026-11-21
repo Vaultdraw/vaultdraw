@@ -247,6 +247,8 @@ interface VaultPreferencesBase {
   linksDock: boolean;
   /** Vaults where the history panel's git notice got "Not now" (machine state). */
   gitNoticeDismissed: string[];
+  /** The command palette's recent items, most recent first, per mode (machine state). */
+  paletteRecent: PaletteRecent;
   exportOptions: ExportOptions;
   /** The user has panned the canvas once: the "move canvas" hint stays hidden (machine state). */
   hasPanned: boolean;
@@ -501,6 +503,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   tabsSessions: {},
   linksDock: false,
   gitNoticeDismissed: [],
+  paletteRecent: { files: [], commands: [] },
   exportOptions: DEFAULT_EXPORT_OPTIONS,
   hasPanned: false,
   profileChoice: null,
@@ -812,6 +815,23 @@ export const stringList = (value: unknown): string[] =>
     ? value.filter((v): v is string => typeof v === "string")
     : [];
 
+/** The palette's recent lists: drawings ("drawing:<path>") and everything else. */
+export type PaletteRecent = { files: string[]; commands: string[] };
+
+/** Most entries kept per palette recent list. */
+export const MAX_PALETTE_RECENT = 30;
+
+export const normalizePaletteRecent = (value: unknown): PaletteRecent => {
+  const o =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  return {
+    files: stringList(o.files).slice(0, MAX_PALETTE_RECENT),
+    commands: stringList(o.commands).slice(0, MAX_PALETTE_RECENT),
+  };
+};
+
 /** Vaults whose open tabs are remembered; the oldest written are dropped first. */
 export const MAX_TABS_SESSIONS = 20;
 
@@ -929,6 +949,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
     tabsSessions: normalizeTabsSessions(parsed.tabsSessions),
     linksDock: pick(parsed.linksDock, isBoolean, d.linksDock),
     gitNoticeDismissed: stringList(parsed.gitNoticeDismissed),
+    paletteRecent: normalizePaletteRecent(parsed.paletteRecent),
     exportOptions: normalizeExportOptions(parsed.exportOptions),
     hasPanned: pick(parsed.hasPanned, isBoolean, d.hasPanned),
     profileChoice:
