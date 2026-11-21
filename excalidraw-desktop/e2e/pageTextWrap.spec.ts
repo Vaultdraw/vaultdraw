@@ -12,7 +12,6 @@ const LONG =
   "The quick brown fox jumps over the lazy dog and keeps running across the whole page without any pause ".repeat(
     3,
   );
-const clipMod = process.platform === "linux" ? "Control" : "Meta";
 
 const texts = async (page: Page) =>
   (await live(page)).elements.filter((e) => e.type === "text");
@@ -102,4 +101,3 @@ for (const m of modes) {
     });
   });
 }
-void clipMod;
