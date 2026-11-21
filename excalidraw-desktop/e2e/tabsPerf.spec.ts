@@ -661,7 +661,7 @@ for (const rate of RATES) {
           ([vault, value, count]) => {
             const PREFS = "excalidraw-vault-preferences-v1";
             const prefs = JSON.parse(localStorage.getItem(PREFS) ?? "{}");
-            prefs.tabsSessions = { [vault]: JSON.parse(value) };
+            prefs.tabsSessions = [{ vault, value: JSON.parse(value) }];
             localStorage.setItem(PREFS, JSON.stringify(prefs));
             localStorage.setItem("e2e.expectTabs", count);
           },

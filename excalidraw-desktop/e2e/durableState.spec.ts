@@ -37,7 +37,7 @@ test("open tabs and the Links dock come back after a reload", async ({
         const prefs = JSON.parse(
           localStorage.getItem("excalidraw-vault-preferences-v1") ?? "{}",
         );
-        return Object.keys(prefs.tabsSessions ?? {}).length;
+        return (prefs.tabsSessions ?? []).length;
       }),
     )
     .toBe(1);
