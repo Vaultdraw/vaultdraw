@@ -7,6 +7,7 @@ import {
   getTheme,
   updatePreferences,
 } from "../vault/preferences";
+import { loadPaneState, savePaneState } from "../tags/tagPaneState";
 import {
   configToPreferences,
   disposeSettings,
@@ -518,6 +519,7 @@ describe("settingsSync mapping", () => {
       navigatorCollapsed: false,
       navigatorWidth: 300,
       expandedFolders: { "/a": ["", "x"] },
+      tagsPane: {},
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
@@ -697,6 +699,7 @@ describe("settingsSync runtime", () => {
       navigatorCollapsed: true,
       navigatorWidth: 300,
       expandedFolders: {},
+      tagsPane: {},
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
@@ -854,6 +857,33 @@ describe("settingsSync runtime", () => {
     expect(getTheme(window)).toBe("system");
     await vi.advanceTimersByTimeAsync(300);
     expect(backend.state.recentVaults).toEqual(["/old"]);
+  });
+
+  it("keeps the Tags section state across a restart (the webview forgets its storage)", async () => {
+    const backend = createBackend({ state: {} });
+    vi.useFakeTimers();
+    await init(backend);
+    savePaneState("/vault-a", {
+      open: false,
+      collapsed: ["dsa", "dsa/graphs"],
+    });
+    savePaneState("/vault-b", { sort: "count" });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(backend.state.tagsPane).toEqual({
+      "/vault-a": { open: false, collapsed: ["dsa", "dsa/graphs"] },
+      "/vault-b": { sort: "count" },
+    });
+
+    // Restart: the incognito webview starts with empty storage; only state.json is left.
+    disposeSettings();
+    window.localStorage.clear();
+    await init(backend);
+    expect(loadPaneState("/vault-a")).toEqual({
+      open: false,
+      collapsed: ["dsa", "dsa/graphs"],
+    });
+    expect(loadPaneState("/vault-b").sort).toBe("count");
+    expect(loadPaneState("/vault-c")).toEqual({});
   });
 
   it("falls back to localStorage when load_settings fails", async () => {

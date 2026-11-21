@@ -49,12 +49,17 @@
   visibility: visible;
 }
 
+.vault-tags + .vault-tree-container {
+  /* Breathing room between the Tags section and the first file row. */
+  padding-top: var(--vd-space-1);
+}
+
 .vault-tags__header {
   flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: var(--vd-space-2) 10px;
   background: transparent;
   border: none;
   color: var(--vault-text-muted);

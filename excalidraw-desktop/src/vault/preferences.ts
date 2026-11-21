@@ -223,12 +223,21 @@ export type PageModeDefault = "normal" | "page";
 /** Paper theme as spelled in config.toml (the model uses "oldSchool"). */
 export type PagePaperTheme = "normal" | "old_school" | "match";
 
+/** One vault's Tags section state; every field is optional (not set = default). */
+export type TagsPaneEntry = {
+  sort?: "name" | "count";
+  open?: boolean;
+  collapsed?: string[];
+};
+
 interface VaultPreferencesBase {
   recentVaults: string[];
   lastVaultPath: string | null;
   navigatorCollapsed: boolean;
   navigatorWidth: number;
   expandedFolders: Record<string, string[]>;
+  /** Tags section state per vault path (sort, open, collapsed nodes); machine state. */
+  tagsPane: Record<string, TagsPaneEntry>;
   exportOptions: ExportOptions;
   /** The user has panned the canvas once: the "move canvas" hint stays hidden (machine state). */
   hasPanned: boolean;
@@ -479,6 +488,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   navigatorCollapsed: false,
   navigatorWidth: 280,
   expandedFolders: {},
+  tagsPane: {},
   exportOptions: DEFAULT_EXPORT_OPTIONS,
   hasPanned: false,
   profileChoice: null,
@@ -754,6 +764,36 @@ export const isExpandedFolders = (
   !Array.isArray(value) &&
   Object.values(value as Record<string, unknown>).every(isStringArray);
 
+/** Tags section state per vault: keeps well-formed entries and fields only. */
+export const normalizeTagsPane = (
+  value: unknown,
+): Record<string, TagsPaneEntry> => {
+  const result: Record<string, TagsPaneEntry> = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return result;
+  }
+  for (const [vault, raw] of Object.entries(value)) {
+    if (!raw || typeof raw !== "object") {
+      continue;
+    }
+    const e = raw as Record<string, unknown>;
+    const entry: TagsPaneEntry = {};
+    if (e.sort === "name" || e.sort === "count") {
+      entry.sort = e.sort;
+    }
+    if (typeof e.open === "boolean") {
+      entry.open = e.open;
+    }
+    if (Array.isArray(e.collapsed)) {
+      entry.collapsed = e.collapsed.filter(
+        (k): k is string => typeof k === "string",
+      );
+    }
+    result[vault] = entry;
+  }
+  return result;
+};
+
 /** Keep only entries whose value is an array of strings. */
 export const normalizeHotkeys = (value: unknown): Record<string, string[]> => {
   const result: Record<string, string[]> = {};
@@ -845,6 +885,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
       parsed.expandedFolders && typeof parsed.expandedFolders === "object"
         ? (parsed.expandedFolders as Record<string, string[]>)
         : {},
+    tagsPane: normalizeTagsPane(parsed.tagsPane),
     exportOptions: normalizeExportOptions(parsed.exportOptions),
     hasPanned: pick(parsed.hasPanned, isBoolean, d.hasPanned),
     profileChoice:

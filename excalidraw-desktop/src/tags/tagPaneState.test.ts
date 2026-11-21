@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { updatePreferences } from "../vault/preferences";
+
 import { loadPaneState, savePaneState } from "./tagPaneState";
 
 beforeEach(() => window.localStorage.clear());
@@ -18,18 +20,23 @@ describe("tag pane state", () => {
     expect(loadPaneState("/none")).toEqual({});
   });
 
+  it("keeps one vault's choice apart from another's, with odd paths", () => {
+    savePaneState("/a b/Ünï", { open: false });
+    savePaneState("/a b/Ünï/", { open: true });
+    expect(loadPaneState("/a b/Ünï").open).toBe(false);
+    expect(loadPaneState("/a b/Ünï/").open).toBe(true);
+  });
+
   it("ignores corrupt data", () => {
-    window.localStorage.setItem("vaultdraw.tagsPane.v1", "{nope");
+    window.localStorage.setItem("excalidraw-vault-preferences-v1", "{nope");
     expect(loadPaneState("/v1")).toEqual({});
-    window.localStorage.setItem(
-      "vaultdraw.tagsPane.v1",
-      JSON.stringify({ "/v1": { sort: "weird", collapsed: [1, "a"] } }),
+    updatePreferences(
+      {
+        tagsPane: { "/v1": { sort: "weird", collapsed: [1, "a"] } },
+      } as never,
+      window,
     );
-    expect(loadPaneState("/v1")).toEqual({
-      sort: undefined,
-      open: undefined,
-      collapsed: ["a"],
-    });
+    expect(loadPaneState("/v1")).toEqual({ collapsed: ["a"] });
   });
 
   it("survives unavailable storage", () => {

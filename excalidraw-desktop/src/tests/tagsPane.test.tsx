@@ -21,6 +21,7 @@ import {
   VIRTUALIZE_ABOVE,
 } from "../components/tags/TagsPanel";
 import { applyTagFilter, registerTagActions } from "../tags/tagActions";
+import { savePaneState } from "../tags/tagPaneState";
 import { tagStore } from "../tags/tagStore";
 
 import type { TagCount } from "../tags/types";
@@ -236,10 +237,7 @@ describe("rename action", () => {
 
 describe("focus handle", () => {
   it("opens a closed section and focuses the list", () => {
-    window.localStorage.setItem(
-      "vaultdraw.tagsPane.v1",
-      JSON.stringify({ "/vault": { open: false } }),
-    );
+    savePaneState("/vault", { open: false });
     const ref = { current: null as { focus(): void } | null };
     setup({ ref });
     expect(screen.queryByRole("tree")).toBeNull();

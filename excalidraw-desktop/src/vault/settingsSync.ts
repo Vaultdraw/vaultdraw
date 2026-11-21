@@ -138,6 +138,7 @@ import {
   detachPreferencesStore,
   getPreferences,
   isExpandedFolders,
+  normalizeTagsPane,
   isPageMode,
   isPagePaperTheme,
   isPageSide,
@@ -1213,6 +1214,7 @@ export const STATE_FIELDS = [
   "navigatorCollapsed",
   "navigatorWidth",
   "expandedFolders",
+  "tagsPane",
   "exportOptions",
   "hasPanned",
   "profileChoice",
@@ -1497,6 +1499,7 @@ export function stateToPreferences(
     expandedFolders: isExpandedFolders(s.expandedFolders)
       ? s.expandedFolders
       : { ...d.expandedFolders },
+    tagsPane: normalizeTagsPane(s.tagsPane),
     exportOptions: normalizeExportOptions(s.exportOptions),
     hasPanned: typeof s.hasPanned === "boolean" ? s.hasPanned : d.hasPanned,
     profileChoice:
@@ -1511,6 +1514,7 @@ export function preferencesToState(prefs: PreferencesSnapshot): PersistedState {
     navigatorCollapsed: prefs.navigatorCollapsed,
     navigatorWidth: prefs.navigatorWidth,
     expandedFolders: prefs.expandedFolders,
+    tagsPane: prefs.tagsPane,
     exportOptions: prefs.exportOptions,
     hasPanned: prefs.hasPanned,
     profileChoice: prefs.profileChoice,
