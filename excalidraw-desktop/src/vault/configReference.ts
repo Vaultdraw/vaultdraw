@@ -80,6 +80,9 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
       invert_svg_in_dark: {
         doc: "SVG pictures are drawn inverted in dark mode, like Excalidraw, so black line icons stay visible. Off keeps their colours (logos, coloured drawings). PNG and JPEG pictures are never inverted. Exports follow it.",
       },
+      palette_theme_preview: {
+        doc: "Moving over a theme in the command palette with Up and Down shows it live. Enter keeps it; Esc, closing the palette or moving to another kind of row puts your theme back. Nothing is saved until Enter.",
+      },
       accent_color: {
         doc: "Replaces the theme's primary colour, nudged for contrast; empty uses the theme's own.",
       },

@@ -277,6 +277,8 @@ interface VaultPreferencesBase {
   syncCanvas: boolean;
   /** Draw SVG pictures inverted in the dark theme, like Excalidraw (`appearance.invert_svg_in_dark`). */
   invertSvgInDark: boolean;
+  /** Preview a theme as the palette highlight moves over it (`appearance.palette_theme_preview`). */
+  paletteThemePreview: boolean;
   defaultFontFamily: number;
   defaultFontSize: number;
   defaultStrokeColor: string;
@@ -502,6 +504,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   themesPreviews: true,
   syncCanvas: false,
   invertSvgInDark: true,
+  paletteThemePreview: true,
   defaultFontFamily: DEFAULT_FONT_FAMILY,
   defaultFontSize: 20,
   defaultStrokeColor: "#1e1e1e",
@@ -853,6 +856,11 @@ export function normalizePreferences(input: unknown): VaultPreferences {
         : d.colorTheme,
     syncCanvas: pick(parsed.syncCanvas, isBoolean, d.syncCanvas),
     invertSvgInDark: pick(parsed.invertSvgInDark, isBoolean, d.invertSvgInDark),
+    paletteThemePreview: pick(
+      parsed.paletteThemePreview,
+      isBoolean,
+      d.paletteThemePreview,
+    ),
     defaultFontFamily: pick(
       parsed.defaultFontFamily,
       isNumber,

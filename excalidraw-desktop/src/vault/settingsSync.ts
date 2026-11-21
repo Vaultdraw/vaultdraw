@@ -337,6 +337,7 @@ type ConfigField =
   | "theme"
   | "syncCanvas"
   | "invertSvgInDark"
+  | "paletteThemePreview"
   | "defaultCanvasBackground"
   | "paperStyle"
   | "paperSpacing"
@@ -617,6 +618,12 @@ const CORE_MAPPING: readonly ConfigMapping[] = [
   {
     field: "invertSvgInDark",
     key: "appearance.invert_svg_in_dark",
+    expected: "true or false",
+    valid: (v) => typeof v === "boolean",
+  },
+  {
+    field: "paletteThemePreview",
+    key: "appearance.palette_theme_preview",
     expected: "true or false",
     valid: (v) => typeof v === "boolean",
   },

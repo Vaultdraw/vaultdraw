@@ -4822,6 +4822,13 @@
    "section": null
   },
   {
+   "id": "palette-theme-preview",
+   "page": "appearance",
+   "label": "Preview themes in the command palette",
+   "configKey": "appearance.palette_theme_preview",
+   "section": null
+  },
+  {
    "id": "accent-colour",
    "page": "appearance",
    "label": "Accent",

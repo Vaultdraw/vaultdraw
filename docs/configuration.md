@@ -26,6 +26,7 @@ mode = "system"              # light | dark | system
 sync_canvas = false          # canvas follows the theme's colours
 canvas_background = "#ffffff" # for new drawings when sync_canvas is off
 invert_svg_in_dark = true    # SVG pictures drawn inverted in dark mode, like Excalidraw
+palette_theme_preview = true # Up/Down over "Theme: ..." in the palette previews it; Esc restores
 accent_color = ""            # "#rrggbb" replaces the theme's primary colour; "" = the theme's own
 snippets = []                # CSS snippets to apply, by file name in snippets/, e.g. ["wide-sidebar"]
 
@@ -396,6 +397,8 @@ theme = "Tokyo Night"   # theme name, case-insensitive
 mode = "system"         # light | dark | system (follows the OS)
 sync_canvas = true      # canvas follows the theme too
 ```
+
+**Preview in the palette:** in `>Theme:` (Cmd+Shift+P), Up and Down show each theme live while the highlight is on it. Enter keeps it; Esc, closing the palette, typing or moving to another kind of row puts your theme back, and nothing is saved until Enter. The mouse never previews. Set `palette_theme_preview = false` (Settings → Appearance) to turn it off.
 
 **One theme per vault:** in Settings → Appearance, switch the scope to **This vault** and pick a theme, mode or accent; it is saved in that vault's `settings.toml` (`[appearance] theme`, `mode`, `accent_color`) and applies when the vault opens. **Appearance: Use the current theme for this vault only** and **Appearance: Use the global theme in this vault** do the same from the palette. Theme files stay in the config folder's `themes/`.
 
@@ -2027,6 +2030,7 @@ Theme, light or dark mode, and canvas colours.
 | `sync_canvas` | `false` | true or false |  | The canvas background, pencil and palette colours follow the theme. |
 | `canvas_background` | `"#ffffff"` | a colour like "#ffffff" |  | Canvas background for new drawings when `sync_canvas` is off. |
 | `invert_svg_in_dark` | `true` | true or false |  | SVG pictures are drawn inverted in dark mode, like Excalidraw, so black line icons stay visible. Off keeps their colours (logos, coloured drawings). PNG and JPEG pictures are never inverted. Exports follow it. |
+| `palette_theme_preview` | `true` | true or false |  | Moving over a theme in the command palette with Up and Down shows it live. Enter keeps it; Esc, closing the palette or moving to another kind of row puts your theme back. Nothing is saved until Enter. |
 | `accent_color` | `""` | a colour like "#6965db", or "" for the theme's own | yes | Replaces the theme's primary colour, nudged for contrast; empty uses the theme's own. |
 | `snippets` | `[]` | a list of snippet names like ["wide-sidebar"] |  | CSS snippets to apply, by file name in `snippets/` without `.css`, in this order. See [CSS snippets](#css-snippets). |
 

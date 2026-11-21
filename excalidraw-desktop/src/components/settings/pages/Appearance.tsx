@@ -372,6 +372,22 @@ const InvertSvgInDarkSetting = () => {
   );
 };
 
+const PaletteThemePreviewSetting = () => {
+  const on = usePreference("paletteThemePreview");
+  return (
+    <SettingRow
+      id="palette-theme-preview"
+      htmlFor="vault-palette-theme-preview"
+    >
+      <Switch
+        id="vault-palette-theme-preview"
+        checked={on}
+        onChange={(next) => updatePreferences({ paletteThemePreview: next })}
+      />
+    </SettingRow>
+  );
+};
+
 const ThemeIndexTtlSetting = () => {
   const hours = usePreference("themesIndexTtlHours");
   return (
@@ -396,6 +412,7 @@ export const appearanceControls: SettingControls = {
   "accent-colour": { Component: AccentSetting },
   "canvas-background": { Component: CanvasBackgroundSetting },
   "invert-svg-in-dark": { Component: InvertSvgInDarkSetting },
+  "palette-theme-preview": { Component: PaletteThemePreviewSetting },
   paper: { Component: PaperSetting },
   "install-theme": { Component: InstallThemeSetting },
   "theme-max-size": { Component: ThemeMaxSizeSetting },

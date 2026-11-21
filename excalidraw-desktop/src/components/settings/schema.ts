@@ -274,6 +274,15 @@ export const SETTINGS_SCHEMA: readonly SettingSchema[] = [
     configKey: "appearance.invert_svg_in_dark",
   },
   {
+    id: "palette-theme-preview",
+    page: "appearance",
+    label: "Preview themes in the command palette",
+    description:
+      "Moving over a theme in the palette with Up and Down shows it live. Enter keeps it; Esc puts your theme back.",
+    keywords: ["theme", "preview", "palette", "colour", "color", "live"],
+    configKey: "appearance.palette_theme_preview",
+  },
+  {
     id: "accent-colour",
     page: "appearance",
     label: "Accent",

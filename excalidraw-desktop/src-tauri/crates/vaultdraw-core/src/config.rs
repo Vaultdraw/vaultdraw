@@ -52,6 +52,8 @@ sync_canvas = false
 canvas_background = "#ffffff"
 # Draw SVG pictures inverted in dark mode, like Excalidraw (false keeps their colours)
 # invert_svg_in_dark = true
+# Preview a theme live while you move over it in the command palette (Enter keeps it)
+# palette_theme_preview = true
 # Replace the theme's primary colour, like "#6965db" ("" = the theme's own)
 # accent_color = ""
 # CSS snippets to apply, by file name in snippets/, like ["wide-sidebar"]
