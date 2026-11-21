@@ -8,7 +8,7 @@
 import {
   getPreferences,
   MAX_PALETTE_RECENT,
-  updatePreferences,
+  saveMachineState,
 } from "../vault/preferences";
 
 import type { PaletteMode } from "./rank";
@@ -48,5 +48,6 @@ export function recordRecent(key: string, win: MaybeWindow): void {
     return;
   }
   const lists = getPreferences(win).paletteRecent;
-  updatePreferences({ paletteRecent: { ...lists, [mode]: next } }, win);
+  // Silent: the palette reads the list when it opens.
+  saveMachineState({ paletteRecent: { ...lists, [mode]: next } }, win);
 }

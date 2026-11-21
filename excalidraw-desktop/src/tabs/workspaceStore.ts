@@ -7,7 +7,13 @@
  * Read-only vaults: the caller simply does not call scheduleSave.
  * Storage unavailable or throwing: silently no persistence.
  */
-import { getPreferences, updatePreferences } from "../vault/preferences";
+import {
+  getPerVault,
+  getPreferences,
+  MAX_TABS_SESSIONS,
+  putPerVault,
+  saveMachineState,
+} from "../vault/preferences";
 
 import type { TabsState, ViewState, WorkspaceSessionV1 } from "./types";
 
@@ -215,42 +221,40 @@ export type WorkspaceStore = {
  * The preferences field `tabsSessions`, seen as a key/value store. In the app
  * it is written to state.json, which outlives the incognito webview (whose
  * localStorage is empty at every launch, toimprove 343); in a plain browser
- * the preferences sit in localStorage as before.
+ * the preferences sit in localStorage as before. Saved silently: nothing on
+ * screen reads it live.
  */
 function defaultStorage(): WorkspaceStoreOptions["storage"] {
   const vaultOf = (key: string) =>
     key.startsWith(SESSION_KEY_PREFIX)
       ? key.slice(SESSION_KEY_PREFIX.length)
       : null;
+  const sessions = () => getPreferences().tabsSessions;
+  const put = (vault: string, session: WorkspaceSessionV1 | null) =>
+    saveMachineState({
+      tabsSessions: putPerVault(sessions(), vault, session, MAX_TABS_SESSIONS),
+    });
   return {
     getItem(key) {
       const vault = vaultOf(key);
-      const session = vault === null ? undefined : sessions()[vault];
+      const session =
+        vault === null ? undefined : getPerVault(sessions(), vault);
       return session ? JSON.stringify(session) : null;
     },
     setItem(key, json) {
       const vault = vaultOf(key);
-      if (vault === null) {
-        return;
+      if (vault !== null) {
+        put(vault, JSON.parse(json) as WorkspaceSessionV1);
       }
-      // Re-inserted last: the oldest vaults are the ones dropped at the cap.
-      const { [vault]: _old, ...rest } = sessions();
-      updatePreferences({
-        tabsSessions: { ...rest, [vault]: JSON.parse(json) },
-      });
     },
     removeItem(key) {
       const vault = vaultOf(key);
-      if (vault === null || !(vault in sessions())) {
-        return;
+      if (vault !== null && getPerVault(sessions(), vault)) {
+        put(vault, null);
       }
-      const { [vault]: _old, ...rest } = sessions();
-      updatePreferences({ tabsSessions: rest });
     },
   };
 }
-
-const sessions = () => getPreferences().tabsSessions;
 
 export function createWorkspaceStore(
   opts: WorkspaceStoreOptions = {},

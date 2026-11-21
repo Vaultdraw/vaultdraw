@@ -121,7 +121,6 @@ import {
   resolveOfficial,
 } from "../plugins/officialPlugins";
 import { DEFAULT_TEMPLATES_FOLDER } from "../templates/types";
-
 import { WATCHDOG_LIMITS } from "../watchdog/limits";
 
 import {
@@ -242,7 +241,7 @@ interface VaultPreferencesBase {
   /** Tags section state per vault path (sort, open, collapsed nodes); machine state. */
   tagsPane: Record<string, TagsPaneEntry>;
   /** Open tabs per vault path, restored at the next launch (machine state; checked again on load). */
-  tabsSessions: Record<string, WorkspaceSessionV1>;
+  tabsSessions: PerVault<WorkspaceSessionV1>;
   /** The Links dock is shown (machine state). */
   linksDock: boolean;
   /** Vaults where the history panel's git notice got "Not now" (machine state). */
@@ -250,7 +249,7 @@ interface VaultPreferencesBase {
   /** The command palette's recent items, most recent first, per mode (machine state). */
   paletteRecent: PaletteRecent;
   /** Each vault's last appearance overrides, so its theme paints first at launch (machine state). */
-  vaultAppearance: Record<string, VaultAppearanceEntry>;
+  vaultAppearance: PerVault<VaultAppearanceEntry>;
   exportOptions: ExportOptions;
   /** The user has panned the canvas once: the "move canvas" hint stays hidden (machine state). */
   hasPanned: boolean;
@@ -502,11 +501,11 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   navigatorWidth: 280,
   expandedFolders: {},
   tagsPane: {},
-  tabsSessions: {},
+  tabsSessions: [],
   linksDock: false,
   gitNoticeDismissed: [],
   paletteRecent: { files: [], commands: [] },
-  vaultAppearance: {},
+  vaultAppearance: [],
   exportOptions: DEFAULT_EXPORT_OPTIONS,
   hasPanned: false,
   profileChoice: null,
@@ -835,6 +834,58 @@ export const normalizePaletteRecent = (value: unknown): PaletteRecent => {
   };
 };
 
+/**
+ * Per-vault machine state is a list, most recent first: JSON objects lose
+ * their key order through state.json (serde_json sorts keys), and the caps
+ * below must drop the vaults used longest ago, not the last by name.
+ */
+export type PerVault<T> = { vault: string; value: T }[];
+
+/** `list` with `vault` moved to the front holding `value` (or removed when `value` is null), capped. */
+export const putPerVault = <T>(
+  list: DeepReadonly<PerVault<T>> | PerVault<T>,
+  vault: string,
+  value: T | null,
+  max: number,
+): PerVault<T> => {
+  const rest = (list as PerVault<T>).filter((e) => e.vault !== vault);
+  return (value === null ? rest : [{ vault, value }, ...rest]).slice(0, max);
+};
+
+export const getPerVault = <T>(
+  list: DeepReadonly<PerVault<T>> | PerVault<T>,
+  vault: string,
+): T | undefined => (list as PerVault<T>).find((e) => e.vault === vault)?.value;
+
+const normalizePerVault = <T>(
+  value: unknown,
+  max: number,
+  entry: (raw: unknown) => T | null,
+): PerVault<T> => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: PerVault<T> = [];
+  for (const item of value) {
+    if (out.length >= max) {
+      break;
+    }
+    const v = item as { vault?: unknown; value?: unknown } | null;
+    if (
+      !v ||
+      typeof v.vault !== "string" ||
+      out.some((e) => e.vault === v.vault)
+    ) {
+      continue;
+    }
+    const parsed = entry(v.value);
+    if (parsed !== null) {
+      out.push({ vault: v.vault, value: parsed });
+    }
+  }
+  return out;
+};
+
 /** A vault's own theme, mode and accent, as its settings.toml last set them. */
 export type VaultAppearanceEntry = {
   colorTheme?: string;
@@ -842,20 +893,15 @@ export type VaultAppearanceEntry = {
   accentColor?: string;
 };
 
-/** Vaults whose appearance is remembered; the oldest are dropped first. */
+/** Vaults whose appearance is remembered; the ones opened longest ago are dropped first. */
 export const MAX_VAULT_APPEARANCE = 32;
 
 export const normalizeVaultAppearance = (
   value: unknown,
-): Record<string, VaultAppearanceEntry> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  const out: Record<string, VaultAppearanceEntry> = {};
-  const entries = Object.entries(value).slice(-MAX_VAULT_APPEARANCE);
-  for (const [vault, raw] of entries) {
+): PerVault<VaultAppearanceEntry> =>
+  normalizePerVault(value, MAX_VAULT_APPEARANCE, (raw) => {
     if (!raw || typeof raw !== "object") {
-      continue;
+      return null;
     }
     const e = raw as Record<string, unknown>;
     const entry: VaultAppearanceEntry = {};
@@ -868,32 +914,34 @@ export const normalizeVaultAppearance = (
     if (typeof e.accentColor === "string") {
       entry.accentColor = e.accentColor;
     }
-    out[vault] = entry;
-  }
-  return out;
-};
+    return entry;
+  });
 
-/** Vaults whose open tabs are remembered; the oldest written are dropped first. */
-export const MAX_TABS_SESSIONS = 20;
+/**
+ * Vaults whose open tabs are remembered; the ones saved longest ago are
+ * dropped first. Small enough that state.json stays well under its 1 MiB cap
+ * even with many tabs per vault.
+ */
+export const MAX_TABS_SESSIONS = 10;
 
 /**
  * Open tabs per vault: keeps object entries only (workspaceStore.deserialize
- * checks each one fully when it is restored) and the newest MAX_TABS_SESSIONS.
+ * checks each one fully when it is restored).
  */
 export const normalizeTabsSessions = (
   value: unknown,
-): Record<string, WorkspaceSessionV1> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  const entries = Object.entries(value).filter(
-    ([, v]) => v && typeof v === "object" && !Array.isArray(v),
+): PerVault<WorkspaceSessionV1> =>
+  normalizePerVault(value, MAX_TABS_SESSIONS, (raw) =>
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as WorkspaceSessionV1)
+      : null,
   );
-  return Object.fromEntries(entries.slice(-MAX_TABS_SESSIONS)) as Record<
-    string,
-    WorkspaceSessionV1
-  >;
-};
+
+/** Vaults whose git notice got "Not now"; the oldest are dropped past this. */
+export const MAX_GIT_NOTICE_DISMISSED = 64;
+
+export const normalizeGitNoticeDismissed = (value: unknown): string[] =>
+  stringList(value).slice(0, MAX_GIT_NOTICE_DISMISSED);
 
 /** Keep only entries whose value is an array of strings. */
 export const normalizeHotkeys = (value: unknown): Record<string, string[]> => {
@@ -989,7 +1037,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
     tagsPane: normalizeTagsPane(parsed.tagsPane),
     tabsSessions: normalizeTabsSessions(parsed.tabsSessions),
     linksDock: pick(parsed.linksDock, isBoolean, d.linksDock),
-    gitNoticeDismissed: stringList(parsed.gitNoticeDismissed),
+    gitNoticeDismissed: normalizeGitNoticeDismissed(parsed.gitNoticeDismissed),
     paletteRecent: normalizePaletteRecent(parsed.paletteRecent),
     vaultAppearance: normalizeVaultAppearance(parsed.vaultAppearance),
     exportOptions: normalizeExportOptions(parsed.exportOptions),
@@ -1551,6 +1599,39 @@ export function getPreferences(win?: Window | null): PreferencesSnapshot {
     };
   }
   return parsedCache.prefs;
+}
+
+/**
+ * Save machine state (state.json fields such as open tabs or the palette's
+ * recent items) without telling preference subscribers: nothing on screen
+ * reads these fields live, and a notification re-renders the whole app.
+ * Readers see the new value on their next getPreferences.
+ */
+export function saveMachineState(
+  partial: DeepReadonly<Partial<VaultPreferences>>,
+  win?: Window | null,
+): void {
+  if (memoryStore) {
+    const prev = memoryStore.prefs;
+    const next = toSnapshot(prev, { ...prev, ...partial });
+    memoryStore.prefs = next;
+    try {
+      memoryStore.persist(next, prev);
+    } catch {
+      // persistence failures are reported by the store, never thrown here
+    }
+    return;
+  }
+  const current = getPreferences(win);
+  const next = toSnapshot(current, { ...current, ...partial });
+  const storage = getStorage(win);
+  try {
+    const written = JSON.stringify(next);
+    storage?.setItem(STORAGE_KEY, written);
+    parsedCache = { raw: written, prefs: next };
+  } catch {
+    // quota or security error: not remembered
+  }
 }
 
 /**

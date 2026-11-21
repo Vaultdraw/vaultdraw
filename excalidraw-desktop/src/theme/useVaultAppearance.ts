@@ -8,7 +8,13 @@
  */
 import { useEffect, useMemo } from "react";
 
-import { getPreferences, updatePreferences } from "../vault/preferences";
+import {
+  getPerVault,
+  getPreferences,
+  MAX_VAULT_APPEARANCE,
+  putPerVault,
+  saveMachineState,
+} from "../vault/preferences";
 
 import type { VaultAppearance } from "../vault/useAppearance";
 import type { UseVaultSettings } from "../vault/useVaultSettings";
@@ -17,27 +23,35 @@ import type { UseVaultSettings } from "../vault/useVaultSettings";
 export const cachedVaultAppearance = (
   win: Window | null,
   handle: string,
-): VaultAppearance => getPreferences(win).vaultAppearance[handle] ?? {};
+): VaultAppearance =>
+  getPerVault(getPreferences(win).vaultAppearance, handle) ?? {};
 
-/** Remember `handle`'s overrides; an empty set forgets the vault. */
+/** Remember `handle`'s overrides (most recent first); an empty set forgets the vault. */
 export const rememberVaultAppearance = (
   win: Window | null,
   handle: string,
   value: VaultAppearance,
 ) => {
-  const cache = getPreferences(win).vaultAppearance;
+  const list = getPreferences(win).vaultAppearance;
   const empty = Object.keys(value).length === 0;
+  const old = getPerVault(list, handle);
   if (
     empty
-      ? !(handle in cache)
-      : JSON.stringify(cache[handle]) === JSON.stringify(value)
+      ? old === undefined
+      : list[0]?.vault === handle &&
+        JSON.stringify(old) === JSON.stringify(value)
   ) {
     return;
   }
-  // Re-inserted last: the oldest vaults are the ones dropped at the cap.
-  const { [handle]: _old, ...rest } = cache;
-  updatePreferences(
-    { vaultAppearance: empty ? rest : { ...rest, [handle]: value } },
+  saveMachineState(
+    {
+      vaultAppearance: putPerVault(
+        list,
+        handle,
+        empty ? null : value,
+        MAX_VAULT_APPEARANCE,
+      ),
+    },
     win,
   );
 };
