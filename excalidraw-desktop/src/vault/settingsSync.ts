@@ -142,7 +142,7 @@ import {
   normalizeTabsSessions,
   normalizeVaultAppearance,
   normalizePaletteRecent,
-  stringList,
+  normalizeGitNoticeDismissed,
   isPageMode,
   isPagePaperTheme,
   isPageSide,
@@ -1512,7 +1512,7 @@ export function stateToPreferences(
     tagsPane: normalizeTagsPane(s.tagsPane),
     tabsSessions: normalizeTabsSessions(s.tabsSessions),
     linksDock: typeof s.linksDock === "boolean" ? s.linksDock : d.linksDock,
-    gitNoticeDismissed: stringList(s.gitNoticeDismissed),
+    gitNoticeDismissed: normalizeGitNoticeDismissed(s.gitNoticeDismissed),
     paletteRecent: normalizePaletteRecent(s.paletteRecent),
     vaultAppearance: normalizeVaultAppearance(s.vaultAppearance),
     exportOptions: normalizeExportOptions(s.exportOptions),
@@ -1583,6 +1583,8 @@ interface Runtime {
   localEdits: number;
   stateTimer: ReturnType<Window["setTimeout"]> | null;
   lastWrittenState: string;
+  /** The write_state call in flight, so a quit can wait for it. */
+  stateWrite: Promise<void> | null;
   /** Problems from the last load (parse/invalid). */
   loadProblems: SettingsProblem[];
   /** Problems from the last failed write (cleared on next success). */
@@ -1716,11 +1718,18 @@ async function flushState(rt: Runtime): Promise<void> {
     return;
   }
   rt.lastWrittenState = serialized;
-  try {
-    await rt.invoke("write_state", { state });
-  } catch {
-    // Let the next change retry; machine state is best effort.
-    rt.lastWrittenState = "";
+  const write = (async () => {
+    try {
+      await rt.invoke("write_state", { state });
+    } catch {
+      // Let the next change (or the quit flush) retry; machine state is best effort.
+      rt.lastWrittenState = "";
+    }
+  })();
+  rt.stateWrite = write;
+  await write;
+  if (rt.stateWrite === write) {
+    rt.stateWrite = null;
   }
 }
 
@@ -1902,6 +1911,7 @@ export async function initSettings(
     localEdits: 0,
     stateTimer: null,
     lastWrittenState: "",
+    stateWrite: null,
     loadProblems: [],
     writeProblems: [],
     disposed: false,
@@ -2087,6 +2097,10 @@ export async function flushSettings(): Promise<void> {
     rt.win.clearTimeout(rt.stateTimer);
     rt.stateTimer = null;
   }
+  // A write already running may hold older state, or fail: wait for it,
+  // then write again if anything is still unwritten (flushState skips an
+  // unchanged state).
+  await rt.stateWrite;
   await flushState(rt);
   await rt.queue;
 }

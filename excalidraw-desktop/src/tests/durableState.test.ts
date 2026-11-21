@@ -9,6 +9,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  MAX_TABS_SESSIONS,
+  subscribePreferences,
   DEFAULT_PREFERENCES,
   getPreferences,
   updatePreferences,
@@ -36,6 +38,17 @@ import {
 
 import type { TabsState } from "../tabs/types";
 
+/** Like serde_json without `preserve_order` (the Rust side): object keys come back sorted. */
+const sortKeys = (v: unknown): unknown =>
+  Array.isArray(v)
+    ? v.map(sortKeys)
+    : v && typeof v === "object"
+    ? Object.fromEntries(
+        Object.keys(v)
+          .sort()
+          .map((k) => [k, sortKeys((v as Record<string, unknown>)[k])]),
+      )
+    : v;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
 /** The native side: config.toml and state.json, which outlive the webview. */
@@ -66,7 +79,10 @@ export const createDisk = () => {
           }
           return undefined;
         case "write_state":
-          disk.state = clone((args as any).state);
+          disk.state = sortKeys(clone((args as any).state)) as Record<
+            string,
+            unknown
+          >;
           return undefined;
         default:
           return undefined;
@@ -105,17 +121,21 @@ const SAMPLES: { [K in typeof STATE_FIELDS[number]]: VaultPreferences[K] } = {
   navigatorWidth: 333,
   expandedFolders: { "/v/one": ["", "notes"] },
   tagsPane: { "/v/one": { sort: "count", open: false, collapsed: ["a"] } },
-  tabsSessions: {
-    "/v/one": {
-      v: 1,
-      tabs: [
-        { path: "a.excalidraw", pinned: true },
-        { path: "b.excalidraw", pinned: false },
-      ],
-      active: 1,
-      mru: [1, 0],
+  tabsSessions: [
+    {
+      vault: "/v/zeta",
+      value: {
+        v: 1,
+        tabs: [
+          { path: "a.excalidraw", pinned: true },
+          { path: "b.excalidraw", pinned: false },
+        ],
+        active: 1,
+        mru: [1, 0],
+      },
     },
-  },
+    { vault: "/v/alpha", value: { v: 1, tabs: [], active: 0, mru: [] } },
+  ],
   exportOptions: {
     scale: 3,
     background: false,
@@ -124,9 +144,12 @@ const SAMPLES: { [K in typeof STATE_FIELDS[number]]: VaultPreferences[K] } = {
     pageShaped: true,
   },
   linksDock: true,
-  gitNoticeDismissed: ["/v/one"],
+  gitNoticeDismissed: ["/v/zeta", "/v/alpha"],
   paletteRecent: { files: ["drawing:a.excalidraw"], commands: ["command:x"] },
-  vaultAppearance: { "/v/one": { colorTheme: "Nord", theme: "dark" } },
+  vaultAppearance: [
+    { vault: "/v/zeta", value: { colorTheme: "Nord", theme: "dark" } },
+    { vault: "/v/alpha", value: { accentColor: "#ff0000" } },
+  ],
   hasPanned: true,
   profileChoice: "work",
   focusOn: true,
@@ -295,5 +318,82 @@ describe("durable state: what each feature keeps across a restart", () => {
       theme: "dark",
     });
     expect(cachedVaultAppearance(window, "/v/two")).toEqual({});
+  });
+
+  it("the tabs cap drops the vaults used longest ago, not the last by name, after restarts", async () => {
+    const disk = createDisk();
+    await launch(disk);
+    const store = createWorkspaceStore();
+    const state = (n: number) =>
+      ({
+        tabs: [
+          { id: "t1", path: `d${n}.excalidraw`, pinned: false, missing: false },
+        ],
+        activeId: "t1",
+        mru: ["t1"],
+        closed: [],
+        nextId: 2,
+      } as TabsState);
+    // "/v/a" is the vault in daily use: saved last, yet first by name.
+    for (let i = 0; i < MAX_TABS_SESSIONS + 3; i++) {
+      store.scheduleSave(`/v/z${String(i).padStart(2, "0")}`, state(i));
+      store.flush();
+    }
+    store.scheduleSave("/v/a", state(99));
+    store.flush();
+    await restart(disk);
+    await restart(disk);
+    const after = createWorkspaceStore();
+    expect(after.load("/v/a", () => true)?.tabs[0].path).toBe("d99.excalidraw");
+    expect(after.load("/v/z00", () => true)).toBeNull();
+    expect(getPreferences(window).tabsSessions).toHaveLength(MAX_TABS_SESSIONS);
+  });
+
+  it("saving tabs, palette picks, notices and theme cache does not re-render the app", async () => {
+    const disk = createDisk();
+    await launch(disk);
+    const listener = vi.fn();
+    const off = subscribePreferences(listener);
+    const store = createWorkspaceStore();
+    store.scheduleSave("/v/one", {
+      tabs: [{ id: "t1", path: "a.excalidraw", pinned: false, missing: false }],
+      activeId: "t1",
+      mru: ["t1"],
+      closed: [],
+      nextId: 2,
+    } as TabsState);
+    store.flush();
+    recordRecent("command:x", window);
+    dismissGitNotice("/v/one", window);
+    rememberVaultAppearance(window, "/v/one", { theme: "dark" });
+    off();
+    expect(listener).not.toHaveBeenCalled();
+    // ...and all of it still reaches state.json.
+    await restart(disk);
+    expect(getRecent("commands", window)).toEqual(["command:x"]);
+    expect(createWorkspaceStore().load("/v/one", () => true)).not.toBeNull();
+  });
+
+  it("quitting while a state write runs waits for it, and retries it if it failed", async () => {
+    const disk = createDisk();
+    await launch(disk);
+    const real = disk.invoke.getMockImplementation()!;
+    let fail!: (e: Error) => void;
+    let first = true;
+    disk.invoke.mockImplementation(async (cmd, args) => {
+      if (cmd === "write_state" && first) {
+        first = false;
+        return new Promise((_, reject) => {
+          fail = reject;
+        });
+      }
+      return real(cmd, args);
+    });
+    updatePreferences({ linksDock: true }, window);
+    await vi.advanceTimersByTimeAsync(300); // the debounced write starts and hangs
+    const quit = flushSettings();
+    fail(new Error("disk busy"));
+    await quit;
+    expect(disk.state.linksDock).toBe(true);
   });
 });

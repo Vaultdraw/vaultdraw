@@ -4209,6 +4209,8 @@ export const VaultApp = ({
             closeAttemptRef.current = true;
             setShowCloseDiscardConfirm(false);
             try {
+              // Discarding drops unsaved files, never tabs or panel state.
+              await flushSettings().catch(() => undefined);
               if (appWinRef.current) {
                 await appWinRef.current.destroy();
               }
