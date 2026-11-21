@@ -2,7 +2,8 @@ import { expect, type Page } from "@playwright/test";
 
 import { test } from "./fixture";
 
-import { openVault, trackErrors } from "./helpers";
+import { openVault, readScene, reloadVault, trackErrors } from "./helpers";
+import { AFTER_AUTOSAVE_MS } from "./constants";
 import { A4, live, seedAndOpen, setupOf, toClient } from "./pageHelpers";
 
 // toimprove 340: in page mode, text never runs past the page edge; it wraps at the margin.
@@ -82,6 +83,70 @@ for (const m of modes) {
       expect(t[0].x).toBeGreaterThanOrEqual(-0.5);
       expect(t[0].x + t[0].width).toBeLessThanOrEqual(559 + 0.5);
       expect(errors).toEqual([]);
+    });
+
+    test("after a reload the saved text stays wrapped", async ({ page }) => {
+      const errors = trackErrors(page);
+      await openVault(page);
+      await seedAndOpen(page, "WrapUndo.excalidraw", { pageSetup: setupOf() });
+      const at = await toClient(page, 500, 200);
+      await page.keyboard.press("t");
+      await page.mouse.click(at.x, at.y);
+      await page.keyboard.type(LONG, { delay: 0 });
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(AFTER_AUTOSAVE_MS);
+      const wrapped = await texts(page);
+      expect(wrapped.length).toBe(1);
+      const width = wrapped[0].width;
+      expect(wrapped[0].x + width).toBeLessThanOrEqual(A4.width + 0.5);
+
+      // reload: the e2e vault lives in memory, so the saved file is put back as it was written;
+      // the text must open as the same wrapped box
+      const savedTexts = async () =>
+        (
+          (await readScene(page, "WrapUndo.excalidraw")).elements as any[]
+        ).filter((e) => !e.isDeleted && e.type === "text");
+      await expect
+        .poll(async () => (await savedTexts()).length, {
+          timeout: 15_000,
+        })
+        .toBe(1);
+      const file = await readScene(page, "WrapUndo.excalidraw");
+      const saved = (file.elements as any[]).filter(
+        (e) => !e.isDeleted && e.type === "text",
+      );
+      expect(saved.length).toBe(1);
+      expect(saved[0].x + saved[0].width).toBeLessThanOrEqual(A4.width + 0.5);
+      expect(saved[0].width).toBeCloseTo(width, 0);
+      await reloadVault(page);
+      await seedAndOpen(page, "WrapReload.excalidraw", {
+        pageSetup: setupOf(),
+        elements: file.elements as unknown[],
+      });
+      const reopened = await texts(page);
+      expect(reopened.length).toBe(1);
+      expect(reopened[0].width).toBeCloseTo(width, 0);
+      expect(reopened[0].height).toBeCloseTo(wrapped[0].height, 0);
+      expect(reopened[0].x + reopened[0].width).toBeLessThanOrEqual(
+        A4.width + 0.5,
+      );
+      expect(errors).toEqual([]);
+    });
+
+    test("undo takes the typed text away again", async ({ page }) => {
+      await openVault(page);
+      await seedAndOpen(page, "WrapUndo2.excalidraw", { pageSetup: setupOf() });
+      const at = await toClient(page, 500, 200);
+      await page.keyboard.press("t");
+      await page.mouse.click(at.x, at.y);
+      await page.keyboard.type(LONG, { delay: 0 });
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(500);
+      expect((await texts(page)).length).toBe(1);
+      // undo takes the text out again
+      await page.keyboard.press(`Meta+z`);
+      await page.waitForTimeout(500);
+      expect((await texts(page)).length).toBe(0);
     });
 
     test("outside page mode a long line is NOT capped to a page", async ({
