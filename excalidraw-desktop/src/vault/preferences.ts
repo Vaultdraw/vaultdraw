@@ -121,6 +121,7 @@ import {
   resolveOfficial,
 } from "../plugins/officialPlugins";
 import { DEFAULT_TEMPLATES_FOLDER } from "../templates/types";
+
 import { WATCHDOG_LIMITS } from "../watchdog/limits";
 
 import {
@@ -164,6 +165,8 @@ import {
   type PluginSettingsMap,
 } from "./pluginSettingsTable";
 import { DEFAULT_SORT_ORDER, isSortOrder, type SortOrder } from "./sortOrder";
+
+import type { WorkspaceSessionV1 } from "../tabs/types";
 
 /** `plugins.storage_limit_kb`: default and bounds (Rust refuses more than 16 MiB). */
 export const DEFAULT_PLUGIN_STORAGE_KB = 1024;
@@ -238,6 +241,8 @@ interface VaultPreferencesBase {
   expandedFolders: Record<string, string[]>;
   /** Tags section state per vault path (sort, open, collapsed nodes); machine state. */
   tagsPane: Record<string, TagsPaneEntry>;
+  /** Open tabs per vault path, restored at the next launch (machine state; checked again on load). */
+  tabsSessions: Record<string, WorkspaceSessionV1>;
   exportOptions: ExportOptions;
   /** The user has panned the canvas once: the "move canvas" hint stays hidden (machine state). */
   hasPanned: boolean;
@@ -489,6 +494,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   navigatorWidth: 280,
   expandedFolders: {},
   tagsPane: {},
+  tabsSessions: {},
   exportOptions: DEFAULT_EXPORT_OPTIONS,
   hasPanned: false,
   profileChoice: null,
@@ -794,6 +800,28 @@ export const normalizeTagsPane = (
   return result;
 };
 
+/** Vaults whose open tabs are remembered; the oldest written are dropped first. */
+export const MAX_TABS_SESSIONS = 20;
+
+/**
+ * Open tabs per vault: keeps object entries only (workspaceStore.deserialize
+ * checks each one fully when it is restored) and the newest MAX_TABS_SESSIONS.
+ */
+export const normalizeTabsSessions = (
+  value: unknown,
+): Record<string, WorkspaceSessionV1> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const entries = Object.entries(value).filter(
+    ([, v]) => v && typeof v === "object" && !Array.isArray(v),
+  );
+  return Object.fromEntries(entries.slice(-MAX_TABS_SESSIONS)) as Record<
+    string,
+    WorkspaceSessionV1
+  >;
+};
+
 /** Keep only entries whose value is an array of strings. */
 export const normalizeHotkeys = (value: unknown): Record<string, string[]> => {
   const result: Record<string, string[]> = {};
@@ -886,6 +914,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
         ? (parsed.expandedFolders as Record<string, string[]>)
         : {},
     tagsPane: normalizeTagsPane(parsed.tagsPane),
+    tabsSessions: normalizeTabsSessions(parsed.tabsSessions),
     exportOptions: normalizeExportOptions(parsed.exportOptions),
     hasPanned: pick(parsed.hasPanned, isBoolean, d.hasPanned),
     profileChoice:

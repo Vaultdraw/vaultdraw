@@ -609,7 +609,8 @@ for (const rate of RATES) {
   }) => {
     test.skip(browserName !== "chromium", "CDP throttling is chromium only");
     const query = "?seed=bigfolder&n=30&el=300";
-    const KEY = "vaultdraw.tabs.session:/fake/My Vault";
+    // Saved tabs live in the preferences (state.json in the app), per vault.
+    const VAULT = "/fake/My Vault";
     await page.addInitScript(() => {
       const t: Record<string, number> = {};
       (window as any).__marks = t;
@@ -657,11 +658,14 @@ for (const rate of RATES) {
     for (let i = 0; i < RESTORE_RUNS + 2; i++) {
       for (const n of [1, 20]) {
         await page.evaluate(
-          ([key, value, count]) => {
-            localStorage.setItem(key, value);
+          ([vault, value, count]) => {
+            const PREFS = "excalidraw-vault-preferences-v1";
+            const prefs = JSON.parse(localStorage.getItem(PREFS) ?? "{}");
+            prefs.tabsSessions = { [vault]: JSON.parse(value) };
+            localStorage.setItem(PREFS, JSON.stringify(prefs));
             localStorage.setItem("e2e.expectTabs", count);
           },
-          [KEY, session(n), String(n)],
+          [VAULT, session(n), String(n)],
         );
         await page.goto(`/e2e.html${query}`);
         await page.waitForFunction(() => (window as any).__marks?.editor);

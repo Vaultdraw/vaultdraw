@@ -14,6 +14,8 @@ import {
   updatePreferences,
   type VaultPreferences,
 } from "../vault/preferences";
+import { createWorkspaceStore } from "../tabs/workspaceStore";
+
 import {
   CONFIG_MAPPING,
   disposeSettings,
@@ -21,6 +23,8 @@ import {
   initSettings,
   STATE_FIELDS,
 } from "../vault/settingsSync";
+
+import type { TabsState } from "../tabs/types";
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
@@ -91,6 +95,17 @@ const SAMPLES: { [K in typeof STATE_FIELDS[number]]: VaultPreferences[K] } = {
   navigatorWidth: 333,
   expandedFolders: { "/v/one": ["", "notes"] },
   tagsPane: { "/v/one": { sort: "count", open: false, collapsed: ["a"] } },
+  tabsSessions: {
+    "/v/one": {
+      v: 1,
+      tabs: [
+        { path: "a.excalidraw", pinned: true },
+        { path: "b.excalidraw", pinned: false },
+      ],
+      active: 1,
+      mru: [1, 0],
+    },
+  },
   exportOptions: {
     scale: 3,
     background: false,
@@ -162,5 +177,57 @@ describe("durable state: every choice survives a restart", () => {
       expect(field in DEFAULT_PREFERENCES, field).toBe(true);
       expect(reason.length).toBeGreaterThan(10);
     }
+  });
+});
+
+describe("durable state: what each feature keeps across a restart", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    disposeSettings();
+    vi.useRealTimers();
+    window.localStorage.clear();
+  });
+
+  it("open tabs come back after a restart, per vault, with the active tab and pins", async () => {
+    const disk = createDisk();
+    await launch(disk);
+    const tab = (n: number, pinned = false) => ({
+      id: `t${n}`,
+      path: `d${n}.excalidraw`,
+      pinned,
+      missing: false,
+    });
+    const before = createWorkspaceStore();
+    before.scheduleSave("/v/one", {
+      tabs: [tab(1, true), tab(2), tab(3)],
+      activeId: "t2",
+      mru: ["t2", "t1", "t3"],
+      closed: [],
+    } as TabsState);
+    before.scheduleSave("/v/two", {
+      tabs: [tab(9)],
+      activeId: "t9",
+      mru: ["t9"],
+      closed: [],
+    } as TabsState);
+    before.flush(); // the quit barrier's prepareLeave
+    await restart(disk);
+    const after = createWorkspaceStore();
+    const one = after.load("/v/one", () => true);
+    expect(one?.tabs.map((t) => [t.path, t.pinned])).toEqual([
+      ["d1.excalidraw", true],
+      ["d2.excalidraw", false],
+      ["d3.excalidraw", false],
+    ]);
+    expect(one?.activeIndex).toBe(1);
+    expect(after.load("/v/two", () => true)?.tabs[0].path).toBe(
+      "d9.excalidraw",
+    );
+    after.clear("/v/two");
+    await restart(disk);
+    expect(createWorkspaceStore().load("/v/two", () => true)).toBeNull();
   });
 });
