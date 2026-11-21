@@ -243,6 +243,8 @@ interface VaultPreferencesBase {
   tagsPane: Record<string, TagsPaneEntry>;
   /** Open tabs per vault path, restored at the next launch (machine state; checked again on load). */
   tabsSessions: Record<string, WorkspaceSessionV1>;
+  /** The Links dock is shown (machine state). */
+  linksDock: boolean;
   exportOptions: ExportOptions;
   /** The user has panned the canvas once: the "move canvas" hint stays hidden (machine state). */
   hasPanned: boolean;
@@ -495,6 +497,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   expandedFolders: {},
   tagsPane: {},
   tabsSessions: {},
+  linksDock: false,
   exportOptions: DEFAULT_EXPORT_OPTIONS,
   hasPanned: false,
   profileChoice: null,
@@ -915,6 +918,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
         : {},
     tagsPane: normalizeTagsPane(parsed.tagsPane),
     tabsSessions: normalizeTabsSessions(parsed.tabsSessions),
+    linksDock: pick(parsed.linksDock, isBoolean, d.linksDock),
     exportOptions: normalizeExportOptions(parsed.exportOptions),
     hasPanned: pick(parsed.hasPanned, isBoolean, d.hasPanned),
     profileChoice:

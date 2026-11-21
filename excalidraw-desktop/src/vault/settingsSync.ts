@@ -1217,6 +1217,7 @@ export const STATE_FIELDS = [
   "expandedFolders",
   "tagsPane",
   "tabsSessions",
+  "linksDock",
   "exportOptions",
   "hasPanned",
   "profileChoice",
@@ -1504,6 +1505,7 @@ export function stateToPreferences(
       : { ...d.expandedFolders },
     tagsPane: normalizeTagsPane(s.tagsPane),
     tabsSessions: normalizeTabsSessions(s.tabsSessions),
+    linksDock: typeof s.linksDock === "boolean" ? s.linksDock : d.linksDock,
     exportOptions: normalizeExportOptions(s.exportOptions),
     hasPanned: typeof s.hasPanned === "boolean" ? s.hasPanned : d.hasPanned,
     profileChoice:
@@ -1521,6 +1523,7 @@ export function preferencesToState(prefs: PreferencesSnapshot): PersistedState {
     expandedFolders: prefs.expandedFolders,
     tagsPane: prefs.tagsPane,
     tabsSessions: prefs.tabsSessions,
+    linksDock: prefs.linksDock,
     exportOptions: prefs.exportOptions,
     hasPanned: prefs.hasPanned,
     profileChoice: prefs.profileChoice,

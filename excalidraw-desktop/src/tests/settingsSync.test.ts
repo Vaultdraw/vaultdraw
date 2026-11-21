@@ -521,6 +521,8 @@ describe("settingsSync mapping", () => {
       expandedFolders: { "/a": ["", "x"] },
       tagsPane: {},
       focusOn: false,
+      tabsSessions: {},
+      linksDock: false,
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
@@ -702,6 +704,8 @@ describe("settingsSync runtime", () => {
       expandedFolders: {},
       tagsPane: {},
       focusOn: false,
+      tabsSessions: {},
+      linksDock: false,
       hasPanned: false,
       profileChoice: null,
       exportOptions: {
