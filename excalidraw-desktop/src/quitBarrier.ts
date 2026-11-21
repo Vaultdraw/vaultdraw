@@ -13,6 +13,11 @@ export interface QuitDeps {
   isNotesUnsavedError(e: unknown): string[] | null;
   flushLibrary(): Promise<unknown>;
   flushPluginData(): Promise<unknown>;
+  /**
+   * Write pending machine state (state.json: tabs, panels, recent items) now;
+   * its write is debounced. Best effort: a failure never keeps the window open.
+   */
+  flushState?(): Promise<unknown>;
   destroyWindow(): Promise<void>;
   /** Autosave is off and notes are dirty: show Save / Don't Save / Cancel. */
   askAboutNotes(): void;
@@ -59,6 +64,7 @@ export async function runQuitBarrier(
       d.askAboutDiscard(failed);
       return;
     }
+    await d.flushState?.().catch(() => undefined);
     await d.destroyWindow();
     d.closed();
   } catch {

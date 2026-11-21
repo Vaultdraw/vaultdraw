@@ -74,6 +74,7 @@ import {
 } from "./vault/newDrawingPaper";
 import { isPageCommandChecked } from "./page/pageStatus";
 import {
+  flushSettings,
   getSettingsStatus,
   isConfigFolderActive,
   isWarning,
@@ -826,6 +827,7 @@ export const VaultApp = ({
               e instanceof NotesUnsavedError ? e.paths : null,
             flushLibrary: () => libraryStore.flush(),
             flushPluginData,
+            flushState: flushSettings,
             destroyWindow: async () => {
               await appWinRef.current?.destroy();
             },

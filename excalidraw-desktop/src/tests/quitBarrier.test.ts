@@ -109,3 +109,35 @@ describe("the quit barrier and the notes decision", () => {
     expect(log.discardPrompts).toEqual([["'A.md'", "'B.md'"]]);
   });
 });
+
+describe("the quit barrier and machine state (toimprove 343)", () => {
+  it("writes pending state.json after the tabs session and before the window goes", async () => {
+    const order: string[] = [];
+    const { deps } = rig({
+      notesAutosaveOff: () => false,
+      prepareLeave: () => {
+        order.push("tabs");
+      },
+      flushState: async () => {
+        order.push("state");
+      },
+      destroyWindow: async () => {
+        order.push("destroy");
+      },
+    });
+    await runQuitBarrier(deps, { current: null });
+    expect(order).toEqual(["tabs", "state", "destroy"]);
+  });
+
+  it("a failed state write never keeps the window open", async () => {
+    const { deps, log } = rig({
+      notesAutosaveOff: () => false,
+      flushState: async () => {
+        throw new Error("disk full");
+      },
+    });
+    await runQuitBarrier(deps, { current: null });
+    expect(log.destroyed).toBe(1);
+    expect(log.discardPrompts).toEqual([]);
+  });
+});
