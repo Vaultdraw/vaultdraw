@@ -32,6 +32,7 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 
 ### Fixed
 
+- **The Tags section remembers how you left it.** Whether it is open or closed, which tag branches are collapsed and the sort order now survive quitting and reopening the app (they are kept in `state.json`, per vault; before, they were forgotten at every quit). The Tags header also has more room above the file list.
 - **`**#tag**` is a tag in drawings too, as in Obsidian.** A tag right after a bold, italic or strike mark (`**#idea**`, `*#idea*`, `~~#idea~~`) in a text box was not found by tag search, the tags pane or Rename tag; notes already counted it. One case table now pins the app's two copies of the tag rule.
 - **Renaming a note now updates every way another note can link to it.** Links in table cells (`[[Note\|shown]]`, `![[Map.excalidraw\|40]]`), Markdown links in angle brackets (`[t](<My Note.md>)`), with a heading (`[t](Note.md#Part)`) or a title, and Markdown embeds (`![a](Note.md)`) used to keep the old name and break. Markdown links with a heading also count as backlinks now. Links inside code stay as written.
 - **Renaming a tag renames it in notes too.** A tag only notes carried showed "0 occurrences in 0 drawings", Rename reported success and the tag stayed. Now `#tag` in a note's text and its frontmatter `tags` change as in Obsidian's Tag Wrangler (code, links and images stay as written), the dialog and the tags pane count files, and Rename is disabled when nothing would change.
