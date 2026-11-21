@@ -209,18 +209,19 @@ export class LabelLayer {
     const x0 = x + OFFSET_X;
     const y0 = y + OFFSET_Y - 10;
     const w = textLen * CHAR_W;
-    const col = (v: number) =>
-      Math.min(this.cols - 1, Math.max(0, Math.floor(v / CELL_W)));
-    const row = (v: number) =>
-      Math.min(this.rows - 1, Math.max(0, Math.floor(v / CELL_H)));
+    // Cells outside the grid are skipped, not clamped: a kept label whose node is just off screen
+    // must not claim the edge cells that on-screen labels need.
+    const lo = (v: number, size: number) => Math.max(0, Math.floor(v / size));
+    const col1 = (v: number) => Math.min(this.cols - 1, Math.floor(v / CELL_W));
+    const row1 = (v: number) => Math.min(this.rows - 1, Math.floor(v / CELL_H));
     const { occ, cols } = this;
     if (!force) {
       // The test box is the text box grown (new label) or shrunk (one already shown) by `pad`:
       // a shown label tolerates a slight overlap, a newcomer needs clear space.
-      const tx0 = col(x0 - pad);
-      const tx1 = col(x0 + w + pad);
-      const ty0 = row(y0 - pad);
-      const ty1 = row(y0 + 13 + pad);
+      const tx0 = lo(x0 - pad, CELL_W);
+      const tx1 = col1(x0 + w + pad);
+      const ty0 = lo(y0 - pad, CELL_H);
+      const ty1 = row1(y0 + 13 + pad);
       for (let cy = ty0; cy <= ty1; cy++) {
         for (let cx = tx0; cx <= tx1; cx++) {
           if (occ[cy * cols + cx]) {
@@ -229,10 +230,10 @@ export class LabelLayer {
         }
       }
     }
-    const cx0 = col(x0);
-    const cx1 = col(x0 + w);
-    const cy0 = row(y0);
-    const cy1 = row(y0 + 13);
+    const cx0 = lo(x0, CELL_W);
+    const cx1 = col1(x0 + w);
+    const cy0 = lo(y0, CELL_H);
+    const cy1 = row1(y0 + 13);
     for (let cy = cy0; cy <= cy1; cy++) {
       for (let cx = cx0; cx <= cx1; cx++) {
         occ[cy * cols + cx] = 1;
@@ -354,14 +355,14 @@ export class LabelLayer {
         if (this.stamp[i] === id || (mask && mask[i])) {
           continue;
         }
-        if (!this.open(i, scale, true)) {
-          continue; // zoomed out past its hide zoom: fades out, may return at its show zoom
+        // A label forced in by a hover never opened its gate: it gets no hide band.
+        if (!this.open(i, scale, this.gate[i] >= id - 1 && this.gate[i] > 0)) {
+          this.gate[i] = 0; // closed: fades out, returns only at its show zoom
+          continue;
         }
         this.gate[i] = id;
         if (this.tryAdd(f, i, 1, false, -STICKY_SLACK, STICKY_EDGE)) {
           this.stamp[i] = id;
-        } else {
-          this.dropAt[i] = this.clock; // pushed out (collision or off screen)
         }
       }
     }
@@ -379,19 +380,21 @@ export class LabelLayer {
         break;
       }
       if (!this.open(i, scale, this.gate[i] >= id - 1 && this.gate[i] > 0)) {
+        this.gate[i] = 0;
         continue;
       }
       this.gate[i] = id;
       if (this.stamp[i] === id || (mask && mask[i])) {
         continue;
       }
-      if (
-        sticky &&
-        (this.clock - this.dropAt[i] < COOLDOWN_MS ||
-          // pushed out during this zoom gesture: stays away until the zoom settles
-          (zooming && this.dropAt[i] >= this.gestureAt))
-      ) {
-        continue;
+      if (sticky) {
+        const d = this.dropAt[i];
+        // Pushed out during the current or last zoom gesture: away while the zoom moves, back as
+        // soon as it settles. Any other drop (a drifting layout): away for the cooldown.
+        const inGesture = d >= this.gestureAt && d < this.zoomedAt + SETTLE_MS;
+        if (inGesture ? zooming : this.clock - d < COOLDOWN_MS) {
+          continue;
+        }
       }
       const x = (f.positions[2 * i] - cam.x) * scale + hw;
       const y = (f.positions[2 * i + 1] - cam.y) * scale + hh;
@@ -400,6 +403,19 @@ export class LabelLayer {
       }
       tried++;
       this.place(x, y, i, 1, false, sticky ? NEW_MARGIN : 0);
+    }
+    if (sticky) {
+      // Shown before, gate still open, not shown now (cap reached, filtered, pushed out): a drop.
+      for (let k = 0; k < this.prevCount; k++) {
+        const i = this.prev[k];
+        if (
+          this.stamp[i] !== id &&
+          this.gate[i] >= id - 1 &&
+          this.gate[i] > 0
+        ) {
+          this.dropAt[i] = this.clock;
+        }
+      }
     }
     this.prevCount = 0;
     for (let k = 0; k < this.count; k++) {
@@ -476,7 +492,8 @@ export class LabelLayer {
     [this.liveAlpha, this.nextAlpha] = [this.nextAlpha, this.liveAlpha];
     [this.liveText, this.nextText] = [this.nextText, this.liveText];
     this.liveCount = n;
-    // While the zoom settles, labels pushed out during the gesture may come back: keep frames coming.
+    // Keep frames coming until the zoom settles, so a label pushed out during the zoom comes back
+    // without another input.
     this.animating = animating || this.clock - this.zoomedAt < SETTLE_MS;
 
     ctx.font = this.font;

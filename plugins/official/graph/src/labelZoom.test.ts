@@ -264,3 +264,78 @@ describe("labels while zooming", () => {
     expect(gone.size).toBe(0);
   });
 });
+
+describe("labels while zooming: review findings", () => {
+  const one = (scale: number, extra = {}) => ({
+    positions: new Float32Array([0, 0, 300, 0]),
+    camera: { x: 0, y: 0, scale },
+    width: 1200,
+    height: 800,
+    dtMs: DT,
+    ...extra,
+  });
+
+  it("a hover neighbour's label does not stay after the hover when its zoom is not reached", () => {
+    const s: Scene = {
+      n: 2,
+      pos: new Float32Array([0, 0, 300, 0]),
+      deg: [9, 0],
+    };
+    const z = showZoom(s, 1, 0.5);
+    const L = new LabelLayer({ label: (i) => `d${i}`, fadeScale: 0.5 });
+    L.setGraph(2, s.deg);
+    const at = z * 0.95; // inside the hide band, below the show zoom
+    L.layout(one(at, { hovered: 0, always: [1] }));
+    expect(Array.from(L.index.slice(0, L.count))).toContain(1);
+    L.layout(one(at)); // hover ends
+    expect(Array.from(L.index.slice(0, L.count))).not.toContain(1);
+  });
+
+  it("frames keep coming until a label pushed out at the end of a zoom can return", () => {
+    const s: Scene = {
+      n: 2,
+      pos: new Float32Array([0, 0, 120, 0]),
+      deg: [5, 1],
+    };
+    const L = new LabelLayer({ label: (i) => `drawing-${i}`, fadeScale: 0.01 });
+    L.setGraph(2, s.deg);
+    play(L, s, Array(30).fill(1));
+    // one zoom-out step that pushes the second label out, then the zoom stops
+    const out: number[] = [];
+    for (let k = 1; k > 0.4; k *= 0.95) {
+      out.push(k);
+    }
+    play(L, s, out);
+    // zoom back in, in small steps (one gesture), then stop: the caller renders only while
+    // `animating`, so the label must come back before the frames stop
+    const back: number[] = [];
+    for (let k = 0.4; k < 1; k *= 1.06) {
+      back.push(k);
+    }
+    back.push(1);
+    play(L, s, back);
+    let frames = 0;
+    while (L.animating && frames < 200) {
+      play(L, s, [1]);
+      frames++;
+    }
+    expect(play(L, s, [1]).frame.get("drawing-1") ?? 0).toBeGreaterThan(0);
+  });
+
+  it("a kept label whose node is just off the left edge does not block a label inside the edge", () => {
+    // node A just off screen (kept from before), node B at the left edge, on screen
+    const L = new LabelLayer({ label: (i) => `d${i}`, fadeScale: 0.01 });
+    L.setGraph(2, [9, 1]);
+    const frame = (ax: number) => ({
+      positions: new Float32Array([ax, 0, 8, 2]),
+      camera: { x: 600, y: 400, scale: 1 },
+      width: 1200,
+      height: 800,
+      dtMs: DT,
+    });
+    L.layout(frame(20)); // A on screen, labelled
+    L.layout(frame(-30)); // A drifts 30 px off the left edge: kept (edge margin)
+    const shown = Array.from(L.index.slice(0, L.count));
+    expect(shown).toContain(1);
+  });
+});
