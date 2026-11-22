@@ -133,6 +133,14 @@ options = [{ value = "ask", label = "Ask first" }, { value = "auto", label = "Ap
 scope = ["global"]
 
 [[contributes.settings]]
+key = "review"
+type = "bool"
+title = "Check the result"
+description = "After a change is applied, the assistant looks at a picture of what it added and fixes overlaps, cut-off text and crowded spacing. Apply at once applies the fixes; Ask first offers them to keep. Needs a model that can see pictures; never in Read only."
+default = true
+scope = ["global"]
+
+[[contributes.settings]]
 key = "base_url"
 type = "string"
 title = "Address"

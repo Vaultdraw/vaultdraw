@@ -115,7 +115,9 @@ function Thread({
           aria-busy
         >
           {live.prose ? <Markdown text={live.prose} /> : null}
-          {live.building ? (
+          {s.reviewing ? (
+            <p className="vd-ai-wait">Checking the result…</p>
+          ) : live.building ? (
             <p className="vd-ai-wait">Working out the changes…</p>
           ) : live.prose ? null : (
             <p className="vd-ai-wait">Waiting for the answer…</p>

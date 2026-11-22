@@ -17,6 +17,7 @@ import { conversation } from "./memory";
 import { lastImages } from "./images";
 import { systemPrompt, userMessage } from "./prompts";
 import { parseReply } from "./reply";
+import { runReviewPass } from "./reviewPass";
 import {
   buildRequest,
   createParser,
@@ -119,6 +120,8 @@ export interface SessionState {
   via: string;
   /** A change the model proposed, shown but not applied until Keep. */
   proposal: Proposal | null;
+  /** True while the result is being checked from a picture of it (see-check-fix). */
+  reviewing: boolean;
   /** What Keep did, in plain words (cleared by the next request). */
   kept: string | null;
   /** Bumped by commands so the panel puts the cursor in the question box (or the key box). */
@@ -252,6 +255,7 @@ export function createSession(ctx: PluginContext): Session {
     hasKey: false,
     via: "",
     proposal: null,
+    reviewing: false,
     kept: null,
     focus: { tick: 0, target: "request" },
     turns: [],
@@ -549,6 +553,108 @@ export function createSession(ctx: PluginContext): Session {
     return res;
   }
 
+  /** Asks once and returns the whole answer (the review pass; nothing streams into the thread). */
+  async function collect(
+    cfg: ProviderConfig,
+    system: string,
+    messages: readonly ChatMessage[],
+    signal: AbortSignal,
+  ): Promise<string> {
+    const res = await openAnswer(cfg, system, messages, signal);
+    const parser = createParser(cfg.provider);
+    const dec = new TextDecoder();
+    let out = "";
+    for await (const chunk of res.body) {
+      out += parser.push(dec.decode(chunk, { stream: true })).join("");
+      if (parser.done) {
+        break;
+      }
+    }
+    out += parser.push(dec.decode()).join("") + parser.end().join("");
+    res.close();
+    return out;
+  }
+
+  /**
+   * After a change is applied: a picture of what it added goes back to the model once with the
+   * checklist, and its fixes are applied (Apply at once, up to two rounds) or proposed (Ask first).
+   * Off with the `review` setting, in Read only, and for models that cannot see pictures.
+   */
+  async function reviewAfter(ids: readonly string[]) {
+    if (
+      ids.length === 0 ||
+      ctx.settings.get<boolean>("review") === false ||
+      accessNow() === "read" ||
+      state.status === "running"
+    ) {
+      return;
+    }
+    const cfg = config();
+    if (cfg.provider === "ollama") {
+      return;
+    }
+    const token = runToken;
+    const mine = new AbortController();
+    controller = mine;
+    const put = (patch: Partial<SessionState>) => {
+      if (token === runToken) {
+        set(patch);
+      }
+    };
+    put({ status: "running", reviewing: true, answer: "" });
+    try {
+      const r = await runReviewPass({
+        ctx,
+        ids,
+        applyNow: accessNow() === "auto",
+        supportsImages: true,
+        cancelled: () => mine.signal.aborted || token !== runToken,
+        ask: (system, text, image) =>
+          collect(
+            cfg,
+            system,
+            [{ role: "user", content: text, images: [image] }],
+            mine.signal,
+          ),
+      });
+      if (r.error) {
+        ctx.log.warn("the check of the drawing failed", r.error);
+      }
+      const turn: Turn | null = r.proposal
+        ? {
+            id: ++turnId,
+            role: "assistant",
+            text: r.said,
+            proposal: r.proposal,
+            summary: r.proposal.headline,
+          }
+        : r.applied
+        ? {
+            id: ++turnId,
+            role: "assistant",
+            text: r.said,
+            outcome: `Tidied up: ${r.applied}`,
+            applied: true,
+            // one tidy step can be undone from its line, like the change itself
+            ...(r.steps === 1 ? { undoPath: ctx.scene.path() ?? undefined } : {}),
+          }
+        : null;
+      put({
+        status: "idle",
+        reviewing: false,
+        ...(r.proposal ? { proposal: r.proposal } : {}),
+        ...(turn ? { turns: [...state.turns, turn] } : {}),
+      });
+    } catch (err) {
+      ctx.log.warn("the check of the drawing failed", err);
+      put({ status: "idle", reviewing: false });
+    } finally {
+      if (controller === mine) {
+        controller = null;
+      }
+    }
+  }
+
   async function run(request: string, images: readonly MessageImage[] = []) {
     if (state.status === "running") {
       return;
@@ -840,6 +946,7 @@ export function createSession(ctx: PluginContext): Session {
     set({
       ...shown,
       status: "idle",
+      reviewing: false,
       view: "chat",
       tab: id,
       focus: { tick: state.focus.tick + 1, target: "request" },
@@ -1027,7 +1134,7 @@ export function createSession(ctx: PluginContext): Session {
             });
             return;
           }
-          await ctx.scene.batch(p.ops, {
+          const applied = await ctx.scene.batch(p.ops, {
             path: p.path ?? undefined,
             ...(p.drawing ? { drawing: p.drawing } : {}),
           });
@@ -1041,6 +1148,10 @@ export function createSession(ctx: PluginContext): Session {
               undoPath: p.path ?? undefined,
             }),
           });
+          // a tidy-up is not checked again (no loop of reviews)
+          if (p.title !== "Tidy up") {
+            await reviewAfter(applied.ids);
+          }
         } else {
           const folder = (
             ctx.settings.get<string>("create_folder") || ""
