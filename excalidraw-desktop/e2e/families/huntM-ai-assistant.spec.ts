@@ -243,7 +243,8 @@ for (const theme of ["light", "dark"] as const) {
       });
       await page.getByLabel("Ask about this drawing").fill("Pages?");
       // the "what is sent" list is open too: it is the widest thing the panel can show
-      await page.getByRole("button", { name: "Choose what is sent" }).click();
+      await page.getByRole("button", { name: "Add context" }).click();
+      await page.getByRole("option", { name: /^Show what is sent/ }).click();
       await expect(
         page.getByLabel("What is sent", { exact: true }),
       ).toBeVisible();

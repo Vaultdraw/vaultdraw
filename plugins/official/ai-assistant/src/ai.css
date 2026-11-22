@@ -159,8 +159,7 @@
 @media (hover: none) { .vd-ai-chat-delete { opacity: 1; } }
 /* composer: toolbar, chip, images */
 .vd-ai-model { flex: 0 1 auto; min-width: 0; }
-.vd-ai-effort, .vd-ai-mode { flex: none; white-space: nowrap; }
-.vd-ai-bar[data-level="1"] .vd-ai-mode, .vd-ai-bar[data-level="2"] .vd-ai-mode, .vd-ai-bar[data-level="2"] .vd-ai-effort { padding: 3px 5px; }
+.vd-ai-effort, .vd-ai-mode { flex: none; }
 .vd-ai-emptyhint { margin: 0; font-size: var(--vd-fs-small, 12px); color: var(--vault-text-faint, #888); }
 .vd-ai-chip { display: inline-flex; align-items: center; max-width: 100%; border: 1px solid var(--vault-border, rgba(128,128,128,.35)); border-radius: 999px; font-size: var(--vd-fs-small, 12px); color: var(--vault-text-muted, inherit); }
 .vd-ai-chip button { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 1px 6px; display: inline-flex; align-items: center; }

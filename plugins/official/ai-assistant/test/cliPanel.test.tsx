@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { boot, type TestPlugin } from "@vaultdraw/api/testing";
 
@@ -24,6 +24,7 @@ const wrapped = {
   },
 };
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await p?.dispose();
   p = undefined;
 });
@@ -209,6 +210,9 @@ describe("a subscription, one step", () => {
   });
 });
 
+const modeTitle = () =>
+  screen.getByRole("button", { name: "Mode" }).getAttribute("title") ?? "";
+
 describe("model, effort, mode and context controls", () => {
   it("the model picker is searchable, grouped by provider, and takes a typed name", async () => {
     await start({ claude: { state: "ready" }, codex: { state: "ready" } });
@@ -301,16 +305,12 @@ describe("model, effort, mode and context controls", () => {
   it("the mode list and the slash helper change the mode", async () => {
     await start();
     pickMode("Describe the selection");
-    expect(screen.getByRole("button", { name: "Mode" }).textContent).toContain(
-      "Describe",
-    );
+    expect(modeTitle()).toContain("Describe the selection");
     type("/ed");
     const helper = screen.getByRole("listbox", { name: "Modes" });
     expect(within(helper).getAllByRole("option")).toHaveLength(1);
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
-    expect(screen.getByRole("button", { name: "Mode" }).textContent).toContain(
-      "Edit this drawing",
-    );
+    expect(modeTitle()).toContain("Edit this drawing");
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("");
     expect(p!.net.cli.runs).toHaveLength(0);
   });
@@ -320,15 +320,15 @@ describe("model, effort, mode and context controls", () => {
     type("@no");
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
     expect(
-      screen.getByRole("button", { name: "Choose what is sent" }).textContent,
-    ).toMatch(/Nothing from the drawing/);
+      screen.getByRole("button", { name: "Show what is sent" }).textContent,
+    ).toBe("No drawing");
     await ask("just chat");
     expect(p!.net.cli.runs[0].prompt).toBe("just chat");
   });
 
   it("Only the selection with nothing selected says so and sends nothing", async () => {
     await start();
-    pick("Choose what is sent", /^Only the selection/);
+    pick("Add context", /^Only the selection/);
     await ask("hi");
     expect(screen.getByRole("alert").textContent).toMatch(/Select something/);
     expect(p!.net.cli.runs).toHaveLength(0);
@@ -336,9 +336,10 @@ describe("model, effort, mode and context controls", () => {
 
   it("the chip shows exactly what will be sent", async () => {
     await start();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Choose what is sent" }),
-    );
+    expect(
+      screen.queryByRole("button", { name: "Show what is sent" }),
+    ).toBeNull();
+    pick("Add context", /^Show what is sent/);
     await waitFor(() =>
       expect(screen.getByLabelText("What is sent").textContent).toContain(
         "Secret plan",
@@ -392,16 +393,18 @@ describe("the thread", () => {
     );
   });
 
-  it("the empty state lists the modes and one click selects it", async () => {
+  it("the empty state is one hint line; the modes list appears when / is typed", async () => {
     await start();
-    fireEvent.click(
-      within(screen.getByRole("list", { name: "Modes" })).getByRole("button", {
-        name: /\/diagram/,
-      }),
-    );
-    expect(screen.getByRole("button", { name: "Mode" }).textContent).toContain(
-      "Generate a diagram",
-    );
+    expect(
+      screen.getByText("Type / for commands, @ to add context"),
+    ).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Modes" })).toBeNull();
+    expect(screen.queryByRole("listbox", { name: "Modes" })).toBeNull();
+    type("/");
+    const helper = screen.getByRole("listbox", { name: "Modes" });
+    expect(within(helper).getAllByRole("option")).toHaveLength(6);
+    fireEvent.click(within(helper).getByRole("option", { name: /\/diagram/ }));
+    expect(modeTitle()).toContain("Generate a diagram");
   });
 });
 
@@ -531,5 +534,143 @@ describe("palette commands", () => {
     );
     await p!.run("open");
     await waitFor(() => expect(screen.getByRole("textbox")).toBeTruthy());
+  });
+});
+
+const png = (name = "shot.png", bytes = 8, type = "image/png") =>
+  new File([new Uint8Array(bytes).fill(7)], name, { type });
+const paste = (...files: File[]) =>
+  fireEvent.paste(screen.getByRole("textbox"), {
+    clipboardData: { files, types: ["Files"], getData: () => "" },
+  });
+const drop = (...files: File[]) =>
+  fireEvent.drop(screen.getByRole("textbox").closest(".vd-ai-composer")!, {
+    dataTransfer: { files, types: ["Files"] },
+  });
+
+describe("images in the composer", () => {
+  it("a pasted image shows a thumbnail with Remove, and goes to the command line via ctx.cli", async () => {
+    await start();
+    paste(png());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("list", { name: "Attached images" }),
+      ).toBeTruthy(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Remove shot.png" }),
+    ).toBeTruthy();
+    await ask("what is this?");
+    const run = p!.net.cli.runs[0];
+    expect(run.images).toHaveLength(1);
+    expect(run.images![0].mime).toBe("image/png");
+    expect(atob(run.images![0].data)).toHaveLength(8);
+    // sent: the thumbnails are gone and the thread says an image went along
+    expect(screen.queryByRole("list", { name: "Attached images" })).toBeNull();
+    expect(screen.getByRole("log").textContent).toContain("+ 1 image");
+  });
+
+  it("dropping works like pasting, Remove drops one, and a text paste is left alone", async () => {
+    await start();
+    drop(png("a.png"), png("b.jpg", 8, "image/jpeg"));
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /^Remove / })).toHaveLength(
+        2,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Remove a.png" }));
+    expect(screen.getAllByRole("button", { name: /^Remove / })).toHaveLength(1);
+    const notPrevented = fireEvent.paste(screen.getByRole("textbox"), {
+      clipboardData: { files: [], types: ["text/plain"], getData: () => "hi" },
+    });
+    expect(notPrevented).toBe(true);
+  });
+
+  it("a file that is not an image, a big one and a fifth one are refused in plain words", async () => {
+    await start();
+    paste(png("big.png", 5 * 1024 * 1024 + 1));
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain(
+        "larger than 5 MB",
+      ),
+    );
+    expect(screen.queryByRole("list", { name: "Attached images" })).toBeNull();
+    for (let i = 0; i < 5; i++) {
+      paste(png(`p${i}.png`));
+      await waitFor(() =>
+        expect(screen.getAllByRole("button", { name: /^Remove / }).length).toBe(
+          Math.min(i + 1, 4),
+        ),
+      );
+    }
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain(
+        "At most 4 images",
+      ),
+    );
+  });
+
+  it("the + menu has Attach image and a size check for API providers says so before sending", async () => {
+    await start();
+    fireEvent.click(screen.getByRole("button", { name: "Add context" }));
+    expect(screen.getByRole("option", { name: /^Attach image/ })).toBeTruthy();
+    await p!.setSetting("provider", "anthropic");
+    await waitFor(() => expect(setting("provider")).toBe("anthropic"));
+    // no shrinking in this test: the browser cannot decode, so the files go as they are
+    vi.stubGlobal("createImageBitmap", () => Promise.reject(new Error("no")));
+    paste(png("huge.png", 1_400_000), png("huge2.png", 1_400_000));
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /^Remove / })).toHaveLength(
+        2,
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toMatch(
+        /too large to send/,
+      ),
+    );
+    expect(p!.net.requests).toEqual([]);
+  });
+});
+
+describe("the toolbar and the + menu", () => {
+  it("the effort and mode are icons with full names in their tooltips; the model has its full name too", async () => {
+    await start();
+    const mode = screen.getByRole("button", { name: "Mode" });
+    expect(mode.textContent).toBe("");
+    expect(mode.getAttribute("title")).toMatch(/^Mode: Ask \(\/ask\)/);
+    const effort = screen.getByRole("button", { name: "Reasoning effort" });
+    expect(effort.textContent).toBe("");
+    expect(effort.getAttribute("title")).toBe("Reasoning effort: default");
+    expect(
+      screen.getByRole("button", { name: "Model" }).getAttribute("title"),
+    ).toMatch(/^Model: /);
+  });
+
+  it("no context chip by default; a non-default choice shows one that resets", async () => {
+    await start();
+    expect(screen.queryByText(/elements/)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Show what is sent" }),
+    ).toBeNull();
+    pick("Add context", /^The whole drawing/);
+    expect(
+      screen.getByRole("button", { name: "Show what is sent" }).textContent,
+    ).toBe("Whole drawing");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Back to the default context" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Show what is sent" }),
+    ).toBeNull();
+  });
+
+  it("Diagram and New drawing send no drawing, so the + menu has no context choices", async () => {
+    await start();
+    pickMode("Generate a diagram");
+    fireEvent.click(screen.getByRole("button", { name: "Add context" }));
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Attach image…",
+    ]);
   });
 });

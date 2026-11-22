@@ -3,10 +3,7 @@
  * several megabytes, and the providers resize anything over about 1.5k pixels anyway), and the
  * size check against what each way of sending can carry.
  */
-import {
-  IMAGE_TYPES,
-  type ImageAttachment,
-} from "./composerLogic";
+import { IMAGE_TYPES, type ImageAttachment } from "./composerLogic";
 
 /** The longest side kept, in pixels. */
 export const MAX_SIDE = 1568;
@@ -23,8 +20,20 @@ const toBase64 = (bytes: Uint8Array): string => {
   return btoa(out);
 };
 
+const bytesOf = (blob: Blob): Promise<ArrayBuffer> =>
+  typeof blob.arrayBuffer === "function"
+    ? blob.arrayBuffer()
+    : new Promise((ok, no) => {
+        const r = new FileReader();
+        r.onload = () => ok(r.result as ArrayBuffer);
+        r.onerror = () => no(r.error);
+        r.readAsArrayBuffer(blob);
+      });
+
 /** Redraws a large picture smaller as JPEG; null when the browser cannot (the original is used). */
-async function shrink(file: File): Promise<{ data: string; size: number } | null> {
+async function shrink(
+  file: File,
+): Promise<{ data: string; size: number } | null> {
   try {
     const bmp = await createImageBitmap(file);
     const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
@@ -50,7 +59,7 @@ async function shrink(file: File): Promise<{ data: string; size: number } | null
       return null;
     }
     return {
-      data: toBase64(new Uint8Array(await blob.arrayBuffer())),
+      data: toBase64(new Uint8Array(await bytesOf(blob))),
       size: blob.size,
     };
   } catch {
@@ -70,7 +79,7 @@ export async function readImage(file: File): Promise<ImageAttachment> {
   return {
     name: file.name,
     mime,
-    data: toBase64(new Uint8Array(await file.arrayBuffer())),
+    data: toBase64(new Uint8Array(await bytesOf(file))),
     size: file.size,
   };
 }

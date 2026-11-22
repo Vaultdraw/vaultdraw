@@ -2,9 +2,9 @@
  * One small adapter per provider: how to build the request and how to read the stream back.
  * Pure (no host calls), so each wire format is tested with plain strings.
  */
-import type { NetRequest } from "@vaultdraw/api";
-
 import { wireMessages, type MessageImage } from "./images";
+
+import type { NetRequest } from "@vaultdraw/api";
 
 /** Where a provider is reached: the user's own command line, or an HTTP API. */
 export type ProviderKind = "cli" | "http";

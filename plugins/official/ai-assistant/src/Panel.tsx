@@ -6,7 +6,6 @@ import Ghosts from "./Ghosts";
 import { Icon, Mark } from "./Icons";
 import Markdown from "./markdown";
 import History from "./History";
-import { TASK_TITLES } from "./prompts";
 import { providerDef } from "./providers";
 import SettingsView from "./SettingsView";
 

@@ -458,7 +458,9 @@ export function createSession(ctx: PluginContext): Session {
           effort: cfg.effort || undefined,
           system,
           prompt: transcript(messages),
-          ...(lastImages(messages).length ? { images: lastImages(messages) } : {}),
+          ...(lastImages(messages).length
+            ? { images: lastImages(messages) }
+            : {}),
           timeoutMs: Math.max(cfg.timeoutMs, 300_000),
         },
         { signal },
@@ -556,11 +558,11 @@ export function createSession(ctx: PluginContext): Session {
     controller = new AbortController();
     const shown =
       (request.trim() ||
-      (task === "describe"
-        ? "Describe the selection"
-        : task === "summarise"
-        ? "Summarise this"
-        : TASK_TITLES[task])) +
+        (task === "describe"
+          ? "Describe the selection"
+          : task === "summarise"
+          ? "Summarise this"
+          : TASK_TITLES[task])) +
       (images.length
         ? `${request.trim() ? "\n" : " "}+ ${images.length} image${
             images.length === 1 ? "" : "s"

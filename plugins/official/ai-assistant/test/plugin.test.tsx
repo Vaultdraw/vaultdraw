@@ -347,9 +347,8 @@ describe("what is sent", () => {
       .content as string;
     expect(sent).toContain("Login page");
     expect(sent).not.toContain("Secret plan");
-    fireEvent.click(
-      screen.getByRole("button", { name: "Choose what is sent" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Add context" }));
+    fireEvent.click(screen.getByRole("option", { name: /^Show what is sent/ }));
     await waitFor(() =>
       expect(screen.getByLabelText("What is sent").textContent).toContain(
         "Login page",

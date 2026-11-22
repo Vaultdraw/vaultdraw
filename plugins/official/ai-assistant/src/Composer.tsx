@@ -14,12 +14,12 @@ import {
   helperKind,
   imageFilesOf,
   imageNote,
-  shortEffort,
+  effortBars,
   shortModelLabel,
   type BarLevel,
   type ImageAttachment,
 } from "./composerLogic";
-import { Icon } from "./Icons";
+import { Icon, Levels } from "./Icons";
 import { imageProblem, readImage } from "./imageFiles";
 import Menu, { List, arrowKeys, type MenuItem } from "./Menu";
 import { TASK_TITLES, SYSTEM, type Task } from "./prompts";
@@ -72,6 +72,9 @@ const CONTEXTS: { id: ContextMode; label: string; hint: string; at: string }[] =
 
 type Open = null | "model" | "effort" | "mode" | "add" | "sent";
 
+/** Longest model label (characters) at each toolbar level; the effort and mode are icons. */
+const MODEL_CHARS: Record<BarLevel, number> = { 0: 18, 1: 13, 2: 9 };
+
 /** The toolbar's width, followed as the panel is resized (full labels where jsdom has no layout). */
 function useBarLevel(ref: React.RefObject<HTMLElement | null>): BarLevel {
   const [level, setLevel] = useState<BarLevel>(0);
@@ -88,8 +91,6 @@ function useBarLevel(ref: React.RefObject<HTMLElement | null>): BarLevel {
   }, [ref]);
   return level;
 }
-
-const capital = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
 
 export default function Composer({
   session,
@@ -168,7 +169,15 @@ export default function Composer({
     return () => {
       live = false;
     };
-  }, [session, s.task, s.contextMode, s.turns.length, showSent, draft, running]);
+  }, [
+    session,
+    s.task,
+    s.contextMode,
+    s.turns.length,
+    showSent,
+    draft,
+    running,
+  ]);
 
   // `/` at the start picks a mode; `@` at the end picks what is sent
   const kind = helperKind(draft);
@@ -232,7 +241,8 @@ export default function Composer({
   };
 
   const attachProblem = imageProblem(s.provider, images);
-  const note = problem ?? attachProblem ?? (images.length ? imageNote(s.provider) : null);
+  const note =
+    problem ?? attachProblem ?? (images.length ? imageNote(s.provider) : null);
 
   const send = () => {
     if (running) {
@@ -283,7 +293,7 @@ export default function Composer({
         }));
   const modelLabel =
     def.models.find((m) => m.id === cfg.model)?.label ?? cfg.model ?? "Default";
-  const shortModel = shortModelLabel(modelLabel);
+  const shortModel = shortModelLabel(modelLabel, MODEL_CHARS[level]);
   const effortItems: MenuItem[] = ["", ...def.efforts].map((e) => ({
     id: e,
     label: e || "Default",
@@ -326,8 +336,7 @@ export default function Composer({
     }
   };
   const chip = contextChip(s.contextMode, wantsContext);
-  const modeWord = capital(SLASH[s.task]);
-  const effortWord = shortEffort(cfg.effort);
+  const lit = effortBars(def.efforts, cfg.effort);
 
   return (
     <div
@@ -529,14 +538,9 @@ export default function Composer({
         {def.efforts.length > 0 ? (
           <Menu
             label="Reasoning effort"
-            className="vd-ai-effort"
+            className="vd-ai-effort vd-ai-icon"
             title={`Reasoning effort: ${cfg.effort || "default"}`}
-            trigger={
-              <>
-                <Icon name="levels" size={13} />
-                {level < 2 ? <span>{effortWord}</span> : null}
-              </>
-            }
+            trigger={<Levels lit={lit} size={14} />}
             items={effortItems}
             open={open === "effort"}
             setOpen={(o) => setOpen(o ? "effort" : null)}
@@ -545,12 +549,11 @@ export default function Composer({
         ) : null}
         <Menu
           label="Mode"
-          className="vd-ai-mode"
+          className="vd-ai-mode vd-ai-icon"
           title={`Mode: ${TASK_TITLES[s.task]} (/${SLASH[s.task]})`}
           trigger={
             <>
-              <Icon name="slash" size={13} />
-              {level === 0 ? <span>{modeWord}</span> : null}
+              <Icon name="slash" size={14} />
             </>
           }
           items={modeItems}

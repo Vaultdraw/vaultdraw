@@ -139,7 +139,8 @@ test("AI assistant: turn it on, save a key, ask, stream, stop, offline", async (
 
   // Ask: the answer streams in, and the request carries the drawing's text but not the key.
   await input.fill("What pages are there?");
-  await page.getByRole("button", { name: "Choose what is sent" }).click();
+  await page.getByRole("button", { name: "Add context" }).click();
+  await page.getByRole("option", { name: /^Show what is sent/ }).click();
   await expect(page.getByLabel("What is sent", { exact: true })).toContainText(
     "Login page",
   );
@@ -461,7 +462,7 @@ test("AI panel: connect a subscription, pick a model and effort, chat, stop, and
   await box.press("Enter");
   await expect(
     page.getByRole("button", { name: "Mode", exact: true }),
-  ).toContainText("Edit this drawing");
+  ).toHaveAttribute("title", /Edit this drawing/);
   await box.fill("Add a Logout box");
   await box.press("Enter");
   const card = page.getByLabel("Proposed change");

@@ -10,15 +10,16 @@ import type { ContextMode } from "./session";
 // ---------------------------------------------------------------------------
 
 /**
- * How much of the toolbar is spelled out. 0: model, effort and mode with words; 1: the mode is
- * only its icon; 2: the effort is an icon too. The model name is the last thing to give way: it
- * shortens with an ellipsis in the style sheet, and its full name is in its tooltip.
+ * How much room the toolbar has. The effort and the mode are always icons (their full names are in
+ * their tooltips and menus), and a slot stays free beside them for one more small control. Only the
+ * model name changes: it is spelled out at level 0 and loses whole words at 1 and 2, with an
+ * ellipsis in the style sheet as the last resort.
  */
 export type BarLevel = 0 | 1 | 2;
 
 /** Width of the toolbar (px) from which each level fits; below the last one it is level 2. */
-export const BAR_FULL = 330;
-export const BAR_MEDIUM = 270;
+export const BAR_FULL = 260;
+export const BAR_MEDIUM = 220;
 
 /** Chooses the level for a toolbar `width` px wide. An unknown width (no layout) means full. */
 export function barLevel(width: number | null | undefined): BarLevel {
@@ -53,19 +54,22 @@ export function shortModelLabel(label: string, max = 16): string {
   return out;
 }
 
-/** The effort level as a short word for the toolbar ("medium" is "Med"). */
-export function shortEffort(effort: string): string {
-  if (!effort) {
-    return "Effort";
+/**
+ * How many of the three effort bars are solid: the position of the chosen level among the
+ * provider's levels, spread over 1..3; 0 for the provider's default (no level chosen).
+ */
+export function effortBars(
+  levels: readonly string[],
+  effort: string,
+): 0 | 1 | 2 | 3 {
+  const i = levels.indexOf(effort);
+  if (!effort || i < 0 || levels.length === 0) {
+    return 0;
   }
-  const names: Record<string, string> = {
-    low: "Low",
-    medium: "Med",
-    high: "High",
-    xhigh: "XHigh",
-    max: "Max",
-  };
-  return names[effort] ?? effort.charAt(0).toUpperCase() + effort.slice(1);
+  if (levels.length <= 3) {
+    return (i + 1) as 1 | 2 | 3;
+  }
+  return Math.min(3, Math.floor((i * 3) / levels.length) + 1) as 1 | 2 | 3;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +117,7 @@ export const IMAGE_TYPES = [
 export interface ImageAttachment {
   /** For the remove button's name. */
   name: string;
-  mime: (typeof IMAGE_TYPES)[number];
+  mime: typeof IMAGE_TYPES[number];
   data: string;
   /** Size of the file in bytes. */
   size: number;
@@ -154,9 +158,12 @@ export function checkImages(
 }
 
 /** The image files among the pasted or dropped ones (a file with no type counts only by its name). */
-export function imageFilesOf(files: ArrayLike<File> | null | undefined): File[] {
+export function imageFilesOf(
+  files: ArrayLike<File> | null | undefined,
+): File[] {
   return Array.from(files ?? []).filter(
-    (f) => f.type.startsWith("image/") || /\.(png|jpe?g|gif|webp)$/i.test(f.name),
+    (f) =>
+      f.type.startsWith("image/") || /\.(png|jpe?g|gif|webp)$/i.test(f.name),
   );
 }
 
