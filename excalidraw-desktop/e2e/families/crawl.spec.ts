@@ -142,7 +142,9 @@ const layoutProblems = (page: Page, rootSel: string): Promise<string[]> =>
           st.display === "none" ||
           st.visibility === "hidden" ||
           h.clientWidth <= 2 ||
-          h.clientHeight <= 2
+          h.clientHeight <= 2 ||
+          // Text kept for scripts and screen readers, never drawn (toimprove 347).
+          h.closest(".visually-hidden, [aria-hidden='true']")
         ) {
           return;
         }
