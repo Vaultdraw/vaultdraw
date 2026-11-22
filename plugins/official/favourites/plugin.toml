@@ -11,7 +11,7 @@ permissions = ["vault.read", "vault.write"]
 [[contributes.panels]]
 id = "list"
 title = "Favourites"
-icon = "bookmark"
+icon = "star"
 
 [[contributes.commands]]
 id = "toggle"

@@ -12,6 +12,7 @@ permissions = ["net", "secret", "cli", "vault.read", "vault.write"]
 [[contributes.panels]]
 id = "assistant"
 title = "AI assistant"
+icon = "sparkles"
 
 [[contributes.commands]]
 id = "ask"

@@ -5,6 +5,8 @@
 import { registerActivityEntries } from "../../activityBar/activityBarRegistry";
 import {
   IconBookmark,
+  IconSparkles,
+  IconStar,
   IconGallery,
   IconGraph,
   IconHistory,
@@ -54,6 +56,8 @@ const ICONS: Record<string, ActivityEntry["icon"]> = {
   graph: IconGraph,
   gallery: IconGallery,
   bookmark: IconBookmark,
+  star: IconStar,
+  sparkles: IconSparkles,
   search: IconSearch,
   tag: IconTag,
   template: IconTemplate,

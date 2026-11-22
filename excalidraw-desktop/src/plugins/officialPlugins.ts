@@ -446,7 +446,7 @@ export const OFFICIAL_PLUGINS: readonly OfficialPlugin[] = [
         title: "Favourite: add or remove the selection",
       },
     ],
-    panels: [{ id: "list", title: "Favourites", icon: "bookmark" }],
+    panels: [{ id: "list", title: "Favourites", icon: "star" }],
   },
   {
     id: "auto-export",
@@ -525,7 +525,7 @@ export const OFFICIAL_PLUGINS: readonly OfficialPlugin[] = [
       { id: "set-key", title: "AI: Set API key" },
       { id: "remove-key", title: "AI: Remove API key" },
     ],
-    panels: [{ id: "assistant", title: "AI assistant", icon: "template" }],
+    panels: [{ id: "assistant", title: "AI assistant", icon: "sparkles" }],
   },
 ];
 

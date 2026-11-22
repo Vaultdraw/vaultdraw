@@ -32,6 +32,7 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 
 ### Changed
 
+- **Clearer activity bar icons.** Templates show two pages with a plus, the AI assistant shows sparkles (it fell back to a generic panel icon), and Favourites show a star. Plugins can name the `star` and `sparkles` icons.
 - **Folders stay in name order under a date sort.** With `navigator.sort` set to modified new to old or old to new, folders now list Lec 1, Lec 2 … Lec 6 (still first); only drawings and notes follow the dates. Name Z to A still reverses folders too.
 - AI assistant: the model picker lists only what works now (a signed-in Claude or Codex, or a provider with a saved key), with no "needs a key" rows; with nothing usable it shows "Connect a provider…". The settings fold API keys and missing tools under "Add a provider".
 
