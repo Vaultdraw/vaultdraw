@@ -167,7 +167,7 @@ function TurnView({
   if (p && turn.outcome) {
     // once kept or discarded, the card shrinks to one line in the history
     return (
-      <p className="vd-ai-kept">
+      <p className="vd-ai-outcome">
         {p.headline}: {turn.outcome}
       </p>
     );

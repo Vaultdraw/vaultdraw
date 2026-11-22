@@ -28,7 +28,7 @@
 .vd-ai-wait { margin: 0; color: var(--vault-text-faint, #888); }
 .vd-ai-actions { gap: 4px; }
 .vd-ai-error { margin: 0; color: var(--vault-danger, #e03131); line-height: 1.5; overflow-wrap: anywhere; }
-.vd-ai-kept { margin: 0; color: var(--vault-text-muted, inherit); line-height: 1.5; }
+.vd-ai-kept, .vd-ai-outcome { margin: 0; color: var(--vault-text-muted, inherit); line-height: 1.5; }
 
 /* markdown */
 .vd-ai-md > :first-child { margin-top: 0; }

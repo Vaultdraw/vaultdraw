@@ -14,6 +14,7 @@ import {
 const cfg = (over: Partial<ProviderConfig> = {}): ProviderConfig => ({
   provider: "anthropic",
   model: "",
+  effort: "",
   baseUrl: "",
   timeoutMs: 30000,
   hasKey: true,

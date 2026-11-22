@@ -1,7 +1,7 @@
 /** The panel's few icons: plain strokes in the current colour. */
 const PATHS = {
   plus: "M8 3v10M3 8h10",
-  gear: "M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5ZM8 1.5v1.6M8 12.9v1.6M2.7 4.3l1.1 1.1M12.2 10.6l1.1 1.1M1.5 8h1.6M12.9 8h1.6M2.7 11.7l1.1-1.1M12.2 5.4l1.1-1.1",
+  gear: "M2 5h6M11.5 5H14M2 11h2.5M8 11h6M9.75 3.25v3.5M6.25 9.25v3.5",
   up: "M8 13V3M3.5 7.5 8 3l4.5 4.5",
   stop: "M4.5 4.5h7v7h-7Z",
   chevron: "M4 6.5 8 10.5l4-4",

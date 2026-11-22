@@ -123,18 +123,21 @@ test("AI assistant: turn it on, save a key, ask, stream, stop, offline", async (
   ).toBe(0);
 
   // Save the key; it is hidden and not shown again.
-  await page.getByText("Key and provider").click();
-  const keyBox = page.getByLabel("API key");
+  await page.getByRole("button", { name: "AI settings" }).click();
+  const keyBox = page.getByLabel("Anthropic API key");
   await expect(keyBox).toHaveAttribute("type", "password");
   await keyBox.fill(KEY);
-  await page.getByRole("button", { name: "Save key" }).click();
-  await expect(page.getByText("A key is saved on this computer")).toBeVisible();
+  await page.getByRole("button", { name: "Save Anthropic key" }).click();
+  await expect(
+    page.getByRole("status", { name: "Anthropic key status" }),
+  ).toHaveText("Key saved");
   await expect(keyBox).toHaveValue("");
   await expect(page.locator("body")).not.toContainText(KEY);
+  await page.getByRole("button", { name: "Back to the chat" }).click();
 
   // Ask: the answer streams in, and the request carries the drawing's text but not the key.
   await input.fill("What pages are there?");
-  await page.getByLabel("Show what is sent").check();
+  await page.getByRole("button", { name: "Choose what is sent" }).click();
   await expect(page.getByLabel("What is sent", { exact: true })).toContainText(
     "Login page",
   );
@@ -298,9 +301,9 @@ test("AI assistant: an edit is proposed first, Discard changes nothing, Keep app
   // Keep through its palette command: applied at once as one change.
   card = await propose();
   await run(page, "AI: Keep", /AI: Keep the proposed change/);
-  await expect(page.locator(".vd-ai-kept")).toContainText(
-    "Applied: Adds 1 box, moves 1 text",
-  );
+  await expect(
+    page.getByRole("status").filter({ hasText: "Applied:" }),
+  ).toContainText("Applied: Adds 1 box, moves 1 text");
   expect(await count()).toBeGreaterThan(2);
   const moved = (await live(page)).elements.find((e) => e.id === "b");
   expect(Math.round(moved!.x)).toBe(400);
@@ -315,5 +318,174 @@ test("AI assistant: an edit is proposed first, Discard changes nothing, Keep app
   expect(
     Math.round((await live(page)).elements.find((e) => e.id === "b")!.x),
   ).toBe(60);
+  expect(errors).toEqual([]);
+});
+
+// The chat panel and the subscriptions: a fake `claude` and `codex` command line on the fake backend
+// (nothing real runs, nothing is billed).
+const claudeStream = (...parts: string[]) => [
+  ...parts.map(
+    (t) =>
+      `${JSON.stringify({
+        type: "stream_event",
+        event: {
+          type: "content_block_delta",
+          delta: { type: "text_delta", text: t },
+        },
+      })}\n`,
+  ),
+  `${JSON.stringify({ type: "result", is_error: false, result: "" })}\n`,
+];
+
+test("AI panel: connect a subscription, pick a model and effort, chat, stop, and keep a proposed edit", async ({
+  page,
+}) => {
+  const errors = trackErrors(page);
+  await openVault(page, "?plugins=ai-assistant");
+  await page.waitForFunction(() => (window as any).__pluginsReady === true);
+  await seedAndOpen(page, "Plan.excalidraw", {
+    elements: [text("a", 60, "Login page"), text("b", 130, "Checkout page")],
+  });
+  await page.evaluate(([a, b]) => {
+    const net = (window as any).__plugins.backend.net;
+    net.cli.tools = {
+      claude: { state: "ready", path: "/Users/me/.local/bin/claude" },
+      codex: { state: "login", path: "/opt/homebrew/bin/codex" },
+    };
+    net.cli.respond = () => ({ chunks: [a, b], chunkDelayMs: 20 });
+  }, claudeStream("Two pages: ", "**login** and checkout.").slice(0, 2));
+
+  // Open the assistant: the empty state, and Claude found without any setup.
+  await run(page, "AI: Open the assistant", /AI: Open the assistant/);
+  await expect(page.getByText("What can I do for you?")).toBeVisible();
+  await expect(page.getByLabel("Current chat")).toContainText("Claude");
+
+  // The gear: one place for the connections, with a re-check.
+  await page.getByRole("button", { name: "AI settings" }).click();
+  await expect(page.getByRole("status", { name: "Claude status" })).toHaveText(
+    "Connected",
+  );
+  await expect(page.getByRole("status", { name: "Codex status" })).toHaveText(
+    "Not signed in",
+  );
+  await page.evaluate(() => {
+    (window as any).__plugins.backend.net.cli.tools.codex.state = "ready";
+  });
+  await page.getByRole("button", { name: "Check again" }).click();
+  await expect(page.getByRole("status", { name: "Codex status" })).toHaveText(
+    "Connected",
+  );
+  await page.getByRole("button", { name: "Back to the chat" }).click();
+
+  // Model picker (search) and effort.
+  await page.getByRole("button", { name: "Model" }).click();
+  await page.getByLabel("Search model").fill("opus");
+  await page.getByRole("option", { name: /^Opus/ }).click();
+  await expect(page.getByRole("button", { name: "Model" })).toContainText(
+    "Opus",
+  );
+  await page.getByRole("button", { name: "Reasoning effort" }).click();
+  await page.getByRole("option", { name: /^high/ }).click();
+  await expect(
+    page.getByRole("button", { name: "Reasoning effort" }),
+  ).toContainText("high");
+
+  // Ask with Enter: the answer streams in as Markdown, nothing went to the network, the tool got the choices.
+  const box = page.locator(".vd-ai-input");
+  await box.fill("What pages are there?");
+  await box.press("Enter");
+  await expect(page.getByText("checkout.", { exact: false })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.locator(".vd-ai-assistant strong")).toHaveText("login");
+  const seen = await page.evaluate(() => {
+    const net = (window as any).__plugins.backend.net;
+    return { runs: net.cli.runs, requests: net.requests.length };
+  });
+  expect(seen.requests).toBe(0);
+  expect(seen.runs).toHaveLength(1);
+  expect(seen.runs[0]).toMatchObject({
+    tool: "claude",
+    model: "opus",
+    effort: "high",
+  });
+  expect(seen.runs[0].prompt).toContain("Checkout page");
+
+  // Stop a slow answer.
+  await page.evaluate(() => {
+    (window as any).__plugins.backend.net.cli.respond = () => ({
+      chunks: Array.from(
+        { length: 30 },
+        (_, i) =>
+          `${JSON.stringify({
+            type: "stream_event",
+            event: {
+              type: "content_block_delta",
+              delta: { type: "text_delta", text: `w${i} ` },
+            },
+          })}\n`,
+      ),
+      chunkDelayMs: 60,
+    });
+  });
+  await box.fill("Long answer please");
+  await box.press("Enter");
+  await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
+  await expect(page.getByText(/w2 /)).toBeVisible();
+  await box.press("Escape");
+  await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByText(/w29 /)).toHaveCount(0);
+
+  // /edit picks the mode; the proposal sits in the thread with Keep and Discard; Keep applies it.
+  const plan = JSON.stringify({
+    title: "More boxes",
+    ops: [{ op: "add", type: "rectangle", text: "Logout", x: 300, y: 60 }],
+  });
+  await page.evaluate((reply) => {
+    (window as any).__plugins.backend.net.cli.respond = () => ({
+      chunks: [
+        `${JSON.stringify({
+          type: "stream_event",
+          event: {
+            type: "content_block_delta",
+            delta: { type: "text_delta", text: `\`\`\`json\n${reply}\n\`\`\`` },
+          },
+        })}\n`,
+      ],
+    });
+  }, plan);
+  await box.fill("/edit");
+  await box.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "Mode", exact: true }),
+  ).toContainText("Edit this drawing");
+  await box.fill("Add a Logout box");
+  await box.press("Enter");
+  const card = page.getByLabel("Proposed change");
+  await expect(card).toContainText("Adds 1 box", { timeout: 10_000 });
+  expect((await live(page)).elements).toHaveLength(2);
+  await card.getByRole("button", { name: "Keep" }).click();
+  await expect(page.getByLabel("Proposed change")).toHaveCount(0);
+  await expect
+    .poll(async () => (await live(page)).elements.length)
+    .toBeGreaterThan(2);
+
+  // Offline mode: the tool needs the internet, so nothing runs and the message says so.
+  await page.evaluate(() => {
+    const net = (window as any).__plugins.backend.net;
+    net.cli.runs.length = 0;
+    net.offline = () => true;
+  });
+  await box.fill("/ask");
+  await box.press("Enter");
+  await box.fill("Again");
+  await box.press("Enter");
+  await expect(page.getByRole("alert")).toContainText("Offline mode is on");
+  expect(
+    await page.evaluate(
+      () => (window as any).__plugins.backend.net.cli.runs.length,
+    ),
+  ).toBe(0);
   expect(errors).toEqual([]);
 });

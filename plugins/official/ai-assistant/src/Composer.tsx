@@ -345,7 +345,7 @@ export default function Composer({
             className="vd-ai-effort"
             trigger={
               <>
-                <span>{cfg.effort || "default"}</span>
+                <span>{cfg.effort || "effort"}</span>
                 <Icon name="chevron" size={11} />
               </>
             }
