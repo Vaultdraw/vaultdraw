@@ -1,7 +1,7 @@
 // Generated from the @since tags of sdk/api/src by sdk/api/scripts/gen-features.mjs. Do not edit.
 
 /** The API revision of this build (the version of sdk/api/package.json). */
-export const API_REVISION = "1.4.0";
+export const API_REVISION = "1.5.0";
 
 /** Feature name to the revision that added it. `ctx.host.has(name)` is true for these. */
 export const FEATURES: Readonly<Record<string, string>> = {
@@ -81,6 +81,7 @@ export const FEATURES: Readonly<Record<string, string>> = {
   "scene.currentStrokeColor": "0.24.0",
   "scene.currentTextStyle": "0.28.0",
   "scene.dataOf": "0.4.0",
+  "scene.drawing": "1.5.0",
   "scene.elements": "0.1.0",
   "scene.fitTo": "0.29.0",
   "scene.get": "0.4.0",

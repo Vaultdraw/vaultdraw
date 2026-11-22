@@ -2,6 +2,12 @@
 
 The history of `@vaultdraw/api` (the types), the manifest and the `vaultdraw-plugin` tool. The API follows [semantic versioning](https://semver.org/spec/v2.0.0.html) from 1.0.0 on; [stability.md](../docs/stability.md) says what that promises. The app's own change log is `CHANGELOG.md` at the repository root.
 
+## 1.5.0
+
+### Added
+
+- **Drawing settings** (`@experimental`): `ctx.scene.batch(ops, { drawing })` changes the drawing's own settings in the same undo step as the ops (the ops list may be empty): `pageMode`, `paper` (`plain`, `lines`, `grid`, `dots`, `graph`, `isometric`), `paperTheme`, `pageSize`, `orientation`, `layout` and `background`. A field left out stays as it is; a bad value rejects with `INVALID_ARGUMENT` before anything changes. `ctx.scene.drawing()` reads the current settings (null with no drawing open). Needs the same permission as `batch` (none for a plugin acting on the open drawing).
+
 ## 1.4.0
 
 ### Added

@@ -6,6 +6,7 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 export type {
   BatchResult,
+  DrawingSettings,
   ImageSource,
   ElementId,
   ElementRef,

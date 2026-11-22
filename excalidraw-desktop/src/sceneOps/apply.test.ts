@@ -197,3 +197,98 @@ describe("applyOps", () => {
     expect(nl.y + nl.height).toBeLessThanOrEqual(nb.y + nb.height);
   });
 });
+
+describe("applyOps drawing settings", () => {
+  const add = [
+    { op: "add", element: { type: "rectangle", width: 10, height: 10 } },
+  ] as const;
+  const patchOf = (
+    state: Record<string, unknown>,
+    drawing: Parameters<typeof applyOps>[2] extends infer O
+      ? O extends { drawing?: infer D }
+        ? D
+        : never
+      : never,
+    ops: readonly unknown[] = [],
+  ) => {
+    const { api, updateScene } = stubApi([], state);
+    applyOps(api, ops, { drawing });
+    expect(updateScene).toHaveBeenCalledTimes(1);
+    expect(updateScene.mock.calls[0][0].captureUpdate).toBe(
+      CaptureUpdateAction.IMMEDIATELY,
+    );
+    return updateScene.mock.calls[0][0].appState;
+  };
+
+  it("turns page mode on for a drawing that has none, in the update with the ops", () => {
+    const { api, updateScene } = stubApi([]);
+    applyOps(api, add, { drawing: { pageMode: true } });
+    expect(updateScene).toHaveBeenCalledTimes(1);
+    const call = updateScene.mock.calls[0][0];
+    expect(call.appState.pageSetup.enabled).toBe(true);
+    expect(call.elements).toHaveLength(1);
+  });
+
+  it("switches page mode off but keeps the setup", () => {
+    const pageSetup = { ...DEFAULT_PAGE_SETUP, enabled: true, size: "a5" };
+    const state = patchOf({ pageSetup }, { pageMode: false });
+    expect(state.pageSetup.enabled).toBe(false);
+    expect(state.pageSetup.size).toBe("a5");
+  });
+
+  it("sets the paper style, plain removes it, and the same style is left alone", () => {
+    expect(patchOf({}, { paper: "lines" }).viewBackgroundPattern.type).toBe(
+      "lines",
+    );
+    expect(
+      patchOf(
+        { viewBackgroundPattern: { type: "grid" } },
+        { paper: "plain" },
+      ).viewBackgroundPattern,
+    ).toBeNull();
+    const { api, updateScene } = stubApi([], {
+      viewBackgroundPattern: { type: "dots" },
+    } as never);
+    applyOps(api, add, { drawing: { paper: "dots" } });
+    expect(updateScene.mock.calls[0][0].appState).toBeUndefined();
+  });
+
+  it("sets size, orientation, layout and the page colour", () => {
+    const pageSetup = { ...DEFAULT_PAGE_SETUP, enabled: true };
+    const s = patchOf(
+      { pageSetup },
+      {
+        pageSize: "letter",
+        orientation: "landscape",
+        layout: "continuous",
+        background: "#f8efd4",
+      },
+    );
+    expect(s.pageSetup).toMatchObject({
+      size: "letter",
+      orientation: "landscape",
+      layout: "continuous",
+    });
+    expect(s.pageSetup.width).toBeGreaterThan(s.pageSetup.height);
+    expect(s.viewBackgroundColor).toBe("#f8efd4");
+  });
+
+  it("an old-school paper theme stamps its colours, and an explicit background wins", () => {
+    const s = patchOf(
+      { pageSetup: { ...DEFAULT_PAGE_SETUP } },
+      { paperTheme: "oldSchool", background: "#101010" },
+    );
+    expect(s.pageSetup.paperTheme).toBe("oldSchool");
+    expect(s.viewBackgroundColor).toBe("#101010");
+    expect(s.viewBackgroundPattern.type).toBe("lines");
+  });
+
+  it("the page count of the same batch sees page mode switched on", () => {
+    const { api, updateScene } = stubApi([]);
+    applyOps(api, add, { drawing: { pageMode: true }, pageCount: 3 });
+    expect(updateScene.mock.calls[0][0].appState.pageSetup).toMatchObject({
+      enabled: true,
+      pageCount: 3,
+    });
+  });
+});

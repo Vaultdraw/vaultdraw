@@ -1,4 +1,5 @@
 import type { Disposable } from "./disposable";
+import type { PageSizeName } from "./pages";
 import type { Json } from "./storage";
 
 /**
@@ -252,6 +253,44 @@ export type SceneOp =
     };
 
 /**
+ * The paper styles a drawing can sit on (`plain` is no pattern).
+ *
+ * @experimental
+ * @since 1.5.0
+ */
+export type PaperStyle =
+  | "plain"
+  | "lines"
+  | "grid"
+  | "dots"
+  | "graph"
+  | "isometric";
+
+/**
+ * A drawing's own settings: page mode, the paper it sits on, the page shape and the canvas
+ * colour. Every field is optional; a field left out stays as it is.
+ *
+ * @experimental
+ * @since 1.5.0
+ */
+export interface DrawingSettings {
+  /** Pages instead of the infinite canvas. @since 1.5.0 */
+  pageMode?: boolean;
+  /** The paper pattern: `plain`, ruled `lines`, `grid`, `dots`, `graph` or `isometric`. @since 1.5.0 */
+  paper?: PaperStyle;
+  /** The page colours: `normal` (white), `oldSchool` (cream, blue lines) or `match` (the app theme). @since 1.5.0 */
+  paperTheme?: "normal" | "oldSchool" | "match";
+  /** A named page size. @since 1.5.0 */
+  pageSize?: PageSizeName;
+  /** @since 1.5.0 */
+  orientation?: "portrait" | "landscape";
+  /** Separate sheets with a gap, or one continuous page. @since 1.5.0 */
+  layout?: "separate" | "continuous";
+  /** The canvas or page colour as `#rgb`, `#rrggbb` or `#rrggbbaa`, or `transparent`. @since 1.5.0 */
+  background?: string;
+}
+
+/**
  * What `scene.batch` resolves to.
  *
  * @since 0.4.0
@@ -292,6 +331,14 @@ export interface BatchOptions {
    * @since 0.26.0
    */
   reveal?: boolean;
+  /**
+   * Changes the drawing's own settings in the same undo step as the ops (the ops list may be
+   * empty). Invalid fields reject with `INVALID_ARGUMENT` before anything changes.
+   *
+   * @experimental
+   * @since 1.5.0
+   */
+  drawing?: DrawingSettings;
 }
 
 /**
@@ -516,4 +563,12 @@ export interface SceneContextApi {
    * @since 0.26.0
    */
   sizeBytes(): number;
+  /**
+   * The open drawing's own settings as they are now (every field filled), or null with no
+   * drawing open. `pageSize` is left out for a custom size.
+   *
+   * @experimental
+   * @since 1.5.0
+   */
+  drawing(): DrawingSettings | null;
 }

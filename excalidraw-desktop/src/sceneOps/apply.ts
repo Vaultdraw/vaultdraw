@@ -32,11 +32,18 @@ import type { AppState } from "@excalidraw/excalidraw/types";
 import { getPageSetupPatch } from "../page/pageSetupChange";
 
 import { buildBatch, normalAngle, roundnessFor, withData } from "./build";
+import { drawingPatch } from "./drawingSettings";
 import { planImages } from "./images";
 import { validateOps } from "./validate";
 import { viewportCenter } from "./viewport";
 
-import type { BatchResult, NewElement, SceneApi, SceneOp } from "./types";
+import type {
+  BatchResult,
+  DrawingSettings,
+  NewElement,
+  SceneApi,
+  SceneOp,
+} from "./types";
 import type { ImageHashes } from "./images";
 import type { ValidateOptions } from "./validate";
 
@@ -48,6 +55,8 @@ export type ApplyOptions = ValidateOptions & {
   images?: ImageHashes;
   /** Page mode: the page count to set in the same undo step (clamped to the page limit). */
   pageCount?: number;
+  /** The drawing's own settings, changed in the same update (already checked). */
+  drawing?: DrawingSettings;
   /** Scroll the first added element to the top-centre of the view (not in page mode). */
   reveal?: boolean;
 };
@@ -222,7 +231,16 @@ export const applyOps = (
   if (imagePlan?.files.length) {
     api.addFiles(imagePlan.files);
   }
-  const appState = api.getAppState();
+  const before = api.getAppState();
+  const drawingChange = options.drawing
+    ? drawingPatch(before, options.drawing)
+    : undefined;
+  const drawing =
+    drawingChange && Object.keys(drawingChange).length > 0
+      ? drawingChange
+      : undefined;
+  // the page count and the reveal see the settings this batch sets (page mode switched on here)
+  const appState = drawing ? { ...before, ...drawing } : before;
   const pageCount =
     options.pageCount !== undefined && isPageModeOn(appState.pageSetup)
       ? Math.min(PAGE_LIMITS.pageCount.max, Math.max(1, options.pageCount))
@@ -241,9 +259,14 @@ export const applyOps = (
       : undefined;
   // updateScene infers one Pick<AppState, K>; the patch is one of two kinds
   const patch = (
-    pageCount !== undefined
-      ? getPageSetupPatch(appState, { pageCount })
-      : revealPatch
+    pageCount !== undefined || drawing || revealPatch
+      ? {
+          ...drawing,
+          ...(pageCount !== undefined
+            ? getPageSetupPatch(appState, { pageCount })
+            : revealPatch),
+        }
+      : undefined
   ) as Pick<AppState, "pageSetup"> | undefined;
   api.updateScene({
     elements,

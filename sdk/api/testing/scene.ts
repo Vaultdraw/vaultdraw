@@ -1,3 +1,4 @@
+import { checkDrawingSettings } from "../shared/drawingRules";
 import { PluginApiError } from "../shared/rules";
 import {
   imageBudget,
@@ -12,6 +13,7 @@ import {
 import type {
   BatchResult,
   Disposable,
+  DrawingSettings,
   FontFamilyName,
   Json,
   NewElement,
@@ -230,6 +232,16 @@ export function createSceneModel(
   const listeners = new Set<(e: Change) => void>();
   const batches: FakeBatch[] = [];
   let appState: Record<string, unknown> = {};
+  /** The drawing's own settings (`scene.drawing()`), a new drawing's defaults until a batch sets them. */
+  let drawingState: DrawingSettings = {
+    pageMode: false,
+    paper: "plain",
+    paperTheme: "normal",
+    pageSize: "a4",
+    orientation: "portrait",
+    layout: "separate",
+    background: "#ffffff",
+  };
   const scrolled: string[] = [];
   const fitted: {
     id: string;
@@ -697,6 +709,10 @@ export function createSceneModel(
               "INVALID_ARGUMENT",
             );
           }
+          const drawing =
+            options?.drawing === undefined
+              ? undefined
+              : checkDrawingSettings(options.drawing);
           const hashes = await hashImages(ops);
           if (path === null) {
             throw refusal("no drawing is open", "NOT_FOUND");
@@ -705,7 +721,13 @@ export function createSceneModel(
             throw refusal("the drawing is read-only", "READ_ONLY");
           }
           try {
-            return apply(ops, dataKey, hashes);
+            const result = apply(ops, dataKey, hashes);
+            if (drawing) {
+              drawingState = { ...drawingState, ...drawing };
+              const last = batches.length - 1;
+              batches[last] = { ...batches[last], drawing };
+            }
+            return result;
           } catch (err) {
             if (err instanceof SceneOpsError) {
               logError(`scene.batch: ${err.message}`);
@@ -769,6 +791,7 @@ export function createSceneModel(
           });
           return { rects, pageCount: null, firstPage: null, maxPages: null };
         },
+        drawing: () => (path === null ? null : { ...drawingState }),
         sizeBytes: () =>
           path === null
             ? 0

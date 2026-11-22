@@ -1,4 +1,4 @@
-// @vaultdraw/api 1.4.0
+// @vaultdraw/api 1.5.0
 // cli.ts
 export type CliToolId = "claude" | "codex";
 export interface CliToolStatus {
@@ -210,6 +210,7 @@ export type { BuildSceneOptions, CreateDocumentOptions, FlowItem, FlowOptions, F
 export type { PanelsApi } from "./panels";
 export { definePlugin } from "./plugin";
 export type { LogApi, Plugin, PluginContext, UiApi } from "./plugin";
+export type { DrawingSettings, PaperStyle } from "./scene";
 export type { BatchOptions, PagePlacement, PageRect, BatchResult, ElementId, ElementRef, ImageSource, FontFamilyName, NewElement, SceneContextApi, SceneElementDetail, SceneElement, SceneElementType, SceneOp, SceneOpIssue, } from "./scene";
 export type { SelectOption, SettingDecl, SettingScopeName, SettingsApi, SettingValue, } from "./settings";
 export type { StatusBarApi, StatusBarState } from "./statusBar";
@@ -808,6 +809,7 @@ export interface PresentApi {
 
 // scene.ts
 import type { Disposable } from "./disposable";
+import type { PageSizeName } from "./pages";
 import type { Json } from "./storage";
 export type SceneElementType = "rectangle" | "ellipse" | "diamond" | "text" | "arrow" | "line" | "freedraw" | "image" | "frame" | "other";
 export interface SceneElement {
@@ -875,6 +877,16 @@ export type SceneOp = {
     op: "group";
     ids: readonly (string | ElementRef)[];
 };
+export type PaperStyle = "plain" | "lines" | "grid" | "dots" | "graph" | "isometric";
+export interface DrawingSettings {
+    pageMode?: boolean;
+    paper?: PaperStyle;
+    paperTheme?: "normal" | "oldSchool" | "match";
+    pageSize?: PageSizeName;
+    orientation?: "portrait" | "landscape";
+    layout?: "separate" | "continuous";
+    background?: string;
+}
 export interface BatchResult {
     ids: string[];
     refs: Record<string, string>;
@@ -883,6 +895,7 @@ export interface BatchOptions {
     path?: string;
     pageCount?: number;
     reveal?: boolean;
+    drawing?: DrawingSettings;
 }
 export interface PageRect {
     x: number;
@@ -953,6 +966,7 @@ export interface SceneContextApi {
         height: number;
     }[]): PagePlacement;
     sizeBytes(): number;
+    drawing(): DrawingSettings | null;
 }
 
 // secret.ts

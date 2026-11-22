@@ -174,6 +174,36 @@ describe("ctx.scene.batch", () => {
     expect(ctx.scene.sizeBytes()).toBe(0);
   });
 
+  it("drawing settings: a batch sets them (even with no ops), drawing() reads them, bad ones change nothing", async () => {
+    const ctx = await bootCtx((c) => void c.commands.register("go", () => {}));
+    expect(ctx.scene.drawing()).toMatchObject({
+      pageMode: false,
+      paper: "plain",
+    });
+    await ctx.scene.batch([], {
+      drawing: { pageMode: true, paper: "lines", paperTheme: "normal" },
+    });
+    expect(t!.scene.batches).toHaveLength(1);
+    expect(ctx.scene.drawing()).toMatchObject({
+      pageMode: true,
+      paper: "lines",
+    });
+    for (const bad of [
+      { paper: "stripes" },
+      { pageMode: "yes" },
+      { background: "white" },
+      { pageSize: "custom" },
+      { colour: "#fff" },
+    ]) {
+      await expect(
+        ctx.scene.batch([], { drawing: bad as never }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    }
+    expect(t!.scene.batches).toHaveLength(1);
+    t!.scene.switchTo(null);
+    expect(ctx.scene.drawing()).toBeNull();
+  });
+
   it("viewportCenter reads the active viewport", async () => {
     const ctx = await bootCtx((c) => void c.commands.register("go", () => {}));
     expect(ctx.scene.viewportCenter()).toEqual({ x: 400, y: 300 });

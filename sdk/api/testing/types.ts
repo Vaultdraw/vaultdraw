@@ -3,6 +3,7 @@ import type { FakeNet } from "./net";
 import type { FakeNetwork } from "./network";
 import type {
   AppEventMap,
+  DrawingSettings,
   CommandContribution,
   ImporterContribution,
   MenuContribution,
@@ -134,6 +135,8 @@ export type FakeElementInput = Omit<NewElement, "type"> & {
 export interface FakeBatch {
   captureUpdate?: unknown;
   elements: readonly FakeElement[];
+  /** The drawing settings the batch changed (`batch(ops, { drawing })`). */
+  drawing?: DrawingSettings;
 }
 
 /** A minimal editor with one open drawing. */

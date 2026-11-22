@@ -10,6 +10,8 @@ import {
   SceneOpsError,
   viewportCenter,
 } from "../../sceneOps";
+import { checkDrawingSettings } from "../../../../sdk/api/shared/drawingRules";
+import { readDrawingSettings } from "../../sceneOps/drawingSettings";
 import { currentDrawingBytes } from "../../sceneOps/drawingBytes";
 import { FONT_NAME } from "../../sceneOps/project";
 import { planPagePlacement } from "../../sceneOps/placePages";
@@ -138,6 +140,10 @@ export function createSceneApi(
           "INVALID_ARGUMENT",
         );
       }
+      const drawing =
+        batchOptions?.drawing === undefined
+          ? undefined
+          : checkDrawingSettings(batchOptions.drawing);
       const maxOps = options.maxOps();
       // Hashing is async: look at the scene again afterwards, so the checks
       // and the write happen in the same synchronous step.
@@ -168,6 +174,7 @@ export function createSceneApi(
           maxOps,
           images,
           pageCount,
+          drawing,
           reveal: batchOptions?.reveal === true,
         });
       } catch (err) {
@@ -258,6 +265,10 @@ export function createSceneApi(
           ? plan.maxPagesThatFit
           : null,
       };
+    },
+    drawing() {
+      const scene = getActiveScene();
+      return scene ? readDrawingSettings(scene.api.getAppState()) : null;
     },
     sizeBytes() {
       const scene = getActiveScene();
