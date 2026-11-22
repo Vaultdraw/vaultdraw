@@ -107,8 +107,8 @@ test("AI assistant: turn it on, save a key, ask, stream, stop, offline", async (
     });
   });
 
-  await run(page, "AI: Ask about", /AI: Ask about this drawing/);
-  const input = page.getByLabel("Ask about this drawing");
+  await run(page, "AI: Open the assistant", /AI: Open the assistant/);
+  const input = page.getByLabel("Ask, explain, draw or change anything");
   await expect(input).toBeVisible();
   await expect(input).toBeFocused();
 
@@ -252,7 +252,6 @@ test("AI assistant: an edit is proposed first, Discard changes nothing, Keep app
     elements: [text("a", 60, "Login page"), text("b", 130, "Checkout page")],
   });
   const plan = JSON.stringify({
-    title: "More boxes",
     ops: [
       { op: "add", type: "rectangle", text: "Logout", x: 300, y: 60 },
       { op: "move", id: "b", x: 400, y: 200 },
@@ -264,7 +263,7 @@ test("AI assistant: an edit is proposed first, Discard changes nothing, Keep app
     net.respond = () => ({
       chunks: [
         `data: {"type":"content_block_delta","delta":{"type":"text_delta","text":${JSON.stringify(
-          `\`\`\`json\n${reply}\n\`\`\``,
+          `Done.\n\`\`\`vd edit\n${reply}\n\`\`\``,
         )}}}\n\n`,
         'data: {"type":"message_stop"}\n\n',
       ],
@@ -274,8 +273,8 @@ test("AI assistant: an edit is proposed first, Discard changes nothing, Keep app
   expect(await count()).toBe(2);
 
   const propose = async () => {
-    await run(page, "AI: Edit this", /AI: Edit this drawing/);
-    const input = page.getByLabel(/Say what to change/);
+    await run(page, "AI: Open the assistant", /AI: Open the assistant/);
+    const input = page.getByLabel("Ask, explain, draw or change anything");
     await expect(input).toBeFocused();
     await input.fill("Add a Logout box and move the checkout text");
     await page.getByRole("button", { name: "Send" }).click();
@@ -440,9 +439,9 @@ test("AI panel: connect a subscription, pick a model and effort, chat, stop, and
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByText(/w29 /)).toHaveCount(0);
 
-  // /edit picks the mode; the proposal sits in the thread with Keep and Discard; Keep applies it.
+  // One box: the model's reply holds a vd edit block; the proposal sits in the thread with Keep and
+  // Discard; Keep applies it. There is no Mode control and no slash list.
   const plan = JSON.stringify({
-    title: "More boxes",
     ops: [{ op: "add", type: "rectangle", text: "Logout", x: 300, y: 60 }],
   });
   await page.evaluate((reply) => {
@@ -452,17 +451,20 @@ test("AI panel: connect a subscription, pick a model and effort, chat, stop, and
           type: "stream_event",
           event: {
             type: "content_block_delta",
-            delta: { type: "text_delta", text: `\`\`\`json\n${reply}\n\`\`\`` },
+            delta: {
+              type: "text_delta",
+              text: `Done.\n\`\`\`vd edit\n${reply}\n\`\`\``,
+            },
           },
         })}\n`,
       ],
     });
   }, plan);
-  await box.fill("/edit");
-  await box.press("Enter");
   await expect(
     page.getByRole("button", { name: "Mode", exact: true }),
-  ).toHaveAttribute("title", /Edit this drawing/);
+  ).toHaveCount(0);
+  await box.fill("/");
+  await expect(page.getByRole("listbox", { name: "Modes" })).toHaveCount(0);
   await box.fill("Add a Logout box");
   await box.press("Enter");
   const card = page.getByLabel("Proposed change");

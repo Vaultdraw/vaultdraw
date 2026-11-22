@@ -10,7 +10,7 @@ import { nextAccess } from "../src/access";
 import plugin from "../src/main";
 import { secretNameOf, type ProviderConfig } from "../src/providers";
 
-import { pickMode } from "./ui";
+import { ask as say } from "./ui";
 
 let p: TestPlugin | undefined;
 afterEach(async () => {
@@ -28,7 +28,8 @@ const sse = (t: string) => [
   "data: [DONE]\n\n",
 ];
 const reply = (ops: unknown[]) =>
-  `\`\`\`json\n${JSON.stringify({ title: "Plan", ops })}\n\`\`\``;
+  `Done.\n\`\`\`vd edit\n${JSON.stringify({ ops })}\n\`\`\``;
+const newDrawing = `Here.\n\`\`\`vd new title="Blob"\n\`\`\`\n\`\`\`vd text\nHello\n\`\`\``;
 
 async function start(access?: string) {
   p = await boot(manifest(), plugin);
@@ -44,16 +45,9 @@ async function start(access?: string) {
   await p.openPanel("assistant");
 }
 
-const ask = async (
-  mode: string,
-  label: RegExp,
-  text: string,
-  model: string,
-) => {
+const ask = async (text: string, model: string) => {
   p!.net.respond = () => ({ chunks: sse(model) });
-  pickMode(mode);
-  fireEvent.change(screen.getByLabelText(label), { target: { value: text } });
-  fireEvent.click(screen.getByRole("button", { name: "Send" }));
+  say(text);
 };
 
 describe("permission modes", () => {
@@ -66,12 +60,7 @@ describe("permission modes", () => {
   it("ask first is the default: a proposal with Keep, nothing applied", async () => {
     await start();
     expect(screen.getByRole("button", { name: "Permission" })).toBeTruthy();
-    await ask(
-      "Edit this drawing",
-      /Say what to change/,
-      "x",
-      reply([{ op: "add", type: "ellipse" }]),
-    );
+    await ask("x", reply([{ op: "add", type: "ellipse" }]));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Keep" })).toBeTruthy(),
     );
@@ -80,12 +69,7 @@ describe("permission modes", () => {
 
   it("apply at once: one undo step now, a result card with Undo, no Keep", async () => {
     await start("auto");
-    await ask(
-      "Edit this drawing",
-      /Say what to change/,
-      "x",
-      reply([{ op: "add", type: "ellipse" }]),
-    );
+    await ask("x", reply([{ op: "add", type: "ellipse" }]));
     await waitFor(() => expect(screen.getByLabelText("Result")).toBeTruthy());
     expect(p!.scene.batches).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Keep" })).toBeNull();
@@ -98,12 +82,7 @@ describe("permission modes", () => {
 
   it("apply at once still asks before making a new drawing", async () => {
     await start("auto");
-    await ask(
-      "New drawing",
-      /Describe the new drawing/,
-      "x",
-      reply([{ op: "add", type: "ellipse" }]),
-    );
+    await ask("x", newDrawing);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Keep" })).toBeTruthy(),
     );
@@ -112,12 +91,7 @@ describe("permission modes", () => {
 
   it("read only: an edit request is answered in words and never proposes or applies", async () => {
     await start("read");
-    await ask(
-      "Edit this drawing",
-      /Say what to change/,
-      "make it red",
-      "Select the box and pick red.",
-    );
+    await ask("make it red", "Select the box and pick red.");
     await waitFor(() =>
       expect(document.body.textContent).toContain(
         "Select the box and pick red.",
@@ -126,8 +100,8 @@ describe("permission modes", () => {
     expect(screen.queryByLabelText("Proposed change")).toBeNull();
     expect(screen.queryByRole("button", { name: "Keep" })).toBeNull();
     expect(p!.scene.batches).toHaveLength(0);
-    // the model was not asked for a plan
-    expect(p!.net.requests[0].body).not.toContain("fenced json");
+    // the model was told not to add action blocks
+    expect(p!.net.requests[0].body).toContain("Read only");
   });
 
   it("the command cycles the setting and says which mode", async () => {
@@ -170,8 +144,6 @@ describe("drawing settings through the assistant", () => {
   it("Ask: shows 'Page mode on, lined paper', Keep applies the settings once, in one batch", async () => {
     await start();
     await ask(
-      "Edit this drawing",
-      /Say what to change/,
       "page mode on, normal paper with lines",
       reply([
         { op: "drawing", pageMode: true, paper: "lines", paperTheme: "normal" },
@@ -200,8 +172,6 @@ describe("drawing settings through the assistant", () => {
   it("Apply at once: settings and shapes land together, with Undo", async () => {
     await start("auto");
     await ask(
-      "Edit this drawing",
-      /Say what to change/,
       "x",
       reply([
         { op: "drawing", paper: "grid" },
@@ -220,26 +190,27 @@ describe("drawing settings through the assistant", () => {
     expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy();
   });
 
-  it("a plan with the model's own reason is shown as normal text, not a red error", async () => {
-    await start();
-    await ask(
-      "Edit this drawing",
-      /Say what to change/,
-      "make it 3d",
-      JSON.stringify({
-        title: "",
-        ops: [],
-        message: "I can only change shapes and paper.",
-      }),
-    );
+  it("Read only: a reply with action blocks shows the words and says the drawing was not changed", async () => {
+    await start("read");
+    await ask("x", reply([{ op: "add", type: "ellipse" }]));
     await waitFor(() =>
-      expect(document.body.textContent).toMatch(
-        /couldn.t turn that into a change/,
+      expect(document.body.textContent).toContain(
+        "Read only: the drawing was not changed.",
       ),
     );
-    expect(document.body.textContent).toContain(
-      "I can only change shapes and paper.",
+    expect(screen.queryByLabelText("Proposed change")).toBeNull();
+    expect(p!.scene.batches).toHaveLength(0);
+  });
+
+  it("a reply with a drawing-settings block proposes the settings alone", async () => {
+    await start();
+    await ask(
+      "paper with lines",
+      'Done.\n```vd settings\n{"paper":"lines"}\n```',
     );
-    expect(screen.queryByRole("alert")).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByLabelText("Proposed change")).toBeTruthy(),
+    );
+    expect(screen.getByText("Lined paper")).toBeTruthy();
   });
 });

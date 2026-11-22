@@ -49,9 +49,12 @@ async function start(seed?: Record<string, unknown>) {
 
 const ask = async (question: string, answer: string) => {
   p!.net.respond = () => ({ chunks: sse(answer) });
-  fireEvent.change(screen.getByLabelText(/Ask about this drawing/), {
-    target: { value: question },
-  });
+  fireEvent.change(
+    screen.getByLabelText("Ask, explain, draw or change anything"),
+    {
+      target: { value: question },
+    },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
   await screen.findByText(answer);
 };
@@ -102,30 +105,56 @@ describe("chat tabs (toimprove 362)", () => {
   it("each tab keeps its own unsent text", async () => {
     await start();
     await ask("one", "A1");
-    fireEvent.change(screen.getByLabelText(/Ask about this drawing/), {
-      target: { value: "half a thought" },
-    });
+    fireEvent.change(
+      screen.getByLabelText("Ask, explain, draw or change anything"),
+      {
+        target: { value: "half a thought" },
+      },
+    );
     plus();
     expect(
-      (screen.getByLabelText(/Ask about this drawing/) as HTMLTextAreaElement)
-        .value,
+      (
+        screen.getByLabelText(
+          "Ask, explain, draw or change anything",
+        ) as HTMLTextAreaElement
+      ).value,
     ).toBe("");
     fireEvent.click(tabs()[0]);
     expect(
-      (screen.getByLabelText(/Ask about this drawing/) as HTMLTextAreaElement)
-        .value,
+      (
+        screen.getByLabelText(
+          "Ask, explain, draw or change anything",
+        ) as HTMLTextAreaElement
+      ).value,
     ).toBe("half a thought");
   });
 
-  it("each tab keeps its own mode", async () => {
+  it("each tab keeps its own context choice, and no tab has a Mode control", async () => {
     await start();
     await ask("one", "A1");
-    await p!.run("edit");
-    expect(screen.getByLabelText(/Say what to change/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Add context" }));
+    fireEvent.click(
+      screen.getByRole("option", { name: /^Only the selection/ }),
+    );
     plus();
-    await p!.run("diagram");
+    expect(screen.queryByRole("button", { name: "Mode" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add context" }));
+    // the new tab starts on the default choice, the first one still has its own
+    expect(
+      screen
+        .getByRole("option", { name: /^Selection, or the whole drawing/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
     fireEvent.click(tabs()[0]);
-    expect(screen.getByLabelText(/Say what to change/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Add context" }));
+    expect(
+      screen
+        .getByRole("option", { name: /^Only the selection/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
   });
 
   it("closing: x closes, the neighbour is shown, middle-click closes, the last leaves an empty chat", async () => {
@@ -238,9 +267,12 @@ describe("chat tabs (toimprove 362)", () => {
       chunkDelayMs: 120,
     });
     plus();
-    fireEvent.change(screen.getByLabelText(/Ask about this drawing/), {
-      target: { value: "slow" },
-    });
+    fireEvent.change(
+      screen.getByLabelText("Ask, explain, draw or change anything"),
+      {
+        target: { value: "slow" },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await screen.findByText("partial");
     fireEvent.click(tabs()[0]);

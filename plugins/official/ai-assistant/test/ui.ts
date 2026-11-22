@@ -1,14 +1,13 @@
 /** Helpers for tests that use the panel the way a user does. */
 import { fireEvent, screen } from "@testing-library/react";
 
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export const BOX = "Ask, explain, draw or change anything";
 
-/** Opens the mode list and picks a mode by its title (for example "Edit this drawing"). */
-export function pickMode(title: string) {
-  fireEvent.click(screen.getByRole("button", { name: "Mode" }));
-  fireEvent.click(
-    screen.getByRole("option", { name: new RegExp(`^${escape(title)}`) }),
-  );
+/** Types a message into the one box and sends it with Enter. */
+export function ask(text: string) {
+  const box = screen.getByLabelText(BOX);
+  fireEvent.change(box, { target: { value: text } });
+  fireEvent.keyDown(box, { key: "Enter" });
 }
 
 /** Opens the panel's settings view with the gear. */

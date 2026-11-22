@@ -8,7 +8,7 @@ import { boot, type TestPlugin } from "@vaultdraw/api/testing";
 import { parseManifest } from "../../../../sdk/examples/testing/readManifest";
 import plugin from "../src/main";
 
-import { openSettings, pickMode, saveKey } from "./ui";
+import { openSettings, saveKey } from "./ui";
 
 import type { PluginContext } from "@vaultdraw/api";
 
@@ -103,7 +103,7 @@ describe("a subscription, one step", () => {
     expect(run.tool).toBe("claude");
     expect(run.prompt).toContain("Login page");
     expect(run.prompt).toContain("Secret plan");
-    expect(run.system).toMatch(/help someone/i);
+    expect(run.system).toMatch(/assistant inside Vaultdraw/);
     expect(p!.net.requests).toHaveLength(0);
     expect(screen.getByText("world").tagName).toBe("STRONG");
     expect(screen.getByRole("tab").getAttribute("title")).toContain("Claude");
@@ -208,10 +208,7 @@ describe("a subscription, one step", () => {
   });
 });
 
-const modeTitle = () =>
-  screen.getByRole("button", { name: "Mode" }).getAttribute("title") ?? "";
-
-describe("model, effort, mode and context controls", () => {
+describe("model, effort and context controls", () => {
   it("the model picker is searchable, grouped by provider, and takes a typed name", async () => {
     await start({ claude: { state: "ready" }, codex: { state: "ready" } });
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
@@ -300,17 +297,19 @@ describe("model, effort, mode and context controls", () => {
     expect(seen).toEqual(["low", "medium", "high", "xhigh", "max", "", "low"]);
   });
 
-  it("the mode list and the slash helper change the mode", async () => {
+  it("there is no Mode control and typing / shows no list: one box does everything", async () => {
     await start();
-    pickMode("Describe the selection");
-    expect(modeTitle()).toContain("Describe the selection");
-    type("/ed");
-    const helper = screen.getByRole("listbox", { name: "Modes" });
-    expect(within(helper).getAllByRole("option")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Mode" })).toBeNull();
+    type("/");
+    expect(screen.queryByRole("listbox", { name: "Modes" })).toBeNull();
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
+      "/",
+    );
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
-    expect(modeTitle()).toContain("Edit this drawing");
-    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("");
-    expect(p!.net.cli.runs).toHaveLength(0);
+    // Enter sends the text as it is, it does not pick a mode
+    await waitFor(() => expect(p!.net.cli.runs).toHaveLength(1));
+    expect(p!.net.cli.runs[0].prompt).toContain("/");
   });
 
   it("@ chooses what is sent, and Nothing sends no drawing text", async () => {
@@ -328,7 +327,9 @@ describe("model, effort, mode and context controls", () => {
     await start();
     pick("Add context", /^Only the selection/);
     await ask("hi");
-    expect(screen.getByRole("alert").textContent).toMatch(/Select something/);
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /Select something in the drawing first, or choose another context/,
+    );
     expect(p!.net.cli.runs).toHaveLength(0);
   });
 
@@ -391,18 +392,18 @@ describe("the thread", () => {
     );
   });
 
-  it("the empty state is one hint line; the modes list appears when / is typed", async () => {
+  it("the empty state is one hint line, and typing / adds no list", async () => {
     await start();
     expect(
-      screen.getByText("Type / for commands, @ to add context"),
+      screen.getByText(
+        "Ask a question, have a topic explained on the page, or say what to change. @ chooses what is sent.",
+      ),
     ).toBeTruthy();
-    expect(screen.queryByRole("list", { name: "Modes" })).toBeNull();
-    expect(screen.queryByRole("listbox", { name: "Modes" })).toBeNull();
+    expect(screen.queryByRole("listbox")).toBeNull();
     type("/");
-    const helper = screen.getByRole("listbox", { name: "Modes" });
-    expect(within(helper).getAllByRole("option")).toHaveLength(6);
-    fireEvent.click(within(helper).getByRole("option", { name: /\/diagram/ }));
-    expect(modeTitle()).toContain("Generate a diagram");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    type("@");
+    expect(screen.getByRole("listbox")).toBeTruthy();
   });
 });
 
@@ -632,11 +633,8 @@ describe("images in the composer", () => {
 });
 
 describe("the toolbar and the + menu", () => {
-  it("the effort and mode are icons with full names in their tooltips; the model has its full name too", async () => {
+  it("the effort is an icon with its full name in the tooltip; the model has its full name too", async () => {
     await start();
-    const mode = screen.getByRole("button", { name: "Mode" });
-    expect(mode.textContent).toBe("");
-    expect(mode.getAttribute("title")).toMatch(/^Mode: Ask \(\/ask\)/);
     const effort = screen.getByRole("button", { name: "Reasoning effort" });
     expect(effort.textContent).toBe("");
     expect(effort.getAttribute("title")).toBe("Reasoning effort: default");
@@ -663,12 +661,21 @@ describe("the toolbar and the + menu", () => {
     ).toBeNull();
   });
 
-  it("Diagram and New drawing send no drawing, so the + menu has no context choices", async () => {
+  it("the + menu always offers the context choices, the image and what is sent", async () => {
     await start();
-    pickMode("Generate a diagram");
     fireEvent.click(screen.getByRole("button", { name: "Add context" }));
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
-      "Attach image…",
-    ]);
+    const names = screen.getAllByRole("option").map((o) => o.textContent ?? "");
+    expect(names.some((n) => /^Only the selection/.test(n))).toBe(true);
+    expect(names.some((n) => /^The whole drawing/.test(n))).toBe(true);
+    expect(names.some((n) => /^Attach image/.test(n))).toBe(true);
+    expect(names.some((n) => /^Show what is sent/.test(n))).toBe(true);
+  });
+
+  it("Show what is sent shows the instructions and the drawing summary", async () => {
+    await start();
+    pick("Add context", /^Show what is sent/);
+    const box = await screen.findByLabelText("What is sent");
+    expect(box.textContent).toContain("Instructions:");
+    expect(box.textContent).toContain("Login page");
   });
 });

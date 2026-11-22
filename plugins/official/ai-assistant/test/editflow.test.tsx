@@ -9,7 +9,7 @@ import { parseManifest } from "../../../../sdk/examples/testing/readManifest";
 import plugin from "../src/main";
 import { secretNameOf, type ProviderConfig } from "../src/providers";
 
-import { pickMode } from "./ui";
+import { ask } from "./ui";
 
 let p: TestPlugin | undefined;
 afterEach(async () => {
@@ -26,8 +26,11 @@ const sse = (t: string) => [
   `data: {"choices":[{"delta":{"content":${JSON.stringify(t)}}}]}\n\n`,
   "data: [DONE]\n\n",
 ];
-const reply = (ops: unknown[], title = "Plan") =>
-  `\`\`\`json\n${JSON.stringify({ title, ops })}\n\`\`\``;
+const reply = (ops: unknown[]) =>
+  `Done.\n\`\`\`vd edit\n${JSON.stringify({ ops })}\n\`\`\``;
+/** A reply that makes a new drawing: the name, then two headings and a text. */
+const newDrawing = (title: string) =>
+  `Here it is.\n\`\`\`vd new title="${title}"\n\`\`\`\n\`\`\`vd heading level=1\n${title}\n\`\`\`\n\`\`\`vd text\nUser, then Server\n\`\`\``;
 
 async function start() {
   p = await boot(manifest(), plugin);
@@ -43,16 +46,9 @@ async function start() {
   await p.openPanel("assistant");
 }
 
-const send = async (
-  tab: string,
-  label: RegExp,
-  text: string,
-  model: string,
-) => {
+const send = async (text: string, model: string) => {
   p!.net.respond = () => ({ chunks: sse(model) });
-  pickMode(tab);
-  fireEvent.change(screen.getByLabelText(label), { target: { value: text } });
-  fireEvent.click(screen.getByRole("button", { name: "Send" }));
+  ask(text);
   await waitFor(() =>
     expect(screen.getByLabelText("Proposed change")).toBeTruthy(),
   );
@@ -63,8 +59,6 @@ describe("edit this drawing", () => {
     await start();
     const id = p!.scene.live()[0].id;
     await send(
-      "Edit this drawing",
-      /Say what to change/,
       "red box, add two",
       reply([
         { op: "restyle", id, strokeColor: "#e03131" },
@@ -78,9 +72,11 @@ describe("edit this drawing", () => {
       'Adds box "Logout"',
       'Adds box "Help"',
     ]);
-    // the model was told the ids and the request
+    // the model was told the request and what is on the page
     const body = JSON.parse(p!.net.requests[0].body!);
-    expect(body.messages.at(-1).content).toContain(`id ${id}`);
+    expect(body.messages.at(-1).content).toContain("red box, add two");
+    expect(body.messages.at(-1).content).toContain("What you can see now:");
+    expect(body.messages.at(-1).content).toContain('"Login page"');
     // nothing applied, the touched shape is shown on the canvas
     expect(p!.scene.batches).toHaveLength(0);
     expect(p!.scene.live()).toHaveLength(2);
@@ -105,12 +101,7 @@ describe("edit this drawing", () => {
 
   it("Discard drops the plan and writes nothing", async () => {
     await start();
-    await send(
-      "Edit this drawing",
-      /Say what to change/,
-      "x",
-      reply([{ op: "add", type: "ellipse" }]),
-    );
+    await send("x", reply([{ op: "add", type: "ellipse" }]));
     fireEvent.click(screen.getByRole("button", { name: "Discard" }));
     expect(screen.queryByLabelText("Proposed change")).toBeNull();
     expect(p!.scene.batches).toHaveLength(0);
@@ -123,20 +114,10 @@ describe("edit this drawing", () => {
     expect(p!.toasts()).toContain(
       "AI assistant: There is no proposed change to keep",
     );
-    await send(
-      "Edit this drawing",
-      /Say what to change/,
-      "x",
-      reply([{ op: "add", type: "ellipse" }]),
-    );
+    await send("x", reply([{ op: "add", type: "ellipse" }]));
     await p!.run("keep");
     await waitFor(() => expect(p!.scene.batches).toHaveLength(1));
-    await send(
-      "Edit this drawing",
-      /Say what to change/,
-      "y",
-      reply([{ op: "add", type: "ellipse" }]),
-    );
+    await send("y", reply([{ op: "add", type: "ellipse" }]));
     await p!.run("discard");
     expect(screen.queryByLabelText("Proposed change")).toBeNull();
     expect(p!.scene.batches).toHaveLength(1);
@@ -145,12 +126,7 @@ describe("edit this drawing", () => {
   it("refuses to apply when the drawing changed under the plan", async () => {
     await start();
     const id = p!.scene.live()[0].id;
-    await send(
-      "Edit this drawing",
-      /Say what to change/,
-      "x",
-      reply([{ op: "move", id, x: 9 }]),
-    );
+    await send("x", reply([{ op: "move", id, x: 9 }]));
     p!.scene.setElements([]);
     fireEvent.click(screen.getByRole("button", { name: "Keep" }));
     await waitFor(() =>
@@ -163,12 +139,7 @@ describe("edit this drawing", () => {
 
   it("refuses when another drawing is now open", async () => {
     await start();
-    await send(
-      "Edit this drawing",
-      /Say what to change/,
-      "x",
-      reply([{ op: "add", type: "ellipse" }]),
-    );
+    await send("x", reply([{ op: "add", type: "ellipse" }]));
     p!.scene.switchTo("other.excalidraw");
     fireEvent.click(screen.getByRole("button", { name: "Keep" }));
     await waitFor(() =>
@@ -179,29 +150,36 @@ describe("edit this drawing", () => {
     expect(p!.scene.batches).toHaveLength(0);
   });
 
-  it("a reply that is not a plan is said calmly, in normal text, with the model's words and nothing to keep", async () => {
+  it("a reply with no action blocks is just an answer: the model's words, nothing to keep, no error", async () => {
     await start();
     p!.net.respond = () => ({ chunks: sse("Sorry, I can't.") });
-    pickMode("Edit this drawing");
-    fireEvent.change(screen.getByLabelText(/Say what to change/), {
-      target: { value: "x" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    ask("x");
     await waitFor(() =>
-      expect(document.body.textContent).toMatch(
-        /couldn.t turn that into a change to this drawing/,
+      expect(document.body.textContent).toContain("Sorry, I can't."),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Keep" })).toBeNull();
+    expect(screen.queryByLabelText("Proposed change")).toBeNull();
+  });
+
+  it("blocks that produce nothing show the prose and say nothing could be applied", async () => {
+    await start();
+    p!.net.respond = () => ({
+      chunks: sse('Tried.\n```vd edit\n{"ops":[]}\n```'),
+    });
+    ask("x");
+    await waitFor(() =>
+      expect(document.body.textContent).toContain(
+        "Nothing in the reply could be applied to the drawing.",
       ),
     );
-    expect(document.body.textContent).toContain("Sorry, I can't.");
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(document.body.textContent).toContain("Tried.");
     expect(screen.queryByRole("button", { name: "Keep" })).toBeNull();
   });
 
   it("wrong parts are left out and said so", async () => {
     await start();
     await send(
-      "Edit this drawing",
-      /Say what to change/,
       "x",
       reply([
         { op: "add", type: "ellipse" },
@@ -211,36 +189,26 @@ describe("edit this drawing", () => {
     expect(screen.getByText(/1 part of the reply made no sense/)).toBeTruthy();
   });
 
-  it("asks for words and for an open drawing before sending anything", async () => {
+  it("asks for words before sending anything; with no drawing open the answer is a new drawing", async () => {
     await start();
-    pickMode("Edit this drawing");
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toMatch(
-        /Say what to change/,
-      ),
-    );
-    p!.scene.switchTo(null);
-    fireEvent.change(screen.getByLabelText(/Say what to change/), {
-      target: { value: "x" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toMatch(
-        /Open a drawing first/,
+        /Type a message first/,
       ),
     );
     expect(p!.net.requests).toEqual([]);
+    p!.scene.switchTo(null);
+    await send("a flow", newDrawing("Flow"));
+    expect(screen.getByLabelText("Proposed change").textContent).toMatch(
+      /Adds 1 heading, 1 text/,
+    );
   });
 
   it("Offline mode blocks it in plain words and proposes nothing", async () => {
     await start();
     p!.net.offline = () => true;
-    pickMode("Edit this drawing");
-    fireEvent.change(screen.getByLabelText(/Say what to change/), {
-      target: { value: "x" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    ask("x");
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toMatch(
         /Offline mode is on/,
@@ -251,17 +219,9 @@ describe("edit this drawing", () => {
 
   it("a new request drops an old proposal", async () => {
     await start();
-    await send(
-      "Edit this drawing",
-      /Say what to change/,
-      "x",
-      reply([{ op: "add", type: "ellipse" }]),
-    );
+    await send("x", reply([{ op: "add", type: "ellipse" }]));
     p!.net.respond = () => ({ chunks: sse("no plan") });
-    fireEvent.change(screen.getByLabelText(/Say what to change/), {
-      target: { value: "again" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    ask("again");
     await waitFor(() =>
       expect(screen.queryByLabelText("Proposed change")).toBeNull(),
     );
@@ -272,27 +232,8 @@ describe("create a new drawing", () => {
   it("writes nothing until Keep, then creates it under a free name and opens it", async () => {
     await start();
     p!.vault.seed({ "Login flow.excalidraw": [] });
-    await send(
-      "New drawing",
-      /Describe the new drawing/,
-      "login",
-      reply(
-        [
-          { op: "add", type: "rectangle", text: "User", ref: "u", x: 0, y: 0 },
-          {
-            op: "add",
-            type: "rectangle",
-            text: "Server",
-            ref: "s",
-            x: 200,
-            y: 0,
-          },
-          { op: "add", type: "arrow", from: "u", to: "s" },
-        ],
-        "Login flow",
-      ),
-    );
-    expect(screen.getByText("Adds 2 boxes and 1 arrow")).toBeTruthy();
+    await send("login", newDrawing("Login flow"));
+    expect(screen.getByText("Adds 1 heading, 1 text")).toBeTruthy();
     expect(Object.keys(p!.vault.drawings())).toEqual(["Login flow.excalidraw"]);
     fireEvent.click(screen.getByRole("button", { name: "Keep" }));
     await waitFor(() =>
@@ -303,19 +244,14 @@ describe("create a new drawing", () => {
     expect(
       p!.vault.drawings()["Login flow 2.excalidraw"].filter((e) => !e.isDeleted)
         .length,
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(2);
     expect(p!.workspace.opened().at(-1)?.path).toBe("Login flow 2.excalidraw");
   });
 
   it("the create_folder setting picks the folder", async () => {
     await start();
     await p!.setSetting("create_folder", "AI/");
-    await send(
-      "New drawing",
-      /Describe the new drawing/,
-      "x",
-      reply([{ op: "add", type: "ellipse" }], "Blob"),
-    );
+    await send("x", newDrawing("Blob"));
     fireEvent.click(screen.getByRole("button", { name: "Keep" }));
     await waitFor(() =>
       expect(Object.keys(p!.vault.drawings())).toContain("AI/Blob.excalidraw"),

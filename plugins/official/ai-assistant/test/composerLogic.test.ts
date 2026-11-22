@@ -72,7 +72,7 @@ describe("the toolbar", () => {
 });
 
 describe("the context chip", () => {
-  it("shows nothing for the default and for modes that send no drawing", () => {
+  it("shows nothing for the default and when the choice does not matter", () => {
     expect(contextChip("auto", true)).toBeNull();
     expect(contextChip("drawing", false)).toBeNull();
   });
@@ -141,16 +141,19 @@ describe("pasted and dropped files", () => {
 });
 
 describe("the question box", () => {
-  it("shows the mode list after / and the context list after @, nothing for plain text", () => {
-    expect(helperKind("/")).toBe("slash");
-    expect(helperKind("/ed")).toBe("slash");
+  it("shows the context list after @, and nothing for plain text or a leading / (there is no slash list)", () => {
+    expect(helperKind("/")).toBeNull();
+    expect(helperKind("/ed")).toBeNull();
     expect(helperKind("look at @sel")).toBe("at");
     expect(helperKind("hello")).toBeNull();
     expect(helperKind("a /b")).toBeNull();
     expect(helperKind("")).toBeNull();
   });
-  it("the empty state is one line that names / and @", () => {
-    expect(EMPTY_HINT).toBe("Type / for commands, @ to add context");
+  it("the empty state is one line that names @ and no slash", () => {
+    expect(EMPTY_HINT).toBe(
+      "Ask a question, have a topic explained on the page, or say what to change. @ chooses what is sent.",
+    );
+    expect(EMPTY_HINT).not.toContain("/");
   });
 });
 

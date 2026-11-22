@@ -96,9 +96,11 @@ const setup = async (page: Page, size = { width: 1200, height: 800 }) => {
     row.getByRole("switch", { name: "Enable AI assistant" }),
   ).toBeChecked();
   await page.keyboard.press("Escape");
-  await run(page, "AI: Ask about", /AI: Ask about this drawing/);
+  await run(page, "AI: Open the assistant", /AI: Open the assistant/);
   await page.setViewportSize(size);
-  await expect(page.getByLabel("Ask about this drawing")).toBeVisible();
+  await expect(
+    page.getByLabel("Ask, explain, draw or change anything"),
+  ).toBeVisible();
 };
 
 const respond = (page: Page, reply: object) =>
@@ -127,7 +129,7 @@ test("AI: a refused Send (no key) keeps the question in the box", async ({
 }) => {
   const errors = trackErrors(page);
   await setup(page);
-  const input = page.getByLabel("Ask about this drawing");
+  const input = page.getByLabel("Ask, explain, draw or change anything");
   await input.fill("What pages are there?");
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByRole("alert")).toContainText("No API key is saved");
@@ -148,7 +150,7 @@ test("AI: a wrong key says so in plain words; Remove key forgets it", async ({
       '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
     ],
   });
-  const input = page.getByLabel("Ask about this drawing");
+  const input = page.getByLabel("Ask, explain, draw or change anything");
   await input.fill("What pages are there?");
   await page.getByRole("button", { name: "Send" }).click();
   const alert = page.getByRole("alert");
@@ -179,7 +181,7 @@ test("AI: Copy under an answer says it copied (or could not)", async ({
   await setup(page);
   await saveKey(page);
   await respond(page, { chunks: anthropic(["Two pages."]) });
-  await page.getByLabel("Ask about this drawing").fill("Pages?");
+  await page.getByLabel("Ask, explain, draw or change anything").fill("Pages?");
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByText("Two pages.")).toBeVisible();
   await page.getByRole("button", { name: "Copy" }).click();
@@ -189,25 +191,27 @@ test("AI: Copy under an answer says it copied (or could not)", async ({
   expect(errors).toEqual([]);
 });
 
-// "Draw it" inserts the model's Mermaid as shapes; one Cmd+Z takes them all back (the panel says so).
-test("AI: Draw it, then one Cmd+Z removes the whole diagram", async ({
+// A reply with a vd diagram block is drawn by the app (no Draw it button); one Cmd+Z takes it all back.
+test("AI: a diagram reply is proposed, Keep draws it, one Cmd+Z removes the whole diagram", async ({
   page,
 }) => {
   const errors = trackErrors(page);
   await setup(page);
   await saveKey(page);
-  await page.getByRole("button", { name: "Mode", exact: true }).click();
-  await page.getByRole("option", { name: /^Generate a diagram/ }).click();
+  await expect(
+    page.getByRole("button", { name: "Mode", exact: true }),
+  ).toHaveCount(0);
   await respond(page, {
     chunks: anthropic([
-      "```mermaid\nflowchart LR\n  A[Login] --> B[Checkout]\n```",
+      "Here it is.\n```vd diagram\nflowchart LR\n  A[Login] --> B[Checkout]\n```",
     ]),
   });
   const before = (await live(page)).elements.length;
   await page.locator(".vd-ai-input").fill("login then checkout");
   await page.getByRole("button", { name: "Send" }).click();
-  await page.getByRole("button", { name: "Draw it" }).click();
-  await expect(page.getByText(/Drew \d+ shapes/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Draw it" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Keep" }).click();
+  await expect(page.getByLabel("Result")).toBeVisible();
   await expect
     .poll(async () => (await live(page)).elements.length)
     .toBeGreaterThan(before);
@@ -241,7 +245,9 @@ for (const theme of ["light", "dark"] as const) {
           "A_very_long_unbroken_identifier_that_a_model_might_return_0123456789_abcdefghij",
         ]),
       });
-      await page.getByLabel("Ask about this drawing").fill("Pages?");
+      await page
+        .getByLabel("Ask, explain, draw or change anything")
+        .fill("Pages?");
       // the "what is sent" list is open too: it is the widest thing the panel can show
       await page.getByRole("button", { name: "Add context" }).click();
       await page.getByRole("option", { name: /^Show what is sent/ }).click();

@@ -48,7 +48,9 @@ async function start(opts: { key?: boolean } = {}) {
 }
 
 const box = () =>
-  screen.getByLabelText("Ask about this drawing") as HTMLTextAreaElement;
+  screen.getByLabelText(
+    "Ask, explain, draw or change anything",
+  ) as HTMLTextAreaElement;
 const send = (text: string) => {
   fireEvent.change(box(), { target: { value: text } });
   fireEvent.click(screen.getByRole("button", { name: "Send" }));

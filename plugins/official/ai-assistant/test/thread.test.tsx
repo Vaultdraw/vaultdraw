@@ -9,8 +9,6 @@ import { parseManifest } from "../../../../sdk/examples/testing/readManifest";
 import plugin from "../src/main";
 import { secretNameOf, type ProviderConfig } from "../src/providers";
 
-import { pickMode } from "./ui";
-
 let p: TestPlugin | undefined;
 afterEach(async () => {
   await p?.dispose();
@@ -27,7 +25,7 @@ const sse = (t: string) => [
   "data: [DONE]\n\n",
 ];
 const reply = (ops: unknown[]) =>
-  `\`\`\`json\n${JSON.stringify({ title: "Plan", ops })}\n\`\`\``;
+  `Done.\n\`\`\`vd edit\n${JSON.stringify({ ops })}\n\`\`\``;
 
 async function start() {
   p = await boot(manifest(), plugin);
@@ -45,19 +43,24 @@ async function start() {
 
 const ask = async (question: string, answer: string) => {
   p!.net.respond = () => ({ chunks: sse(answer) });
-  fireEvent.change(screen.getByLabelText(/Ask about this drawing/), {
-    target: { value: question },
-  });
+  fireEvent.change(
+    screen.getByLabelText("Ask, explain, draw or change anything"),
+    {
+      target: { value: question },
+    },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
   await screen.findByText(answer);
 };
 
 const edit = async (text: string, ops: unknown[]) => {
   p!.net.respond = () => ({ chunks: sse(reply(ops)) });
-  pickMode("Edit this drawing");
-  fireEvent.change(screen.getByLabelText(/Say what to change/), {
-    target: { value: text },
-  });
+  fireEvent.change(
+    screen.getByLabelText("Ask, explain, draw or change anything"),
+    {
+      target: { value: text },
+    },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
   await screen.findByLabelText("Proposed change");
 };
@@ -116,6 +119,16 @@ describe("one clean result per answer (toimprove 351)", () => {
     await ask("what is here?", "A login box.");
     const text = screen.getByText("A login box.");
     expect(text.closest(".vd-ai-result, .vd-ai-via, .vd-ai-kept")).toBeNull();
+  });
+});
+
+describe("one box, no modes", () => {
+  it("the composer renders no Mode control, and typing '/' shows no list", async () => {
+    await start();
+    expect(screen.queryByRole("button", { name: "Mode" })).toBeNull();
+    const box = screen.getByLabelText("Ask, explain, draw or change anything");
+    fireEvent.change(box, { target: { value: "/" } });
+    expect(screen.queryByRole("listbox")).toBeNull();
   });
 });
 
