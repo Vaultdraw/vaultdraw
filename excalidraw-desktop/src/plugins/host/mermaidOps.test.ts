@@ -102,4 +102,63 @@ describe("skeletonsToOps (Mermaid result as plugin scene ops)", () => {
     expect(arrow.startBinding?.elementId).toBeTruthy();
     expect(arrow.endBinding?.elementId).toBeTruthy();
   });
+
+  // Shapes as the converter makes a sequence diagram (parser/sequence.js in
+  // @excalidraw/mermaid-to-excalidraw 2.2.2): each message names the actors'
+  // header boxes but runs at its own height, and `autonumber` adds a small
+  // labelled box with no width at the arrow's start.
+  it("keeps sequence messages where they are, with their labels and step numbers", () => {
+    const seq = [
+      {
+        id: "U-top",
+        type: "rectangle",
+        x: 0,
+        y: 0,
+        width: 120,
+        height: 60,
+        label: { text: "User" },
+      },
+      {
+        id: "S-top",
+        type: "rectangle",
+        x: 300,
+        y: 0,
+        width: 120,
+        height: 60,
+        label: { text: "Server" },
+      },
+      {
+        type: "arrow",
+        x: 60,
+        y: 150,
+        points: [
+          [0, 0],
+          [300, 0],
+        ],
+        start: { id: "U-top" },
+        end: { id: "S-top" },
+        label: { text: "POST /login (credentials)" },
+      },
+      {
+        type: "rectangle",
+        x: 50,
+        y: 135,
+        height: 30,
+        label: { text: "1", fontSize: 14 },
+      },
+    ];
+    const r = skeletonsToOps(seq as never);
+    const arrow = r.ops.find(
+      (o) => o.op === "add" && o.element.type === "arrow",
+    ) as any;
+    expect(arrow.element.start).toBeUndefined();
+    expect(arrow.element.end).toBeUndefined();
+    expect(arrow.element.text).toBe("POST /login (credentials)");
+    expect(arrow.element.y).toBe(150);
+    const step = r.ops.find(
+      (o) => o.op === "add" && (o.element as any).text === "1",
+    ) as any;
+    expect(step.element.width).toBe(30);
+    expect(step.element.height).toBe(30);
+  });
 });

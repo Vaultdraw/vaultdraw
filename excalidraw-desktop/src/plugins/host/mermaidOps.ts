@@ -10,6 +10,9 @@ const SHAPES = new Set(["rectangle", "ellipse", "diamond"]);
 const STROKE_STYLES = new Set(["solid", "dashed", "dotted"]);
 const FILL_STYLES = new Set(["hachure", "cross-hatch", "solid", "zigzag"]);
 
+/** How far (px) an arrow's end may sit from a shape's box and still be bound to it. */
+const TOUCH = 12;
+
 const num = (v: unknown): number | undefined =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 const str = (v: unknown): string | undefined =>
@@ -46,6 +49,30 @@ function common(sk: Skeleton): Partial<NewElement> {
 /** Ops for a converter result, the top left of the diagram at 0, 0. */
 export function skeletonsToOps(skeletons: readonly Skeleton[]): MermaidDrawing {
   const ids = new Set(skeletons.map((s) => s.id).filter(Boolean) as string[]);
+  // The box of every shape, so an arrow is bound only to shapes its ends really touch.
+  const boxes = new Map<string, [number, number, number, number]>();
+  for (const sk of skeletons) {
+    if (sk.id && (SHAPES.has(sk.type) || sk.type === "text")) {
+      const x = num(sk.x) ?? 0;
+      const y = num(sk.y) ?? 0;
+      boxes.set(sk.id, [
+        x,
+        y,
+        x + (num(sk.width) ?? 0),
+        y + (num(sk.height) ?? 0),
+      ]);
+    }
+  }
+  const touches = (id: string, px: number, py: number) => {
+    const b = boxes.get(id);
+    return (
+      !!b &&
+      px >= b[0] - TOUCH &&
+      px <= b[2] + TOUCH &&
+      py >= b[1] - TOUCH &&
+      py <= b[3] + TOUCH
+    );
+  };
   const boxed: SceneOp[] = [];
   const linked: SceneOp[] = [];
   let skipped = 0;
@@ -87,12 +114,17 @@ export function skeletonsToOps(skeletons: readonly Skeleton[]): MermaidDrawing {
       });
       boxed.push({ op: "add", element: el });
     } else if (SHAPES.has(sk.type)) {
+      const text0 = str(label?.text) ?? "";
+      const height = num(sk.height) ?? 50;
       const el: NewElement = {
         type: sk.type as NewElement["type"],
         x,
         y,
-        width: num(sk.width) ?? 100,
-        height: num(sk.height) ?? 50,
+        // A box with no width (a sequence diagram's step number) is as wide as its label needs.
+        width:
+          num(sk.width) ??
+          (text0 ? Math.max(height, text0.length * 9 + 16) : 100),
+        height,
         ...common(sk),
       };
       if (sk.roundness) {
@@ -134,7 +166,9 @@ export function skeletonsToOps(skeletons: readonly Skeleton[]): MermaidDrawing {
         el.text = text;
       }
       // A straight arrow between two shapes is bound to them (the app lays it on their outlines);
-      // a bent one keeps its points.
+      // a bent one keeps its points. A sequence diagram's message names the two actors' header
+      // boxes but runs far below them: binding would pull it up onto the headers, so an arrow is
+      // bound only when its ends touch the shapes.
       const a = (sk.start as { id?: unknown } | undefined)?.id;
       const b = (sk.end as { id?: unknown } | undefined)?.id;
       if (
@@ -143,7 +177,10 @@ export function skeletonsToOps(skeletons: readonly Skeleton[]): MermaidDrawing {
         typeof a === "string" &&
         typeof b === "string" &&
         ids.has(a) &&
-        ids.has(b)
+        ids.has(b) &&
+        pts.length === 2 &&
+        touches(a, x + pts[0][0], y + pts[0][1]) &&
+        touches(b, x + pts[1][0], y + pts[1][1])
       ) {
         el.start = { ref: a };
         el.end = { ref: b };
