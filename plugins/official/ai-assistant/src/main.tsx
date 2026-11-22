@@ -56,6 +56,9 @@ export default definePlugin({
       ctx.panels.open("assistant");
       session.openModelPicker();
     });
+    ctx.commands.register("cycle-access", () => {
+      void session.cycleAccess();
+    });
     ctx.commands.register("cycle-effort", () => {
       void session.cycleEffort();
     });

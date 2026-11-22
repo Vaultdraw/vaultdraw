@@ -10,11 +10,13 @@ import {
   textOf,
   type Context,
 } from "./context";
+import { ACCESS_LABEL, isAccess, nextAccess, type AccessMode } from "./access";
 import { insertDiagram } from "./diagram";
 import {
   buildProposal,
   describeForEdit,
   drawingName,
+  NoChange,
   stillValid,
   type Proposal,
 } from "./edits";
@@ -142,6 +144,8 @@ export interface SessionState {
   keys: Readonly<Record<string, boolean>>;
   /** Bumped by "AI: Choose model" so the panel opens the model picker. */
   menu: { tick: number };
+  /** How much the assistant may do with the drawing (the `access` setting). */
+  access: AccessMode;
 }
 
 export interface Session {
@@ -193,6 +197,10 @@ export interface Session {
   undo(turnId: number): void;
   /** Asks the panel to open its model picker. */
   openModelPicker(): void;
+  /** Chooses the permission mode (the `access` setting). */
+  setAccess(mode: AccessMode): Promise<void>;
+  /** Steps ask first, apply at once, read only, and says which. */
+  cycleAccess(): Promise<void>;
   /** Looks for the command lines; `check` also asks each whether it is logged in (runs them). */
   detect(check?: boolean): Promise<void>;
   /** Looks up which providers have a stored key. */
@@ -231,6 +239,7 @@ export function createSession(ctx: PluginContext): Session {
     provider: "anthropic",
     keys: {},
     menu: { tick: 0 },
+    access: "ask",
   };
   {
     const m = ctx.settings.get<string>("context");
@@ -238,6 +247,11 @@ export function createSession(ctx: PluginContext): Session {
       state = { ...state, contextMode: m };
     }
   }
+  const accessNow = (): AccessMode => {
+    const a = ctx.settings.get<string>("access");
+    return isAccess(a) ? a : "ask";
+  };
+  state = { ...state, access: accessNow() };
   let turnId = 0;
   let tools: readonly CliToolStatus[] | null = null;
 
@@ -273,6 +287,9 @@ export function createSession(ctx: PluginContext): Session {
     hasKey = await ctx.secret.has(secretNameOf(config()));
     set({ hasKey, via: viaOf(config()), provider: config().provider });
   };
+  ctx.subscriptions.push(
+    ctx.settings.onChange("access", () => set({ access: accessNow() })),
+  );
   // switching the provider or the address switches the key too
   for (const key of ["provider", "base_url", "model", "effort"]) {
     ctx.subscriptions.push(
@@ -477,13 +494,18 @@ export function createSession(ctx: PluginContext): Session {
   }
 
   async function run(
-    task: Task,
+    wanted: Task,
     request: string,
     images: readonly MessageImage[] = [],
   ) {
     if (state.status === "running") {
       return;
     }
+    // read only: a request to change or make a drawing is answered in words
+    const task: Task =
+      accessNow() === "read" && (wanted === "edit" || wanted === "create")
+        ? "ask"
+        : wanted;
     state = {
       ...state,
       proposal: null,
@@ -648,7 +670,29 @@ export function createSession(ctx: PluginContext): Session {
           if (proposal.touched[0]) {
             ctx.scene.scrollTo(proposal.touched[0]);
           }
+          // apply at once: an edit goes in as one undo step; a new drawing still asks (it is a new
+          // file and the view moves to it)
+          if (accessNow() === "auto" && task === "edit") {
+            await session.keep();
+          }
         } catch (err) {
+          if (err instanceof NoChange) {
+            // not a failure: said calmly in the thread, with the model's own words after it
+            set({
+              status: "idle",
+              history,
+              turns: [
+                ...state.turns,
+                {
+                  id: ++turnId,
+                  role: "assistant",
+                  text: err.said ? `${err.message}\n\n${err.said}` : err.message,
+                  task,
+                },
+              ],
+            });
+            return;
+          }
           const message = (err as Error).message;
           set({
             status: "idle",
@@ -736,7 +780,7 @@ export function createSession(ctx: PluginContext): Session {
     });
   }
 
-  return {
+  const session: Session = {
     get: () => state,
     subscribe(cb) {
       listeners.add(cb);
@@ -809,7 +853,10 @@ export function createSession(ctx: PluginContext): Session {
             });
             return;
           }
-          await ctx.scene.batch(p.ops, { path: p.path ?? undefined });
+          await ctx.scene.batch(p.ops, {
+            path: p.path ?? undefined,
+            ...(p.drawing ? { drawing: p.drawing } : {}),
+          });
           const kept = p.done || p.headline;
           set({
             proposal: null,
@@ -986,6 +1033,14 @@ export function createSession(ctx: PluginContext): Session {
         ),
       });
     },
+    async setAccess(mode) {
+      await ctx.settings.set("access", mode);
+    },
+    async cycleAccess() {
+      const next = nextAccess(accessNow());
+      await ctx.settings.set("access", next);
+      ctx.ui.toast(`Permission: ${ACCESS_LABEL[next]}`);
+    },
     openModelPicker() {
       set({ view: "chat", menu: { tick: state.menu.tick + 1 } });
     },
@@ -1002,6 +1057,7 @@ export function createSession(ctx: PluginContext): Session {
       await refreshKey();
     },
   };
+  return session;
 }
 
 function withOutcome(

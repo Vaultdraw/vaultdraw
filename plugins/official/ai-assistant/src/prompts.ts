@@ -26,7 +26,9 @@ Style keys you may use: strokeColor, backgroundColor (hex, or transparent), stro
 
 const EDIT_OPS = `{"op":"move","id":"<id>","x":0,"y":0}
 {"op":"restyle","id":"<id>","strokeColor":"#e03131"}   (any style key, or text, width, height)
-{"op":"delete","id":"<id>"}`;
+{"op":"delete","id":"<id>"}
+{"op":"drawing","pageMode":true,"paper":"lines","paperTheme":"normal","pageSize":"a4","orientation":"portrait","layout":"separate","background":"#ffffff"}   (the drawing's own settings; every key is optional, give only what changes. pageMode: true = pages, false = the infinite canvas. paper: plain|lines|grid|dots|graph|isometric. paperTheme: normal|oldSchool|match. pageSize: a3|a4|a5|b5|letter|legal|tablet|tabletLarge|phone. orientation: portrait|landscape. layout: separate|continuous. background: a hex colour.)
+If the request cannot be done with these ops, reply with {"title":"","ops":[],"message":"one short plain sentence saying why"}.`;
 
 export const SYSTEM: Record<Task, string> = {
   ask: `${BASE} The drawing is given as a list of its elements with their text and positions.`,

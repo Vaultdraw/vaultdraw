@@ -2,7 +2,12 @@
  * Edit proposals: the model's reply is one JSON plan; it is checked here, turned into scene ops and
  * a plain list, and nothing touches the drawing until the user keeps it.
  */
-import type { NewElement, SceneElement, SceneOp } from "@vaultdraw/api";
+import type {
+  DrawingSettings,
+  NewElement,
+  SceneElement,
+  SceneOp,
+} from "@vaultdraw/api";
 
 type Ref = NonNullable<NewElement["start"]>;
 
@@ -33,6 +38,8 @@ export interface Proposal {
   /** One plain line per change. */
   lines: string[];
   ops: SceneOp[];
+  /** Changes to the drawing's own settings (page mode, paper, page size, background), applied with the ops. */
+  drawing?: DrawingSettings;
   /** Parts of the reply that were left out because they made no sense. */
   skipped: number;
   /** Existing elements the plan changes or removes. */
@@ -84,6 +91,187 @@ const nameOf = (type: string, n: number) =>
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
+
+/**
+ * The reply holds nothing that can be applied. Not a failure: the panel shows `message` as a
+ * normal answer, followed by what the model itself said (`said`), if anything.
+ */
+export class NoChange extends Error {
+  readonly said: string;
+  constructor(kind: EditKind, said = "") {
+    super(
+      kind === "create"
+        ? "I couldn't turn that into a new drawing."
+        : "I couldn't turn that into a change to this drawing.",
+    );
+    this.name = "NoChange";
+    this.said = said.trim().slice(0, 2000);
+  }
+}
+
+const PAPER_WORDS: Record<string, string> = {
+  plain: "plain paper",
+  lines: "lined paper",
+  grid: "grid paper",
+  dots: "dotted paper",
+  graph: "graph paper",
+  isometric: "isometric paper",
+};
+const THEME_WORDS: Record<string, string> = {
+  normal: "normal paper",
+  oldSchool: "old school paper",
+  match: "paper that follows the app theme",
+};
+/** What people say for the paper pattern: "ruled", "squared" … */
+const PAPER_ALIASES: Record<string, string> = {
+  line: "lines",
+  lined: "lines",
+  ruled: "lines",
+  grid: "grid",
+  squared: "grid",
+  square: "grid",
+  dot: "dots",
+  dotted: "dots",
+  none: "plain",
+  blank: "plain",
+  plain: "plain",
+  graph: "graph",
+  isometric: "isometric",
+};
+const COLOR_NAMES: Record<string, string> = {
+  white: "#ffffff",
+  black: "#000000",
+  cream: "#f8efd4",
+  beige: "#f5f0e1",
+  grey: "#e9ecef",
+  gray: "#e9ecef",
+  yellow: "#fff9db",
+  blue: "#e7f5ff",
+  green: "#ebfbee",
+  pink: "#fff0f6",
+  transparent: "transparent",
+};
+const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const SIZE_WORDS: Record<string, string> = {
+  a3: "A3",
+  a4: "A4",
+  a5: "A5",
+  b5: "B5",
+  letter: "Letter",
+  legal: "Legal",
+  tablet: "tablet",
+  tabletLarge: "large tablet",
+  phone: "phone",
+};
+const SIZES = Object.keys(SIZE_WORDS);
+
+/** The drawing settings in a model's op, with only valid fields; null when it has none. */
+function pickDrawing(src: Record<string, unknown>): DrawingSettings | null {
+  const out: DrawingSettings = {};
+  const text = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  if (typeof src.pageMode === "boolean") {
+    out.pageMode = src.pageMode;
+  } else if (src.pageMode === "page" || src.pageMode === "on") {
+    out.pageMode = true;
+  } else if (src.pageMode === "normal" || src.pageMode === "off") {
+    out.pageMode = false;
+  }
+  const paper = PAPER_ALIASES[text(src.paper).toLowerCase()];
+  if (paper) {
+    out.paper = paper as DrawingSettings["paper"];
+  }
+  const theme = text(src.paperTheme).replace(/[\s_-]/g, "").toLowerCase();
+  const themes: Record<string, DrawingSettings["paperTheme"]> = {
+    normal: "normal",
+    oldschool: "oldSchool",
+    match: "match",
+  };
+  if (themes[theme]) {
+    out.paperTheme = themes[theme];
+  }
+  const size = SIZES.find(
+    (k) => k.toLowerCase() === text(src.pageSize).toLowerCase(),
+  );
+  if (size) {
+    out.pageSize = size as DrawingSettings["pageSize"];
+  }
+  const orientation = text(src.orientation).toLowerCase();
+  if (orientation === "portrait" || orientation === "landscape") {
+    out.orientation = orientation;
+  }
+  const layout = text(src.layout).toLowerCase();
+  if (layout === "separate" || layout === "continuous") {
+    out.layout = layout;
+  }
+  const bg = text(src.background).toLowerCase();
+  const colour = HEX.test(bg) ? bg : COLOR_NAMES[bg];
+  if (colour) {
+    out.background = colour;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/** "Page mode on, lined paper": the settings in plain words. */
+export function drawingWords(d: DrawingSettings): string {
+  const parts: string[] = [];
+  if (d.pageMode !== undefined) {
+    parts.push(`page mode ${d.pageMode ? "on" : "off"}`);
+  }
+  if (d.paperTheme) {
+    parts.push(THEME_WORDS[d.paperTheme]);
+  }
+  if (d.paper) {
+    parts.push(PAPER_WORDS[d.paper]);
+  }
+  if (d.pageSize) {
+    parts.push(`${SIZE_WORDS[d.pageSize]} pages`);
+  }
+  if (d.orientation) {
+    parts.push(d.orientation);
+  }
+  if (d.layout) {
+    parts.push(d.layout === "continuous" ? "one continuous page" : "separate pages");
+  }
+  if (d.background) {
+    parts.push(
+      d.background === "transparent"
+        ? "no background colour"
+        : `background ${d.background}`,
+    );
+  }
+  return parts.join(", ");
+}
+
+/** One plain line per changed setting, for the proposal's list. */
+function drawingLines(d: DrawingSettings): string[] {
+  const lines: string[] = [];
+  if (d.pageMode !== undefined) {
+    lines.push(`Turns page mode ${d.pageMode ? "on" : "off"}`);
+  }
+  if (d.paperTheme) {
+    lines.push(`Uses ${THEME_WORDS[d.paperTheme]}`);
+  }
+  if (d.paper) {
+    lines.push(`Uses ${PAPER_WORDS[d.paper]}`);
+  }
+  if (d.pageSize) {
+    lines.push(`Sets the page size to ${SIZE_WORDS[d.pageSize]}`);
+  }
+  if (d.orientation) {
+    lines.push(`Makes the pages ${d.orientation}`);
+  }
+  if (d.layout) {
+    lines.push(
+      d.layout === "continuous"
+        ? "Uses one continuous page"
+        : "Uses separate pages",
+    );
+  }
+  if (d.background) {
+    lines.push(`Sets the background to ${d.background}`);
+  }
+  return lines;
+}
 
 /** The JSON in a reply: a fenced block, or the first `{ … }` span. */
 export function jsonFrom(reply: string): unknown {
@@ -182,7 +370,15 @@ export function buildProposal(
   path: string | null,
   maxOps: number,
 ): Proposal {
-  const data = jsonFrom(reply);
+  let data: unknown;
+  try {
+    data = jsonFrom(reply);
+  } catch {
+    // the model answered in words instead of a plan: show its words
+    throw new NoChange(kind, reply);
+  }
+  const said =
+    isObj(data) && typeof data.message === "string" ? data.message : "";
   const rawOps =
     isObj(data) && Array.isArray(data.ops)
       ? (data.ops as unknown[])
@@ -190,9 +386,7 @@ export function buildProposal(
       ? data
       : null;
   if (!rawOps) {
-    throw new Error(
-      "The reply had no list of changes. Try again, or ask in other words.",
-    );
+    throw new NoChange(kind, said);
   }
   const title =
     isObj(data) && typeof data.title === "string"
@@ -215,6 +409,7 @@ export function buildProposal(
   };
   const bump = (m: Map<string, number>, t: string) =>
     m.set(t, (m.get(t) ?? 0) + 1);
+  let drawing: DrawingSettings | undefined;
   const touched = new Set<string>();
   const deleted = new Set<string>();
   const ghosts: Ghost[] = [];
@@ -442,18 +637,24 @@ export function buildProposal(
       if (g) {
         g.state = "removed";
       }
+    } else if (raw.op === "drawing" || raw.op === "settings") {
+      const picked = kind === "edit" ? pickDrawing(raw) : null;
+      if (!picked) {
+        skipped++;
+        continue;
+      }
+      drawing = { ...drawing, ...picked };
     } else {
       skipped++;
     }
   }
 
   const ops = [...adds, ...arrows, ...rest];
-  if (ops.length === 0) {
-    throw new Error(
-      kind === "create"
-        ? "The reply had nothing I can draw. Try again, or ask in other words."
-        : "The reply had no change I can make to this drawing. Try again, or ask in other words.",
-    );
+  if (ops.length === 0 && !drawing) {
+    throw new NoChange(kind, said);
+  }
+  if (drawing) {
+    lines.push(...drawingLines(drawing));
   }
   const phrase = (verb: string, m: Map<string, number>) => {
     if (m.size === 0) {
@@ -462,11 +663,13 @@ export function buildProposal(
     const kinds = [...m].map(([t, n]) => `${n} ${nameOf(t, n)}`);
     return `${verb} ${kinds.join(" and ")}`;
   };
+  const settingsWords = drawing ? drawingWords(drawing) : "";
   const parts = [
     phrase("adds", counts.add),
     phrase("moves", counts.move),
     phrase("restyles", counts.restyle),
     phrase("deletes", counts.delete),
+    settingsWords,
   ].filter(Boolean);
   const headline = parts.join(", ").replace(/^./, (c) => c.toUpperCase());
   const past = (verb: string, m: Map<string, number>) =>
@@ -478,6 +681,7 @@ export function buildProposal(
     past("moved", counts.move),
     past("restyled", counts.restyle),
     past("deleted", counts.delete),
+    settingsWords,
   ]
     .filter(Boolean)
     .join(", ")
@@ -489,6 +693,7 @@ export function buildProposal(
     done,
     lines,
     ops,
+    ...(drawing ? { drawing } : {}),
     skipped,
     touched: [...touched],
     ghosts,

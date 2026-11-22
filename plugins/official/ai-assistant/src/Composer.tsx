@@ -21,6 +21,7 @@ import {
 } from "./composerLogic";
 import { Icon, Levels } from "./Icons";
 import { imageProblem, readImage } from "./imageFiles";
+import AccessControl from "./AccessControl";
 import Menu, { List, arrowKeys, type MenuItem } from "./Menu";
 import { TASK_TITLES, SYSTEM, type Task } from "./prompts";
 import { availableModels, providerDef, type ProviderId } from "./providers";
@@ -561,6 +562,7 @@ export default function Composer({
           setOpen={(o) => setOpen(o ? "mode" : null)}
           onPick={(it) => session.setTask(it.id as Task)}
         />
+        <AccessControl session={session} mode={s.access} />
         <span className="vd-ai-spacer" />
         {running ? (
           <button

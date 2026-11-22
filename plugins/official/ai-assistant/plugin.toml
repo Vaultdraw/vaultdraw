@@ -2,7 +2,7 @@ id = "ai-assistant"
 name = "AI assistant"
 version = "0.1.0"
 api = 1
-min_api = "1.4.0"
+min_api = "1.5.0"
 min_app = "0.2.0"
 main = "main.js"
 description = "Ask Claude or Codex with the subscription you already have, or a model with your own key. Off until you turn it on"
@@ -65,6 +65,11 @@ id = "new-chat"
 title = "AI: New chat"
 
 [[contributes.commands]]
+id = "cycle-access"
+title = "AI: Cycle permission mode"
+when = ["vaultOpen"]
+
+[[contributes.commands]]
 id = "history"
 title = "AI: Chat history"
 
@@ -125,6 +130,15 @@ title = "What is sent"
 description = "What a question includes from the drawing: the selection if there is one else the whole drawing, always the whole drawing, only the selection, or nothing. You can change it for one chat from the chip above the box."
 default = "auto"
 options = [{ value = "auto", label = "Selection, or the whole drawing" }, { value = "drawing", label = "The whole drawing" }, { value = "selection", label = "Only the selection" }, { value = "none", label = "Nothing from the drawing" }]
+scope = ["global"]
+
+[[contributes.settings]]
+key = "access"
+type = "select"
+title = "What the assistant may do"
+description = "Ask first: a change to the drawing waits until you keep it. Apply at once: changes go in as one undo step, with Undo on the result. Read only: it only answers, and never changes the drawing. The panel's shield icon and \"AI: Cycle permission mode\" change it too."
+default = "ask"
+options = [{ value = "ask", label = "Ask first" }, { value = "auto", label = "Apply at once" }, { value = "read", label = "Read only" }]
 scope = ["global"]
 
 [[contributes.settings]]

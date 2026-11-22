@@ -174,3 +174,6 @@
 .vd-ai-thumb button:focus-visible { outline: none; box-shadow: var(--vault-ring); }
 .vd-ai-imgnote { margin: 0; font-size: var(--vd-fs-small, 12px); color: var(--vault-text-muted, inherit); }
 .vd-ai-composer[data-dragging] { border-color: var(--vault-primary, #6965db); border-style: dashed; }
+
+/* access: the permission icon in the composer bar */
+.vd-ai-access { display: inline-flex; }
