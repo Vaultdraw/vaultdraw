@@ -440,6 +440,16 @@
           "minimum": 8,
           "maximum": 8192
         },
+        "home_page": {
+          "description": "What the home pane shows when no drawing is open: `full` (actions and recent drawings), `minimal` (actions only) or `blank` (nothing).",
+          "default": "full",
+          "type": "string",
+          "enum": [
+            "full",
+            "minimal",
+            "blank"
+          ]
+        },
         "defer_home_pane": {
           "description": "When a vault opens, paint the file tree first and the home pane one frame later, in the same place; `false` draws both together.",
           "default": true,

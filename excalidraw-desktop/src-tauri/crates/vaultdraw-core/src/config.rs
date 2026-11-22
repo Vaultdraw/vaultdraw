@@ -143,6 +143,8 @@ autosave_delay_ms = 500
 # thumbnail_max_elements = 8000
 # Size cap of a vault's thumbnail cache in megabytes, 8 to 8192 (oldest thumbnails go first)
 # thumbnail_cache_mb = 128
+# Start page when no drawing is open: "full", "minimal" (actions only) or "blank"
+# home_page = "full"
 # Paint the file tree first, the home pane one frame later
 # defer_home_pane = true
 # Show the activity bar
@@ -1698,7 +1700,7 @@ mod tests {
             "{out}"
         );
         assert!(
-            out.contains("# activity_bar_hidden = []\n\n[navigator]\n# name_asc | name_desc | modified_desc | modified_asc\nsort = \"modified_desc\"\n\n[files]\n# Ask before moving a drawing to the Trash\n# confirm_delete = true\n# Folder for new drawings, relative to the vault root (empty = next to the open drawing)\nnew_drawing_folder = \"Inbox\"\n# Vault folder holding your templates, relative to the vault root (empty falls back to \"Templates\")\n# templates_folder = \"Templates\"\n# When every vault folder is listed (recent drawings, file switcher, link suggestions): open | idle | use\n# list_start = \"idle\"\n# Read and parse a drawing when you press on it (tree, tab, switcher), before the click, so it opens sooner\n# speculative_open = true\n# Watch the vault folder and update the tree, search and open drawings when files change outside the app\n# auto_reload = true\n# Linux: how often (ms) a vault is polled when the system's inotify watch limit stops the normal file watcher\n# watch_poll_ms = 5000\n# Other files the tree lists beside drawings and notes: media (pictures and PDFs) | all | none\n# show_assets = \"media\"\n\n[hotkeys]\n"),
+            out.contains("# activity_bar_hidden = []\n\n[navigator]\n# name_asc | name_desc | modified_desc | modified_asc\nsort = \"modified_desc\"\n# Cmd/Ctrl+click on a row: select (add to the selection) | new_tab\n# mod_click = \"select\"\n# Exporting into a folder that has a file of that name: keep_both | replace | skip\n# export_existing = \"keep_both\"\n\n[files]\n# Ask before moving a drawing to the Trash\n# confirm_delete = true\n# Folder for new drawings, relative to the vault root (empty = next to the open drawing)\nnew_drawing_folder = \"Inbox\"\n# Vault folder holding your templates, relative to the vault root (empty falls back to \"Templates\")\n# templates_folder = \"Templates\"\n# When every vault folder is listed (recent drawings, file switcher, link suggestions): open | idle | use\n# list_start = \"idle\"\n# Read and parse a drawing when you press on it (tree, tab, switcher), before the click, so it opens sooner\n# speculative_open = true\n# Watch the vault folder and update the tree, search and open drawings when files change outside the app\n# auto_reload = true\n# Linux: how often (ms) a vault is polled when the system's inotify watch limit stops the normal file watcher\n# watch_poll_ms = 5000\n# Other files the tree lists beside drawings and notes: media (pictures and PDFs) | all | none\n# show_assets = \"media\"\n\n[hotkeys]\n"),
             "{out}"
         );
         assert_eq!(out.matches("[interface]").count(), 1);
