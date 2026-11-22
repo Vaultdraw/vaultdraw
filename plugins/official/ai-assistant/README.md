@@ -1,25 +1,39 @@
 # AI assistant
 
-Ask a model you choose about your drawing, with your own key. Off until you turn it on in Settings, Plugins.
+A chat panel that asks Claude or Codex with the subscription you already have, or a model with your own key. Off until you turn it on in Settings, Plugins. Nothing is sent until you press send.
+
+## Connect
+
+- **Claude (your subscription)** and **Codex (your subscription)** use the `claude` and `codex` commands already signed in on this computer. The gear in the panel header shows *Connected*, *Not signed in* or *Not found* for each, with **Check again**. Nothing is stored by Vaultdraw: the tool keeps its own login.
+- **API key** providers (Anthropic, OpenAI or any OpenAI-style address) keep a key in your system keychain. **Ollama** needs no key.
+
+## The panel
+
+| Part | What it does |
+| --- | --- |
+| Thread | Questions and answers; answers stream in as Markdown, with Copy. A proposed change shows Keep and Discard |
+| Box | Enter sends, Shift+Enter is a new line, Esc stops. `/` lists the modes, `@` chooses what is sent |
+| Model | Searchable list grouped by provider; type any model name to use it |
+| Effort | Reasoning level, where the provider has levels |
+| Mode | Ask, Describe the selection, Edit this drawing, New drawing, Generate a diagram, Summarise |
+| Chip | What the next question includes (selection, drawing, nothing); click for the exact text |
+| Gear | Subscriptions, keys, defaults |
+| + (header) | New chat |
 
 | Command | What it does |
 | --- | --- |
-| AI: Ask about this drawing | Opens the panel with the question box |
-| AI: Describe the selection | Describes the selected shapes (or the drawing) |
-| AI: Generate a diagram from text | Writes Mermaid, then draws it as shapes in one undo step |
-| AI: Edit this drawing | Asks the model for changes (add, move, restyle, delete shapes, add text) and shows them first |
-| AI: Create a new drawing | Asks the model for a whole new drawing and shows it first |
+| AI: Open the assistant, New chat, Choose model, Cycle reasoning effort, Connect and settings | Panel and its controls, no default keys |
+| AI: Ask about this drawing, Describe the selection, Generate a diagram from text, Summarise this note | Pick the mode |
+| AI: Edit this drawing, Create a new drawing | Ask for changes and show them first |
 | AI: Keep the proposed change, Discard the proposed change | Applies it (one undo step; a new drawing is saved) or drops it |
-| AI: Summarise this note | Summarises the note in the active tab, or the selected text, or all text in the drawing |
-| AI: Stop the answer | Cancels the running request |
-| AI: Set API key, Remove API key | Saves or removes the key |
+| AI: Stop the answer, Clear the conversation | Cancels a run, empties the chat |
+| AI: Set API key, Remove API key | Saves or removes the key of the provider in use |
 
-Providers: Anthropic, OpenAI (or any OpenAI-style address), Ollama. Choose provider, model, address and timeout in Settings, Plugins, AI assistant.
+## Notes
 
-- Edits are proposals: a plain list and a small preview, nothing changes or is saved until Keep, and Cmd+Z undoes the whole change. That is why the plugin asks to write drawings.
-- Summarise reads the note from the file on disk (read only; the plugin never changes a note). That is why the plugin asks to read your vault.
-- The panel can show exactly what is sent ("Show what is sent").
-- The key is kept in your system keychain (the macOS Keychain, or the Secret Service on Linux), outside `config.toml` and your vault, and nothing can read it back. `[secrets] store = "file"` keeps it in a protected file instead (not encrypted).
-- Offline mode stops every request except one to this computer (a local Ollama).
-- Ollama on another computer: set the provider to Ollama, the address to `http://192.168.1.20:11434`, and list the computer in `config.toml`: `[network] allow_private_hosts = ["192.168.1.20:11434"]`. Nothing else on your network is reachable.
-- No Vaultdraw server is involved: requests go straight from the app to the provider.
+- A subscription run starts the tool by its full path with no shell, the question on standard input, in an empty folder, with the tool's own tools off where it has a flag. Stop or Esc kills it; it ends after 5 minutes at most.
+- Edits are proposals: a plain list and a small preview, nothing changes or is saved until Keep, and Cmd+Z undoes the whole change.
+- Summarise reads the note from the file on disk (read only).
+- Offline mode stops every request except one to this computer (a local Ollama); Claude and Codex need the internet, so Offline mode stops them too.
+- Ollama on another computer: set the provider to Ollama, the address to `http://192.168.1.20:11434`, and list it in `config.toml`: `[network] allow_private_hosts = ["192.168.1.20:11434"]`.
+- No Vaultdraw server is involved.
