@@ -132,3 +132,15 @@
 .vd-ai-field { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; font-size: var(--vd-fs-small, 12px); color: var(--vault-text-muted, inherit); }
 .vd-ai-field select { font: inherit; color: var(--vault-text, inherit); background: var(--vault-surface, transparent); border: 1px solid var(--vault-border, rgba(128,128,128,.3)); border-radius: var(--vd-radius-pop, 6px); padding: 4px 6px; }
 .vd-ai-back { align-self: flex-start; }
+
+/* models: the folded "Add a provider" area in the settings */
+.vd-ai-add > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+  color: var(--vault-text-muted, inherit);
+}
+.vd-ai-add > summary:focus-visible {
+  outline: none;
+  box-shadow: var(--vault-ring-inset);
+}

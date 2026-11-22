@@ -108,6 +108,8 @@ const respond = (page: Page, reply: object) =>
 
 const saveKey = async (page: Page) => {
   await page.getByRole("button", { name: "AI settings" }).click();
+  // keys live under "Add a provider", folded until opened
+  await page.getByText("Add a provider").click();
   await page.getByLabel("Anthropic API key").fill(KEY);
   await page.getByRole("button", { name: "Save Anthropic key" }).click();
   await expect(

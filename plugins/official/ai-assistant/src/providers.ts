@@ -125,6 +125,61 @@ export const providerLabel = (id: ProviderId): string =>
     ? `${providerDef(id).label} (your subscription)`
     : providerDef(id).label;
 
+/** What the model picker needs to know about the machine; all plain data. */
+export interface AvailabilityInput {
+  /** The command lines found on this computer; null until looked for. */
+  tools: readonly { id: string; state?: string; path?: string | null }[] | null;
+  /** Whether a key is saved, per provider id. */
+  keys: Readonly<Record<string, boolean>>;
+  /** The provider in use now, and the raw `provider` setting ("auto" or an id). */
+  provider: ProviderId;
+  rawProvider: string;
+}
+
+/** A model the user can use right now; `group` is set only when more than one provider is usable. */
+export interface AvailableModel {
+  provider: ProviderId;
+  /** The id sent to the provider (empty: its own default). */
+  id: string;
+  label: string;
+  group?: string;
+}
+
+/**
+ * Whether a provider works right now: a command line that was found and is not known to be signed
+ * out, a provider with a saved key, or Ollama once the user chose it (nothing is probed: a server
+ * that may be off is never listed as a dead row).
+ */
+export function isUsable(p: ProviderDef, a: AvailabilityInput): boolean {
+  if (p.kind === "cli") {
+    const t = a.tools?.find((x) => x.id === p.tool);
+    // before the first look, the one in use is trusted so the picker does not flash empty
+    return t
+      ? !!t.path && t.state !== "login" && t.state !== "missing"
+      : a.tools === null && a.provider === p.id;
+  }
+  if (p.needsKey) {
+    return a.keys[p.id] === true;
+  }
+  return a.rawProvider === p.id;
+}
+
+/**
+ * The models for the picker: only providers that work now, grouped by provider only when there
+ * are several. Empty means nothing is usable: the picker then offers "Connect a provider".
+ */
+export function availableModels(a: AvailabilityInput): AvailableModel[] {
+  const usable = PROVIDERS.filter((p) => isUsable(p, a));
+  return usable.flatMap((p) =>
+    p.models.map((m) => ({
+      provider: p.id,
+      id: m.id,
+      label: m.label,
+      ...(usable.length > 1 ? { group: providerLabel(p.id) } : {}),
+    })),
+  );
+}
+
 export interface ProviderConfig {
   provider: ProviderId;
   model: string;

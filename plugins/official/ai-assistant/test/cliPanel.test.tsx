@@ -211,12 +211,15 @@ describe("a subscription, one step", () => {
 
 describe("model, effort, mode and context controls", () => {
   it("the model picker is searchable, grouped by provider, and takes a typed name", async () => {
-    await start();
+    await start({ claude: { state: "ready" }, codex: { state: "ready" } });
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
     const list = screen.getByRole("listbox", { name: "Model" });
     expect(list.textContent).toContain("Claude (your subscription)");
-    expect(list.textContent).toContain("Anthropic");
-    expect(list.textContent).toContain("Ollama");
+    expect(list.textContent).toContain("Codex (your subscription)");
+    // only what works now: no provider without a key, no Ollama, no "needs a key" row
+    expect(list.textContent).not.toContain("Anthropic");
+    expect(list.textContent).not.toContain("Ollama");
+    expect(list.textContent).not.toContain("needs a key");
     fireEvent.change(screen.getByLabelText("Search model"), {
       target: { value: "opus" },
     });
@@ -224,10 +227,7 @@ describe("model, effort, mode and context controls", () => {
       within(list)
         .getAllByRole("option")
         .map((o) => o.textContent),
-    ).toEqual([
-      expect.stringMatching(/Opus/),
-      expect.stringMatching(/Claude Opus 4.1/),
-    ]);
+    ).toEqual([expect.stringMatching(/Opus/)]);
     fireEvent.change(screen.getByLabelText("Search model"), {
       target: { value: "my-model" },
     });
@@ -246,17 +246,28 @@ describe("model, effort, mode and context controls", () => {
     expect(p!.net.cli.runs[0].model).toBe("opus");
   });
 
-  it("a tool that is not installed cannot be picked", async () => {
+  it("a tool that is not installed is not listed, and one provider shows no group header", async () => {
     await start({ claude: { state: "ready" } });
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
-    const codex = screen
-      .getAllByRole("option")
-      .find(
-        (o) =>
-          /Default/.test(o.textContent ?? "") &&
-          /not installed/.test(o.textContent ?? ""),
-      );
-    expect(codex?.getAttribute("aria-disabled")).toBe("true");
+    const list = screen.getByRole("listbox", { name: "Model" });
+    expect(list.textContent).not.toMatch(/not installed|needs a key|Codex/);
+    expect(list.textContent).not.toContain("(your subscription)");
+    expect(within(list).getAllByRole("option")).toHaveLength(4);
+  });
+
+  it("with nothing usable the picker is one line that opens the settings", async () => {
+    await start({});
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+    const list = screen.getByRole("listbox", { name: "Model" });
+    const rows = within(list).getAllByRole("option");
+    expect(rows.map((r) => r.textContent)).toEqual(["Connect a provider…"]);
+    expect(screen.queryByLabelText("Search model")).toBeNull();
+    fireEvent.click(rows[0]);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Back to the chat" }),
+      ).toBeTruthy(),
+    );
   });
 
   it("effort shows only where the provider has levels, and reaches the tool", async () => {
@@ -264,7 +275,12 @@ describe("model, effort, mode and context controls", () => {
     pick("Reasoning effort", /^high/);
     await ask("hi");
     expect(p!.net.cli.runs[0].effort).toBe("high");
-    pick("Model", /Ollama|Llama/);
+    await p!.setSetting("provider", "ollama");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Model" }).textContent).toMatch(
+        /Llama/,
+      ),
+    );
     await waitFor(() =>
       expect(
         screen.queryByRole("button", { name: "Reasoning effort" }),
@@ -429,11 +445,11 @@ describe("settings: one place for everything", () => {
     await start({});
     openSettings();
     await waitFor(() =>
-      expect(
-        screen.getByRole("status", { name: "Claude status" }).textContent,
-      ).toBe("Not found"),
+      expect(screen.getByText(/Install Claude Code/)).toBeTruthy(),
     );
-    expect(screen.getByText(/Install Claude Code/)).toBeTruthy();
+    // not a row of its own: only a hint under "Add a provider"
+    expect(screen.queryByRole("status", { name: "Claude status" })).toBeNull();
+    expect(screen.getByText("Add a provider")).toBeTruthy();
   });
 
   it("a key saved shows as saved, can be removed, and is never shown", async () => {
@@ -461,7 +477,7 @@ describe("settings: one place for everything", () => {
   });
 
   it("defaults are plugin settings: provider, model, effort and what is sent", async () => {
-    await start();
+    await start({ claude: { state: "ready" }, codex: { state: "ready" } });
     openSettings();
     fireEvent.change(screen.getByLabelText("Default provider"), {
       target: { value: "codex-cli" },
@@ -479,17 +495,23 @@ describe("settings: one place for everything", () => {
     expect(screen.getByRole("textbox")).toBeTruthy();
   });
 
-  it("Use Claude switches to a subscription that is connected", async () => {
+  it("a connected subscription has no connect action, and the default provider lists only usable ones", async () => {
     await start({ claude: { state: "ready" } });
     openSettings();
-    fireEvent.change(screen.getByLabelText("Default provider"), {
-      target: { value: "ollama" },
-    });
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Use Claude" })).toBeTruthy(),
+      expect(
+        screen.getByRole("status", { name: "Claude status" }).textContent,
+      ).toBe("Connected"),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Use Claude" }));
-    await waitFor(() => expect(setting("provider")).toBe("claude-cli"));
+    expect(screen.getByRole("button", { name: "Use Ollama" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Use Claude" })).toBeNull();
+    const options = within(screen.getByLabelText("Default provider"))
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(options).toEqual([
+      "Automatic (a subscription if found)",
+      "Claude (your subscription)",
+    ]);
   });
 });
 

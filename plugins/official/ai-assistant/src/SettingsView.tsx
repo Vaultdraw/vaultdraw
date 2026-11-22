@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 
 import { Icon } from "./Icons";
-import { PROVIDERS, providerDef, type ProviderId } from "./providers";
+import { PROVIDERS, isUsable, providerDef, type ProviderId } from "./providers";
 
 import type { ContextMode, Session } from "./session";
 
@@ -47,6 +47,22 @@ export default function SettingsView({
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const cfg = session.config();
   const def = providerDef(s.provider);
+  const [addOpen, setAddOpen] = useState(false);
+  const avail = {
+    tools: s.tools,
+    keys: s.keys,
+    provider: s.provider,
+    rawProvider: session.rawProvider(),
+  };
+  const clis = PROVIDERS.filter((p) => p.kind === "cli");
+  // a command line that is not installed is not a row, only a hint under "Add a provider"
+  const foundClis = clis.filter((p) => {
+    const st = s.tools?.find((t) => t.id === p.tool);
+    return s.tools === null || !!st?.path || s.provider === p.id;
+  });
+  const missingClis =
+    s.tools === null ? [] : clis.filter((p) => !foundClis.includes(p));
+  const ollamaOn = isUsable(providerDef("ollama"), avail);
 
   useEffect(() => {
     void session.detect(true);
@@ -56,12 +72,17 @@ export default function SettingsView({
   // "AI: Set API key" puts the cursor in the key box of the provider in use
   useEffect(() => {
     if (s.focus.tick > 0 && s.focus.target === "key") {
+      setAddOpen(true);
       const p = def.needsKey ? def : providerDef("anthropic");
-      document
-        .querySelector<HTMLInputElement>(
-          `input[aria-label="${p.label} API key"]`,
-        )
-        ?.focus();
+      const box = document.querySelector<HTMLInputElement>(
+        `input[aria-label="${p.label} API key"]`,
+      );
+      // a closed <details> cannot take focus: open it first
+      const d = box?.closest("details");
+      if (d) {
+        d.open = true;
+      }
+      box?.focus();
     }
   }, [s.focus.tick, s.focus.target]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -78,7 +99,7 @@ export default function SettingsView({
     <div className="vd-ai-settings" aria-label="AI settings">
       <section>
         <div className="vd-ai-sec-head">
-          <h3>Your subscription</h3>
+          <h3>Connected</h3>
           <button
             type="button"
             className="vd-ai-btn"
@@ -88,20 +109,9 @@ export default function SettingsView({
             {s.checking ? "Checking…" : "Check again"}
           </button>
         </div>
-        <p className="vd-ai-note">
-          Uses the Claude Code or Codex you already signed in to on this
-          computer. Nothing is stored by Vaultdraw, and nothing is sent until
-          you press send.
-        </p>
-        {PROVIDERS.filter((p) => p.kind === "cli").map((p) => {
+        {foundClis.map((p) => {
           const tool = s.tools?.find((t) => t.id === p.tool);
           const state = s.checking ? "found" : tool?.state ?? "found";
-          const label =
-            s.tools === null
-              ? "Looking…"
-              : s.checking
-              ? "Checking…"
-              : STATE_TEXT[state];
           return (
             <div className="vd-ai-row2" key={p.id} data-state={state}>
               <div className="vd-ai-row2-main">
@@ -111,7 +121,7 @@ export default function SettingsView({
                   role="status"
                   aria-label={`${p.label} status`}
                 >
-                  {label}
+                  {s.checking ? "Checking…" : STATE_TEXT[state]}
                 </span>
                 {tool?.path ? (
                   <span className="vd-ai-via vd-ai-path">{tool.path}</span>
@@ -125,28 +135,45 @@ export default function SettingsView({
                   <span className="vd-ai-via">{HELP[p.tool!][state]}</span>
                 ) : null}
               </div>
-              {state === "ready" && s.provider !== p.id ? (
-                <button
-                  type="button"
-                  className="vd-ai-btn"
-                  onClick={() => void session.setModel(p.id, "")}
-                >
-                  Use {p.label}
-                </button>
-              ) : null}
               {s.provider === p.id ? (
                 <span className="vd-ai-via">In use</span>
               ) : null}
             </div>
           );
         })}
+        {ollamaOn ? (
+          <div className="vd-ai-row2" data-state="ready">
+            <div className="vd-ai-row2-main">
+              <strong>Ollama</strong>
+              <span className="vd-ai-status">On this computer</span>
+            </div>
+            {s.provider === "ollama" ? (
+              <span className="vd-ai-via">In use</span>
+            ) : null}
+          </div>
+        ) : null}
+        {foundClis.length === 0 && !ollamaOn && s.tools !== null ? (
+          <p className="vd-ai-note">
+            No Claude or Codex subscription found on this computer.
+          </p>
+        ) : null}
       </section>
 
-      <section>
-        <h3>API keys</h3>
+      <details
+        className="vd-ai-add"
+        open={addOpen}
+        onToggle={(e) => setAddOpen(e.currentTarget.open)}
+      >
+        <summary>Add a provider</summary>
+        {missingClis.map((p) => (
+          <p className="vd-ai-note" key={p.id}>
+            <strong>{p.label}</strong> (your subscription):{" "}
+            {HELP[p.tool!].missing}
+          </p>
+        ))}
         <p className="vd-ai-note">
-          Kept in your system keychain, outside your config and your vault. The
-          app cannot show a key again.
+          API keys are kept in your system keychain, outside your config and
+          your vault. The app cannot show a key again.
         </p>
         {PROVIDERS.filter((p) => p.needsKey).map((p) => (
           <div className="vd-ai-keyrow" key={p.id}>
@@ -195,7 +222,24 @@ export default function SettingsView({
             </div>
           </div>
         ))}
-      </section>
+        {!ollamaOn ? (
+          <div className="vd-ai-row2">
+            <div className="vd-ai-row2-main">
+              <strong>Ollama</strong>
+              <span className="vd-ai-via">
+                A model running on this computer, no key.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="vd-ai-btn"
+              onClick={() => void session.setModel("ollama", "")}
+            >
+              Use Ollama
+            </button>
+          </div>
+        ) : null}
+      </details>
 
       <section>
         <h3>Defaults</h3>
@@ -209,7 +253,9 @@ export default function SettingsView({
             }
           >
             <option value="auto">Automatic (a subscription if found)</option>
-            {PROVIDERS.map((p) => (
+            {PROVIDERS.filter(
+              (p) => isUsable(p, avail) || p.id === s.provider,
+            ).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.kind === "cli" ? `${p.label} (your subscription)` : p.label}
               </option>

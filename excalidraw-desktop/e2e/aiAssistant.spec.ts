@@ -124,6 +124,8 @@ test("AI assistant: turn it on, save a key, ask, stream, stop, offline", async (
 
   // Save the key; it is hidden and not shown again.
   await page.getByRole("button", { name: "AI settings" }).click();
+  // keys live under "Add a provider", folded until opened
+  await page.getByText("Add a provider").click();
   const keyBox = page.getByLabel("Anthropic API key");
   await expect(keyBox).toHaveAttribute("type", "password");
   await keyBox.fill(KEY);

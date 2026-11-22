@@ -9,9 +9,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icons";
 import Menu, { List, arrowKeys, type MenuItem } from "./Menu";
 import { TASK_TITLES, SYSTEM, type Task } from "./prompts";
-import { PROVIDERS, providerDef, type ProviderId } from "./providers";
+import { availableModels, providerDef, type ProviderId } from "./providers";
 
 import type { ContextMode, Session } from "./session";
+
+const CONNECT = "connect";
 
 export const TASKS: Task[] = [
   "ask",
@@ -195,27 +197,21 @@ export default function Composer({
     }
   };
 
-  const modelItems: MenuItem[] = PROVIDERS.flatMap((p) =>
-    p.models.map((m) => {
-      const tool = s.tools?.find((t) => t.id === p.tool);
-      const missing = p.kind === "cli" && s.tools !== null && !tool?.path;
-      return {
-        id: `${p.id}|${m.id}`,
-        label: m.label,
-        group:
-          p.group === "Your subscription"
-            ? `${p.label} (your subscription)`
-            : p.label,
-        hint: missing
-          ? "not installed"
-          : p.needsKey && s.keys[p.id] === false
-          ? "needs a key"
-          : "",
-        checked: p.id === s.provider && m.id === cfg.model,
-        disabled: missing,
-      };
-    }),
-  );
+  const available = availableModels({
+    tools: s.tools,
+    keys: s.keys,
+    provider: s.provider,
+    rawProvider: session.rawProvider(),
+  });
+  const modelItems: MenuItem[] =
+    available.length === 0
+      ? [{ id: CONNECT, label: "Connect a provider…" }]
+      : available.map((m) => ({
+          id: `${m.provider}|${m.id}`,
+          label: m.label,
+          group: m.group,
+          checked: m.provider === s.provider && m.id === cfg.model,
+        }));
   const modelLabel =
     def.models.find((m) => m.id === cfg.model)?.label ?? cfg.model ?? "Default";
   const shortModel = modelLabel.replace(" (recommended)", "");
@@ -329,14 +325,22 @@ export default function Composer({
             </>
           }
           items={modelItems}
-          search
-          custom={(q) => ({
-            id: `${s.provider}|${q}`,
-            label: `Use "${q}" with ${def.label}`,
-          })}
+          search={available.length > 0}
+          custom={
+            available.length > 0
+              ? (q) => ({
+                  id: `${s.provider}|${q}`,
+                  label: `Use "${q}" with ${def.label}`,
+                })
+              : undefined
+          }
           open={open === "model"}
           setOpen={(o) => setOpen(o ? "model" : null)}
           onPick={(it) => {
+            if (it.id === CONNECT) {
+              session.setView("settings");
+              return;
+            }
             const [provider, ...rest] = it.id.split("|");
             void session.setModel(provider as ProviderId, rest.join("|"));
           }}

@@ -30,6 +30,7 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 - **AI assistant: Ollama on another computer on your network.** Private addresses are still refused by default. Listing a host in `network.allow_private_hosts` (for example `["192.168.1.20:11434"]`, or `"ollama.lan"` for every port) in `config.toml` allows requests to it, `http` included. Only the listed hosts are allowed, Offline mode still blocks them, and only `config.toml` is read for the list (Settings and the page never write it). The refusal now says how to allow an address.
 
 ### Changed
+- AI assistant: the model picker lists only what works now (a signed-in Claude or Codex, or a provider with a saved key), with no "needs a key" rows; with nothing usable it shows "Connect a provider…". The settings fold API keys and missing tools under "Add a provider".
 
 - **No more "Saved" flicker.** The header no longer cycles Unsaved, Saving… and Saved while you type. Only unsaved edits are marked, as a dot in the tab where its close button is (the tab keeps its width; hovering shows the close button), and only when autosave is off or slower than 2 seconds. Save errors and conflicts still show.
 - **End-to-end tests have a Linux profile.** A second Playwright project sends a Linux user agent, so the Linux keys and words (Ctrl, "file manager") are tested on every machine and in the Linux CI, not only the macOS ones.
