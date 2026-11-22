@@ -138,6 +138,7 @@ import {
   detachPreferencesStore,
   getPreferences,
   isExpandedFolders,
+  normalizePanelWidths,
   normalizeTagsPane,
   normalizeTabsSessions,
   normalizeVaultAppearance,
@@ -1244,6 +1245,7 @@ export const STATE_FIELDS = [
   "lastVaultPath",
   "navigatorCollapsed",
   "navigatorWidth",
+  "panelWidths",
   "expandedFolders",
   "tagsPane",
   "tabsSessions",
@@ -1533,6 +1535,7 @@ export function stateToPreferences(
       typeof s.navigatorWidth === "number" && Number.isFinite(s.navigatorWidth)
         ? s.navigatorWidth
         : d.navigatorWidth,
+    panelWidths: normalizePanelWidths(s.panelWidths),
     expandedFolders: isExpandedFolders(s.expandedFolders)
       ? s.expandedFolders
       : { ...d.expandedFolders },
@@ -1556,6 +1559,7 @@ export function preferencesToState(prefs: PreferencesSnapshot): PersistedState {
     lastVaultPath: prefs.lastVaultPath,
     navigatorCollapsed: prefs.navigatorCollapsed,
     navigatorWidth: prefs.navigatorWidth,
+    panelWidths: prefs.panelWidths,
     expandedFolders: prefs.expandedFolders,
     tagsPane: prefs.tagsPane,
     tabsSessions: prefs.tabsSessions,

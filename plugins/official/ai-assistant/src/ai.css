@@ -1,3 +1,31 @@
+/* shell: shared visual tokens (spacing 4/8/12/16, type and colours from the app's tokens), frame and header */
+.vd-ai {
+  --ai-sp-1: var(--vd-space-1, 4px);
+  --ai-sp-2: var(--vd-space-2, 8px);
+  --ai-sp-3: var(--vd-space-3, 12px);
+  --ai-sp-4: var(--vd-space-4, 16px);
+  --ai-fs-body: var(--vd-fs-body, 13px);
+  --ai-fs-small: var(--vd-fs-small, 12px);
+  --ai-fs-caption: var(--vd-fs-caption, 11px);
+  --ai-radius: var(--vd-radius-control, 6px);
+  --ai-text: var(--vault-text, inherit);
+  --ai-text-muted: var(--vault-text-muted, inherit);
+  --ai-text-faint: var(--vault-text-faint, var(--vault-text-muted, inherit));
+  --ai-surface: var(--vault-surface, transparent);
+  --ai-hover: var(--vault-surface-hover, rgba(128,128,128,.14));
+  --ai-line: var(--vault-border, rgba(128,128,128,.3));
+  --ai-control: 28px;
+}
+.vd-ai { background: var(--ai-surface); }
+.vd-ai-head { height: 40px; padding: 0 var(--ai-sp-2); gap: var(--ai-sp-1); border-bottom: 1px solid var(--ai-line); }
+.vd-ai-tab { height: var(--ai-control); padding: 0 var(--ai-sp-3) 0 var(--ai-sp-2); font-size: var(--ai-fs-body); line-height: 1; border-radius: var(--ai-radius); }
+.vd-ai-head .vd-ai-icon { width: var(--ai-control); height: var(--ai-control); border-radius: var(--ai-radius); flex: none; }
+.vd-ai-thread, .vd-ai-settings { padding: var(--ai-sp-3) var(--ai-sp-3) var(--ai-sp-2); scrollbar-width: thin; scrollbar-color: var(--ai-line) transparent; }
+.vd-ai-thread::-webkit-scrollbar, .vd-ai-settings::-webkit-scrollbar { width: 8px; }
+.vd-ai-thread::-webkit-scrollbar-thumb, .vd-ai-settings::-webkit-scrollbar-thumb { background: var(--ai-line); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+.vd-ai-thread::-webkit-scrollbar-track, .vd-ai-settings::-webkit-scrollbar-track { background: transparent; }
+.vd-ai > .vd-ai-composer { margin: 0 var(--ai-sp-3) var(--ai-sp-3); }
+
 .vd-ai { box-sizing: border-box; height: 100%; min-height: 0; display: flex; flex-direction: column; font: var(--vd-fs-body, 13px) var(--vd-font, inherit); color: var(--vault-text, inherit); accent-color: var(--vault-primary, auto); }
 .vd-ai *, .vd-ai *::before, .vd-ai *::after { box-sizing: border-box; }
 .vd-ai button { font: inherit; color: inherit; }

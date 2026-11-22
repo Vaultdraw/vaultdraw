@@ -246,6 +246,8 @@ interface VaultPreferencesBase {
   lastVaultPath: string | null;
   navigatorCollapsed: boolean;
   navigatorWidth: number;
+  /** Width in px of each plugin side panel the user resized, by panel id (machine state). */
+  panelWidths: Record<string, number>;
   expandedFolders: Record<string, string[]>;
   /** Tags section state per vault path (sort, open, collapsed nodes); machine state. */
   tagsPane: Record<string, TagsPaneEntry>;
@@ -514,6 +516,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   lastVaultPath: null,
   navigatorCollapsed: false,
   navigatorWidth: 280,
+  panelWidths: {},
   expandedFolders: {},
   tagsPane: {},
   tabsSessions: [],
@@ -802,6 +805,21 @@ export const isExpandedFolders = (
   Object.values(value as Record<string, unknown>).every(isStringArray);
 
 /** Tags section state per vault: keeps well-formed entries and fields only. */
+/** Saved plugin-panel widths: only finite positive numbers under string ids survive. */
+export const normalizePanelWidths = (
+  value: unknown,
+): Record<string, number> => {
+  const out: Record<string, number> = {};
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    for (const [id, w] of Object.entries(value)) {
+      if (typeof w === "number" && Number.isFinite(w) && w > 0) {
+        out[id] = Math.round(w);
+      }
+    }
+  }
+  return out;
+};
+
 export const normalizeTagsPane = (
   value: unknown,
 ): Record<string, TagsPaneEntry> => {
@@ -1057,6 +1075,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
       d.navigatorCollapsed,
     ),
     navigatorWidth: pick(parsed.navigatorWidth, isNumber, d.navigatorWidth),
+    panelWidths: normalizePanelWidths(parsed.panelWidths),
     expandedFolders:
       parsed.expandedFolders && typeof parsed.expandedFolders === "object"
         ? (parsed.expandedFolders as Record<string, string[]>)

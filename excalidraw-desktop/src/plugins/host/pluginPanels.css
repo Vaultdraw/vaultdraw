@@ -19,3 +19,26 @@
   flex: none;
   box-shadow: var(--vault-shadow-pop);
 }
+
+/* Resize handle on the panel's left edge (drag, Left/Right keys, double-click resets). */
+.vault-plugin-panel { position: relative; overflow-x: hidden; }
+.vault-plugin-panel__resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  z-index: 2;
+  cursor: col-resize;
+  touch-action: none;
+}
+.vault-plugin-panel__resize:hover,
+.vault-plugin-panel--resizing .vault-plugin-panel__resize {
+  background: var(--vault-primary-border, var(--vault-primary));
+  opacity: 0.5;
+}
+.vault-plugin-panel__resize:focus-visible {
+  outline: none;
+  box-shadow: var(--vault-ring-inset);
+}
+.vault-plugin-panel--resizing { user-select: none; }

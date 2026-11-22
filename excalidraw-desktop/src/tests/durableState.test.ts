@@ -119,6 +119,7 @@ const SAMPLES: { [K in typeof STATE_FIELDS[number]]: VaultPreferences[K] } = {
   lastVaultPath: "/v/one",
   navigatorCollapsed: true,
   navigatorWidth: 333,
+  panelWidths: { "ai-assistant.chat": 420 },
   expandedFolders: { "/v/one": ["", "notes"] },
   tagsPane: { "/v/one": { sort: "count", open: false, collapsed: ["a"] } },
   tabsSessions: [
