@@ -93,10 +93,11 @@ export default function Markdown({ text }: { text: string }) {
         items.push(re.exec(lines[i++])![1]);
       }
       const Tag = ordered ? "ol" : "ul";
+      const listKey = k++;
       blocks.push(
-        <Tag key={k++}>
+        <Tag key={listKey}>
           {items.map((it, j) => (
-            <li key={j}>{inline(it, `l${k}-${j}`)}</li>
+            <li key={j}>{inline(it, `l${listKey + 1}-${j}`)}</li>
           ))}
         </Tag>,
       );
@@ -124,12 +125,13 @@ export default function Markdown({ text }: { text: string }) {
     ) {
       para.push(lines[i++]);
     }
+    const paraKey = k++;
     blocks.push(
-      <p key={k++}>
+      <p key={paraKey}>
         {para.map((l, j) => (
           <Fragment key={j}>
             {j > 0 ? <br /> : null}
-            {inline(l, `p${k}-${j}`)}
+            {inline(l, `p${paraKey + 1}-${j}`)}
           </Fragment>
         ))}
       </p>,

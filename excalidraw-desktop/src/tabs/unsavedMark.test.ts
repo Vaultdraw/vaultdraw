@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  autosaveKeepsUp,
-  showUnsavedMark,
-  tabStatusFor,
-} from "./unsavedMark";
+import { autosaveKeepsUp, showUnsavedMark, tabStatusFor } from "./unsavedMark";
 
 describe("unsaved mark (toimprove 347)", () => {
   it("autosave within 2 s keeps up: no mark while typing or saving", () => {

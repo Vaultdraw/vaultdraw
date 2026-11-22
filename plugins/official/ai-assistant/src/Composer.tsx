@@ -163,7 +163,9 @@ export default function Composer({
     return [];
   }, [slash?.[1], at?.[1], s.task, s.contextMode]); // eslint-disable-line react-hooks/exhaustive-deps
   const helperOn = helper.length > 0 && !open;
-  useEffect(() => setActive(0), [slash?.[1], at?.[1]]);
+  const slashQuery = slash?.[1];
+  const atQuery = at?.[1];
+  useEffect(() => setActive(0), [slashQuery, atQuery]);
 
   const pickHelper = (it: MenuItem) => {
     if (slash) {
