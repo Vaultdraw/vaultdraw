@@ -58,7 +58,9 @@ export default function SettingsView({
     if (s.focus.tick > 0 && s.focus.target === "key") {
       const p = def.needsKey ? def : providerDef("anthropic");
       document
-        .querySelector<HTMLInputElement>(`input[aria-label="${p.label} API key"]`)
+        .querySelector<HTMLInputElement>(
+          `input[aria-label="${p.label} API key"]`,
+        )
         ?.focus();
     }
   }, [s.focus.tick, s.focus.target]); // eslint-disable-line react-hooks/exhaustive-deps
