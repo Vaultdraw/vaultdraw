@@ -30,6 +30,8 @@ const reply = (ops: unknown[]) =>
 async function start() {
   p = await boot(manifest(), plugin);
   await p.setSetting("provider", "openai");
+  // the picture check after Keep has its own tests (reviewPass, review flow)
+  await p.setSetting("review", false);
   p.scene.setElements([
     { type: "rectangle", x: 0, y: 0, width: 100, height: 60 },
     { type: "text", x: 10, y: 120, text: "Login page" },

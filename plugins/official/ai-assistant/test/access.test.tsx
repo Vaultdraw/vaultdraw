@@ -34,6 +34,8 @@ const newDrawing = `Here.\n\`\`\`vd new title="Blob"\n\`\`\`\n\`\`\`vd text\nHel
 async function start(access?: string) {
   p = await boot(manifest(), plugin);
   await p.setSetting("provider", "openai");
+  // the picture check after Keep has its own tests (reviewPass, review flow)
+  await p.setSetting("review", false);
   await p.setSetting("access", access ?? "ask"); // settings outlive a test in this kit
   p.scene.setElements([
     { type: "rectangle", x: 0, y: 0, width: 100, height: 60 },

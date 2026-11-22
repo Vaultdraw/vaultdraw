@@ -384,7 +384,7 @@ export function createSession(ctx: PluginContext): Session {
           summary: t.summary ?? t.proposal.headline,
         }
       : t.outcome
-      ? { outcome: t.outcome, summary: t.summary }
+      ? { outcome: t.outcome, ...(t.summary ? { summary: t.summary } : {}) }
       : {}),
     ...(t.applied ? { applied: true } : {}),
     ...(t.undone ? { undone: true } : {}),
@@ -464,7 +464,10 @@ export function createSession(ctx: PluginContext): Session {
       try {
         const note = await ctx.vault.readNote(notePath);
         const c = noteText(note.text, name, limit());
-        return { ...c, text: `The open note "${name}":\n${c.text}` };
+        // an empty note is refused with its own message (nothing to send)
+        return c.text
+          ? { ...c, text: `The open note "${name}":\n${c.text}` }
+          : c;
       } catch (err) {
         return {
           text: "",
@@ -636,7 +639,9 @@ export function createSession(ctx: PluginContext): Session {
             outcome: `Tidied up: ${r.applied}`,
             applied: true,
             // one tidy step can be undone from its line, like the change itself
-            ...(r.steps === 1 ? { undoPath: ctx.scene.path() ?? undefined } : {}),
+            ...(r.steps === 1
+              ? { undoPath: ctx.scene.path() ?? undefined }
+              : {}),
           }
         : null;
       put({

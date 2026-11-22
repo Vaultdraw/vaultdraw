@@ -98,6 +98,7 @@ describe("manifest", () => {
       "effort",
       "context",
       "access",
+      "review",
       "base_url",
       "timeout_s",
       "max_context_chars",
@@ -402,10 +403,7 @@ describe("what is sent", () => {
       expect(sent).not.toContain("Login page");
     });
 
-    // KNOWN src bug (session.ts contextFor): the note's text is prefixed with 'The open note "…":',
-    // so an empty note is no longer empty and its emptyMessage is never shown. Remove `.fails`
-    // when the refusal works again.
-    it.fails("an empty note is not sent and says so", async () => {
+    it("an empty note is not sent and says so", async () => {
       await inNote("  \n");
       await p!.run("summarise");
       await waitFor(() =>

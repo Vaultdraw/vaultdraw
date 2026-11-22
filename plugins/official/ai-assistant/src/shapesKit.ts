@@ -314,6 +314,7 @@ export function expandElements(
     }
     if (++count > max) {
       if (count === max + 1) {
+        // plural-ok: max is the element cap (150 by default), never 1
         problems.push(`More than ${max} elements: the rest were dropped`);
       }
       return;
