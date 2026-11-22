@@ -98,6 +98,7 @@ interface StoredChat extends ChatSummary {
 export const MAX_CHATS = 50;
 const INDEX_KEY = "chats";
 const chatKey = (id: string) => `chat:${id}`;
+const tabsKey = (vault: string) => `tabs:${vault}`;
 
 const titleOf = (turns: readonly { role: string; text: string }[]) => {
   const first = turns.find((t) => t.role === "user")?.text.trim() ?? "";
@@ -146,6 +147,35 @@ export interface SessionState {
   menu: { tick: number };
   /** How much the assistant may do with the drawing (the `access` setting). */
   access: AccessMode;
+  /** The open chat tabs, left to right. */
+  tabs: readonly TabInfo[];
+  /** The id of the tab shown. */
+  tab: string;
+}
+
+/** One tab of the strip: a chat that is open. */
+export interface TabInfo {
+  id: string;
+  /** The first question, trimmed; "New chat" until there is one. */
+  title: string;
+  provider: ProviderId;
+}
+
+/** What a tab keeps while another one is shown. */
+interface TabSnap {
+  task: Task;
+  request: string;
+  context: Context | null;
+  sent: string;
+  answer: string;
+  error: string | null;
+  history: readonly ChatMessage[];
+  drawn: number | null;
+  proposal: Proposal | null;
+  kept: string | null;
+  turns: readonly Turn[];
+  contextMode: ContextMode;
+  draft: string;
 }
 
 export interface Session {
@@ -163,7 +193,20 @@ export interface Session {
     images?: readonly MessageImage[],
   ): Promise<void>;
   cancel(): void;
+  /** Empties the shown chat (it stays in the history). */
   clear(): void;
+  /** Opens a new chat in a new tab and shows it (an empty tab shown already is reused). */
+  newChat(): void;
+  /** Shows the next (1) or previous (-1) tab, wrapping round. */
+  cycleTab(step: 1 | -1): void;
+  switchTab(id: string): void;
+  /** Closes a tab; the last one left is replaced by an empty chat. The chat stays in the history. */
+  closeTab(id: string): void;
+  /** Brings back the tabs that were open in this vault (reads storage once, when the panel opens). */
+  restoreTabs(): Promise<void>;
+  /** The unsent text of the shown tab's box. */
+  getDraft(): string;
+  setDraft(text: string): void;
   refreshKey(): Promise<void>;
   setKey(value: string): Promise<void>;
   removeKey(): Promise<void>;
@@ -240,6 +283,8 @@ export function createSession(ctx: PluginContext): Session {
     keys: {},
     menu: { tick: 0 },
     access: "ask",
+    tabs: [],
+    tab: "",
   };
   {
     const m = ctx.settings.get<string>("context");
@@ -299,13 +344,40 @@ export function createSession(ctx: PluginContext): Session {
     );
   }
 
-  /** The saved chat the thread belongs to (made on the first save). */
-  let chatId: string | null = null;
+  const newId = () =>
+    `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  /** The open tabs in order; the shown one is `activeId` and is also the id its chat is saved under. */
+  let activeId = newId();
+  let order: string[] = [activeId];
+  /** The tabs that are not shown (the shown one lives in `state`). */
+  const snaps = new Map<string, TabSnap>();
+  let draft = "";
+  /** Bumped when the shown chat is left, so a request still streaming into it is ignored. */
+  let runToken = 0;
   let restoring = false;
+  let restored = false;
   let saveChain: Promise<void> = Promise.resolve();
+
+  const tabTitle = (turns: readonly { role: string; text: string }[]) =>
+    turns.some((t) => t.role === "user") ? titleOf(turns) : "New chat";
+  const tabList = (): TabInfo[] =>
+    order.map((id) =>
+      id === activeId
+        ? { id, title: tabTitle(state.turns), provider: state.provider }
+        : {
+            id,
+            title: tabTitle(snaps.get(id)?.turns ?? []),
+            provider: snapProvider.get(id) ?? state.provider,
+          },
+    );
+  const snapProvider = new Map<string, ProviderId>();
+  state = { ...state, tabs: tabList(), tab: activeId };
 
   const set = (patch: Partial<SessionState>) => {
     state = { ...state, ...patch };
+    if (patch.turns || patch.provider || patch.tab !== undefined) {
+      state = { ...state, tabs: tabList(), tab: activeId };
+    }
     for (const cb of [...listeners]) {
       cb();
     }
@@ -339,9 +411,7 @@ export function createSession(ctx: PluginContext): Session {
     if (turns.length === 0) {
       return;
     }
-    const id = (chatId ??= `${Date.now().toString(36)}${Math.random()
-      .toString(36)
-      .slice(2, 6)}`);
+    const id = activeId;
     const rec: StoredChat = {
       id,
       title: titleOf(turns),
@@ -375,6 +445,16 @@ export function createSession(ctx: PluginContext): Session {
         await store.set(INDEX_KEY, next as unknown as Json);
       })
       .catch((err) => ctx.log.warn("could not save the chat", err));
+    persistTabs();
+  }
+
+  /** Remembers which tabs are open in this vault (written after a change, never before). */
+  function persistTabs() {
+    const vault = ctx.vault.info()?.name ?? "";
+    const rec = { open: [...order], active: activeId };
+    saveChain = saveChain
+      .then(() => ctx.storage.global.set(tabsKey(vault), rec as unknown as Json))
+      .catch((err) => ctx.log.warn("could not save the open tabs", err));
   }
 
   const limit = () =>
@@ -506,6 +586,13 @@ export function createSession(ctx: PluginContext): Session {
       accessNow() === "read" && (wanted === "edit" || wanted === "create")
         ? "ask"
         : wanted;
+    const token = runToken;
+    // a request whose tab was left in the meantime must not write into the tab shown now
+    const put = (patch: Partial<SessionState>) => {
+      if (token === runToken) {
+        set(patch);
+      }
+    };
     state = {
       ...state,
       proposal: null,
@@ -522,7 +609,7 @@ export function createSession(ctx: PluginContext): Session {
     const via = viaOf(cfg);
     const { context, sent } = await preview(task, request);
     const refuse = (error: string) =>
-      set({
+      put({
         task,
         request,
         context,
@@ -577,7 +664,8 @@ export function createSession(ctx: PluginContext): Session {
         ? { role: "user", content: sent, images }
         : { role: "user", content: sent },
     ];
-    controller = new AbortController();
+    const mine = new AbortController();
+    controller = mine;
     const shown =
       (request.trim() ||
         (task === "describe"
@@ -590,7 +678,7 @@ export function createSession(ctx: PluginContext): Session {
             images.length === 1 ? "" : "s"
           }`
         : "");
-    set({
+    put({
       status: "running",
       task,
       request,
@@ -612,14 +700,14 @@ export function createSession(ctx: PluginContext): Session {
         cfg,
         SYSTEM[task],
         messages,
-        controller.signal,
+        mine.signal,
       );
       const parser = createParser(cfg.provider);
       const dec = new TextDecoder();
       const add = (parts: string[]) => {
         if (parts.length) {
           answer += parts.join("");
-          set({ answer });
+          put({ answer });
         }
       };
       for await (const chunk of res.body) {
@@ -650,7 +738,7 @@ export function createSession(ctx: PluginContext): Session {
             task === "edit" ? ctx.scene.path() : null,
             Math.max(1, ctx.settings.get<number>("edit_max_ops") || 60),
           );
-          set({
+          put({
             status: "idle",
             history,
             proposal,
@@ -696,7 +784,7 @@ export function createSession(ctx: PluginContext): Session {
             return;
           }
           const message = (err as Error).message;
-          set({
+          put({
             status: "idle",
             history,
             error: message,
@@ -713,7 +801,7 @@ export function createSession(ctx: PluginContext): Session {
           });
         }
       } else {
-        set({
+        put({
           status: "idle",
           history,
           turns: [
@@ -730,7 +818,7 @@ export function createSession(ctx: PluginContext): Session {
         ? statusMessage(cfg.provider, err.status, err.detail)
         : friendlyError(err, cfg.provider);
       // what streamed before a stop or a failure stays in the thread
-      set({
+      put({
         status: "idle",
         error: message,
         turns: answer.trim()
@@ -741,7 +829,9 @@ export function createSession(ctx: PluginContext): Session {
           : state.turns,
       });
     } finally {
-      controller = null;
+      if (controller === mine) {
+        controller = null;
+      }
     }
   }
 
@@ -782,6 +872,113 @@ export function createSession(ctx: PluginContext): Session {
     });
   }
 
+  const blankSnap = (): TabSnap => ({
+    task: state.task,
+    request: "",
+    context: null,
+    sent: "",
+    answer: "",
+    error: null,
+    history: [],
+    drawn: null,
+    proposal: null,
+    kept: null,
+    turns: [],
+    contextMode: isContextMode(ctx.settings.get<string>("context"))
+      ? (ctx.settings.get<string>("context") as ContextMode)
+      : "auto",
+    draft: "",
+  });
+  const takeSnap = (): TabSnap => ({
+    task: state.task,
+    request: state.request,
+    context: state.context,
+    sent: state.sent,
+    answer: state.answer,
+    error: state.error,
+    history: state.history,
+    drawn: state.drawn,
+    proposal: state.proposal,
+    kept: state.kept,
+    turns: state.turns,
+    contextMode: state.contextMode,
+    draft,
+  });
+  /** What a saved chat brings back: its turns, and for an ask chat its questions and answers as follow-up context. */
+  const snapFromStored = (rec: StoredChat): TabSnap => {
+    const turns: Turn[] = rec.turns.map((t) => ({ ...t, id: ++turnId }));
+    const task = turns.at(-1)?.task ?? "ask";
+    return {
+      ...blankSnap(),
+      task,
+      turns,
+      history:
+        task === "ask"
+          ? turns
+              .filter((t) => t.task === "ask" && t.text)
+              .map((t) => ({ role: t.role, content: t.text }))
+          : [],
+    };
+  };
+  const readChat = async (id: string): Promise<StoredChat | null> => {
+    const rec = (await ctx.storage.global.get<Json>(chatKey(id))) as
+      | StoredChat
+      | undefined;
+    return rec && Array.isArray(rec.turns) ? rec : null;
+  };
+  /** Puts a tab's snapshot on screen as the shown tab. */
+  const show = (id: string, snap: TabSnap) => {
+    const { draft: text, ...shown } = snap;
+    activeId = id;
+    draft = text;
+    restoring = true;
+    set({
+      ...shown,
+      status: "idle",
+      view: "chat",
+      tab: id,
+      focus: { tick: state.focus.tick + 1, target: "request" },
+    });
+    restoring = false;
+  };
+  /** Stops what the shown tab is doing and files its state away; its answer so far stays in the thread. */
+  const leave = () => {
+    controller?.abort();
+    controller = null;
+    runToken++;
+    if (state.status === "running") {
+      state = {
+        ...state,
+        status: "idle",
+        error: null,
+        turns: state.answer.trim()
+          ? [
+              ...state.turns,
+              {
+                id: ++turnId,
+                role: "assistant",
+                text: state.answer,
+                task: state.task,
+              },
+            ]
+          : state.turns,
+      };
+      saveChat();
+    }
+    snaps.set(activeId, takeSnap());
+    snapProvider.set(activeId, state.provider);
+  };
+  const switchTo = (id: string) => {
+    const snap = snaps.get(id);
+    if (id === activeId || !snap) {
+      return;
+    }
+    leave();
+    snaps.delete(id);
+    show(id, snap);
+    persistTabs();
+  };
+
   const session: Session = {
     get: () => state,
     subscribe(cb) {
@@ -795,21 +992,91 @@ export function createSession(ctx: PluginContext): Session {
     },
     clear() {
       controller?.abort();
-      chatId = null;
-      set({
-        status: "idle",
-        request: "",
-        context: null,
-        sent: "",
-        answer: "",
-        error: null,
-        history: [],
-        drawn: null,
-        proposal: null,
-        kept: null,
-        turns: [],
-        view: "chat",
-      });
+      controller = null;
+      runToken++;
+      const id = newId();
+      order = order.map((x) => (x === activeId ? id : x));
+      show(id, blankSnap());
+      persistTabs();
+    },
+    newChat() {
+      if (state.turns.length === 0 && state.status === "idle") {
+        set({
+          view: "chat",
+          focus: { tick: state.focus.tick + 1, target: "request" },
+        });
+        return;
+      }
+      leave();
+      const id = newId();
+      order = [...order, id];
+      show(id, blankSnap());
+      persistTabs();
+    },
+    switchTab: switchTo,
+    cycleTab(step) {
+      if (order.length < 2) {
+        return;
+      }
+      const at = order.indexOf(activeId);
+      switchTo(order[(at + step + order.length) % order.length]);
+    },
+    closeTab(id) {
+      const at = order.indexOf(id);
+      if (at < 0) {
+        return;
+      }
+      if (order.length === 1) {
+        this.clear();
+        return;
+      }
+      if (id === activeId) {
+        switchTo(order[at === order.length - 1 ? at - 1 : at + 1]);
+      }
+      order = order.filter((x) => x !== id);
+      snaps.delete(id);
+      snapProvider.delete(id);
+      set({ tabs: tabList(), tab: activeId });
+      persistTabs();
+    },
+    async restoreTabs() {
+      if (restored) {
+        return;
+      }
+      restored = true;
+      const vault = ctx.vault.info()?.name ?? "";
+      const rec = await ctx.storage.global.get<{
+        open?: string[];
+        active?: string;
+      }>(tabsKey(vault));
+      // nothing to bring back once the user has started typing in the fresh chat
+      if (!rec?.open?.length || state.turns.length > 0 || draft) {
+        return;
+      }
+      const chats = new Map<string, StoredChat>();
+      for (const id of new Set(rec.open)) {
+        const chat = await readChat(id);
+        if (chat) {
+          chats.set(id, chat);
+        }
+      }
+      if (chats.size === 0 || state.turns.length > 0 || draft) {
+        return;
+      }
+      order = [...chats.keys()];
+      snaps.clear();
+      for (const [id, chat] of chats) {
+        snaps.set(id, snapFromStored(chat));
+        snapProvider.set(id, chat.provider);
+      }
+      const first = rec.active && chats.has(rec.active) ? rec.active : order[0];
+      const snap = snaps.get(first)!;
+      snaps.delete(first);
+      show(first, snap);
+    },
+    getDraft: () => draft,
+    setDraft(text) {
+      draft = text;
     },
     refreshKey,
     async setKey(value) {
@@ -961,39 +1228,32 @@ export function createSession(ctx: PluginContext): Session {
       return list.filter((c) => c.vault === vault);
     },
     async openChat(id) {
-      const rec = (await ctx.storage.global.get<Json>(chatKey(id))) as
-        | StoredChat
-        | undefined;
-      if (!rec || !Array.isArray(rec.turns)) {
+      if (id === activeId) {
+        set({ view: "chat" });
+        return;
+      }
+      if (order.includes(id)) {
+        switchTo(id);
+        return;
+      }
+      const rec = await readChat(id);
+      if (!rec) {
         ctx.ui.toast("This chat could not be opened", { kind: "error" });
         return;
       }
-      controller?.abort();
-      const turns: Turn[] = rec.turns.map((t) => ({ ...t, id: ++turnId }));
-      const task = turns.at(-1)?.task ?? "ask";
-      // the follow-up context of an ask chat is its questions and answers
-      const history: ChatMessage[] =
-        task === "ask"
-          ? turns
-              .filter((t) => t.task === "ask" && t.text)
-              .map((t) => ({ role: t.role, content: t.text }))
-          : [];
-      chatId = rec.id;
-      restoring = true;
-      set({
-        status: "idle",
-        task,
-        request: "",
-        answer: "",
-        error: null,
-        history,
-        drawn: null,
-        proposal: null,
-        kept: null,
-        turns,
-        view: "chat",
-      });
-      restoring = false;
+      const snap = snapFromStored(rec);
+      if (state.turns.length === 0 && state.status === "idle") {
+        // an empty tab is used up rather than left beside it
+        controller?.abort();
+        runToken++;
+        order = order.map((x) => (x === activeId ? id : x));
+      } else {
+        leave();
+        order = [...order, id];
+      }
+      snapProvider.set(id, rec.provider);
+      show(id, snap);
+      persistTabs();
     },
     async deleteChat(id) {
       const store = ctx.storage.global;
@@ -1004,8 +1264,13 @@ export function createSession(ctx: PluginContext): Session {
         INDEX_KEY,
         list.filter((c) => c.id !== id) as unknown as Json,
       );
-      if (chatId === id) {
-        chatId = null;
+      // a deleted chat does not stay open as a tab
+      if (order.includes(id)) {
+        if (order.length === 1) {
+          this.clear();
+        } else {
+          this.closeTab(id);
+        }
       }
     },
     undo(turnId) {
