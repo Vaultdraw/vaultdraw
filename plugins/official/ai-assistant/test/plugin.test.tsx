@@ -403,6 +403,28 @@ describe("what is sent", () => {
       expect(sent).not.toContain("Login page");
     });
 
+    it("an empty note does not block other requests: the model is told it is empty", async () => {
+      await inNote("  \n");
+      await ask("draw a login flow");
+      await waitFor(() => expect(p!.net.requests).toHaveLength(1));
+      const sent = JSON.parse(p!.net.requests[0].body!).messages.at(-1)
+        .content as string;
+      expect(sent).toContain('The open note "Trip" is empty.');
+    });
+
+    it("choosing the drawing (@drawing) wins over the open note", async () => {
+      await inNote();
+      fireEvent.change(screen.getByLabelText(BOX), {
+        target: { value: "@drawing" },
+      });
+      fireEvent.keyDown(screen.getByLabelText(BOX), { key: "Enter" });
+      await ask("what is here");
+      await waitFor(() => expect(p!.net.requests).toHaveLength(1));
+      const sent = JSON.parse(p!.net.requests[0].body!).messages.at(-1)
+        .content as string;
+      expect(sent).not.toContain("We leave on Friday.");
+    });
+
     it("an empty note is not sent and says so", async () => {
       await inNote("  \n");
       await p!.run("summarise");

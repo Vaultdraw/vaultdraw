@@ -24,9 +24,9 @@ export default definePlugin({
       session.focus(target);
     };
     /** A ready request through the one assistant (Describe, Summarise). */
-    const ask = (request: string) => {
+    const ask = (request: string, needsText = false) => {
       open();
-      void session.run(request);
+      void session.run(request, [], { needsText });
     };
 
     ctx.commands.register("describe", () => {
@@ -41,6 +41,7 @@ export default definePlugin({
         ctx.workspace.activeNotePath()
           ? "Summarise this note: a short paragraph, then at most five key points. Only facts from the note."
           : "Summarise the text of this drawing: a short paragraph, then at most five key points.",
+        true,
       ),
     );
     ctx.commands.register("keep", () => {

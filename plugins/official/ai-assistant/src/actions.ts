@@ -16,7 +16,12 @@ import {
 } from "./layout";
 
 import type { Block, Reply } from "./reply";
-import type { MermaidDrawing, SceneElement, SceneOp } from "@vaultdraw/api";
+import type {
+  MermaidDrawing,
+  NewElement,
+  SceneElement,
+  SceneOp,
+} from "@vaultdraw/api";
 
 export interface ActionEnv {
   elements: readonly SceneElement[];
@@ -29,8 +34,50 @@ export interface ActionEnv {
   convertMermaid(text: string): Promise<MermaidDrawing>;
 }
 
-/** The most ops one reply may add (the scene takes up to 1,000 in one batch). */
-export const MAX_REPLY_OPS = 900;
+/** The most ops one change may hold: the host's default `plugins.scene_max_ops` (500). */
+export const MAX_REPLY_OPS = 500;
+
+const REF_OK = /^[A-Za-z0-9_.:-]{1,64}$/;
+
+/**
+ * Gives a drawing's refs their own prefix (two drawings in one reply both have an "A" or "e1",
+ * and the host refuses a ref used twice) and only the characters the host accepts in a ref.
+ */
+export function prefixRefs(ops: readonly SceneOp[], prefix: string): SceneOp[] {
+  const map = new Map<string, string>();
+  const used = new Set<string>();
+  const name = (ref: string) => {
+    let out = map.get(ref);
+    if (!out) {
+      const clean = `${prefix}${ref.replace(/[^A-Za-z0-9_.:-]/g, "-")}`.slice(
+        0,
+        60,
+      );
+      out = clean;
+      for (let n = 2; used.has(out) || !REF_OK.test(out); n++) {
+        out = `${clean.slice(0, 56)}-${n}`;
+      }
+      used.add(out);
+      map.set(ref, out);
+    }
+    return out;
+  };
+  const end = (e: NewElement["start"]) =>
+    e && "ref" in e ? { ref: name(e.ref) } : e;
+  return ops.map((op) => {
+    if (op.op !== "add") {
+      return op;
+    }
+    const element = { ...op.element };
+    if (element.start) {
+      element.start = end(element.start);
+    }
+    if (element.end) {
+      element.end = end(element.end);
+    }
+    return { ...op, element, ...(op.ref ? { ref: name(op.ref) } : {}) };
+  });
+}
 
 const HEADING_SIZE: Record<string, number> = {
   "1": FONT.h1,
@@ -149,7 +196,11 @@ export async function buildActions(
     if (b.attrs.title) {
       items.push({ kind: "text", text: b.attrs.title, fontSize: FONT.h3 });
     }
-    items.push({ kind: "diagram", ...drawn });
+    items.push({
+      kind: "diagram",
+      ...drawn,
+      ops: prefixRefs(drawn.ops, `d${counts.diagram + 1}-`),
+    });
     if (b.attrs.caption) {
       items.push({ kind: "text", text: b.attrs.caption, fontSize: FONT.min });
     }
@@ -235,18 +286,35 @@ export async function buildActions(
       ? { x: 0, y: 0 }
       : anchorFor(size, rectsOf(remaining), replacedRect, env.viewCenter);
   const placed = stack(items, at);
-  let contentOps = placed.ops;
-  if (contentOps.length > MAX_REPLY_OPS) {
-    problems.push(
-      `${
-        contentOps.length - MAX_REPLY_OPS
-      } elements past the limit of one change`,
-    );
-    contentOps = contentOps.slice(0, MAX_REPLY_OPS);
-  }
+  const gone = new Set([...replaced, ...deletedByEdit]);
+  // an arrow may not bind to an element this same change deletes
+  let contentOps: SceneOp[] = placed.ops.map((op) => {
+    if (op.op !== "add") {
+      return op;
+    }
+    const el = { ...op.element };
+    for (const k of ["start", "end"] as const) {
+      const v = el[k];
+      if (v && "id" in v && gone.has(v.id)) {
+        delete el[k];
+      }
+    }
+    return { ...op, element: el };
+  });
   const deletes: SceneOp[] = [...replaced]
     .filter((id) => !deletedByEdit.has(id))
     .map((id) => ({ op: "delete", id }));
+  // the whole change must fit one batch: edits and deletes first, content takes what is left
+  const room = Math.max(
+    0,
+    MAX_REPLY_OPS - (base?.ops.length ?? 0) - deletes.length,
+  );
+  if (contentOps.length > room) {
+    problems.push(
+      `${contentOps.length - room} new elements past the limit of one change`,
+    );
+    contentOps = contentOps.slice(0, room);
+  }
 
   const ops: SceneOp[] = [...(base?.ops ?? []), ...deletes, ...contentOps];
   if (ops.length === 0 && !base?.drawing) {

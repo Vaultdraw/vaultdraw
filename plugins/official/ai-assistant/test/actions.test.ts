@@ -2,9 +2,14 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { buildActions, replacedIds, type ActionEnv } from "../src/actions";
+import {
+  buildActions,
+  prefixRefs,
+  replacedIds,
+  type ActionEnv,
+} from "../src/actions";
 import { overlaps } from "../src/layout";
-import { parseReply } from "../src/reply";
+import { completeOnly, parseReply } from "../src/reply";
 
 import type { SceneElement, SceneOp } from "@vaultdraw/api";
 
@@ -314,5 +319,154 @@ describe("real model replies", () => {
     expect(conv).toHaveBeenCalledTimes(3);
     expect(p.headline).toBe("Adds 6 headings, 6 texts, 2 notes, 3 drawings");
     expect(r.prose).not.toContain("```");
+  });
+});
+
+// Review findings (code review of feature/ai-agent, 2026-11-23): each failed on the first version.
+describe("a change the host accepts in one batch", () => {
+  const box = (ref: string) =>
+    ({
+      op: "add",
+      ref,
+      element: {
+        type: "rectangle",
+        x: 0,
+        y: 0,
+        width: 120,
+        height: 60,
+        text: ref,
+      },
+    } as SceneOp);
+  const arrow = (a: string, b: string) =>
+    ({
+      op: "add",
+      element: {
+        type: "arrow",
+        x: 0,
+        y: 0,
+        start: { ref: a },
+        end: { ref: b },
+      },
+    } as SceneOp);
+
+  it("two drawings with the same node names get refs of their own, and arrows follow", async () => {
+    const conv = vi.fn(async () => ({
+      ops: [box("A"), box("B"), arrow("A", "B")],
+      width: 300,
+      height: 60,
+      skipped: 0,
+    }));
+    const reply = parseReply(
+      [
+        fence("vd diagram", "flowchart LR\n A-->B"),
+        fence("vd diagram", "flowchart LR\n A-->B"),
+      ].join("\n"),
+    );
+    const p = (await buildActions(
+      reply,
+      env({ elements: [], convertMermaid: conv }),
+    ))!;
+    const refs = p.ops.flatMap((o) => (o.op === "add" && o.ref ? [o.ref] : []));
+    expect(new Set(refs).size).toBe(refs.length);
+    expect(refs).toEqual(["d1-A", "d1-B", "d2-A", "d2-B"]);
+    const arrows = p.ops.filter(
+      (o) => o.op === "add" && o.element.type === "arrow",
+    ) as any[];
+    expect(arrows.map((a) => [a.element.start.ref, a.element.end.ref])).toEqual(
+      [
+        ["d1-A", "d1-B"],
+        ["d2-A", "d2-B"],
+      ],
+    );
+  });
+
+  it("refs only use the characters the host accepts", () => {
+    const out = prefixRefs(
+      [box("login box"), box("step#1"), arrow("login box", "step#1")],
+      "d1-",
+    ) as any[];
+    for (const o of out.filter((x) => x.ref)) {
+      expect(o.ref).toMatch(/^[A-Za-z0-9_.:-]{1,64}$/);
+    }
+    expect(out[2].element.start.ref).toBe(out[0].ref);
+  });
+
+  it("the whole change stays under the host's 500 operations, deletes and edits included", async () => {
+    const many = Array.from({ length: 300 }, (_, i) =>
+      el(`x${i}`, "rectangle", i * 200, 0),
+    );
+    const conv = vi.fn(async () => ({
+      ops: Array.from({ length: 400 }, (_, i) => box(`n${i}`)),
+      width: 200,
+      height: 60,
+      skipped: 0,
+    }));
+    const p = (await buildActions(
+      parseReply(fence("vd diagram replace=all", "flowchart")),
+      env({ elements: many, convertMermaid: conv }),
+    ))!;
+    expect(p.ops.length).toBeLessThanOrEqual(500);
+    expect(p.ops.filter((o) => o.op === "delete")).toHaveLength(300);
+    expect(p.problems![0]).toMatch(/new elements past the limit of one change/);
+  });
+
+  it("an arrow to an element the same change replaces is not bound to it", async () => {
+    const reply = parseReply(
+      fence(
+        "vd draw replace=b1",
+        JSON.stringify([
+          {
+            type: "rectangle",
+            id: "n",
+            x: 0,
+            y: 0,
+            width: 160,
+            height: 70,
+            label: { text: "New" },
+          },
+          {
+            type: "arrow",
+            x: 160,
+            y: 35,
+            points: [
+              [0, 0],
+              [100, 0],
+            ],
+            start: "n",
+            end: { id: "b2" },
+          },
+          {
+            type: "arrow",
+            x: 160,
+            y: 35,
+            points: [
+              [0, 0],
+              [100, 0],
+            ],
+            start: "n",
+            end: { id: "b1" },
+          },
+        ]),
+      ),
+    );
+    const p = (await buildActions(reply, env()))!;
+    const arrows = p.ops.filter(
+      (o) => o.op === "add" && o.element.type === "arrow",
+    ) as any[];
+    expect(arrows[0].element.end).toEqual({ id: "b2" });
+    expect(arrows[1].element.end).toBeUndefined();
+  });
+
+  it("a block the answer cut off is dropped, never applied", () => {
+    const r = completeOnly(
+      parseReply(
+        `${fence(
+          "vd text",
+          "whole",
+        )}\n\`\`\`vd diagram\nsequenceDiagram\n  A->>`,
+      ),
+    );
+    expect(r.blocks.map((b) => b.kind)).toEqual(["text"]);
+    expect(r.skipped).toEqual(["the last part, which the answer cut off"]);
   });
 });

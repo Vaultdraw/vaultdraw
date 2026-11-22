@@ -94,6 +94,18 @@ export function parseReply(answer: string): Reply {
   return { prose: tidy(prose.join("\n")), blocks, skipped, open };
 }
 
+/** A reply cut off inside a block: that half block is dropped, never applied. */
+export function completeOnly(reply: Reply): Reply {
+  if (!reply.open || reply.blocks.length === 0) {
+    return reply;
+  }
+  return {
+    ...reply,
+    blocks: reply.blocks.slice(0, -1),
+    skipped: [...reply.skipped, "the last part, which the answer cut off"],
+  };
+}
+
 /** What to show while the reply streams: the prose so far, and whether blocks are being written. */
 export function streamingView(answer: string): {
   prose: string;

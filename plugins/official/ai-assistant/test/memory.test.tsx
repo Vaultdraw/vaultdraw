@@ -140,6 +140,14 @@ describe("conversation(): recent turns in full, older ones summed up", () => {
     expect(all).not.toContain("\nold");
   });
 
+  it("a message of only images never becomes an empty message", () => {
+    const msgs = conversation([
+      { role: "user", text: "+ 1 image", ask: "" },
+      { role: "assistant", text: "A cat." },
+    ]);
+    expect(msgs[0].content).toBe("+ 1 image");
+  });
+
   it("an error turn is remembered as a failure", () => {
     expect(outcomeLine({ role: "assistant", text: "", error: "Offline" })).toBe(
       "[Failed: Offline]",

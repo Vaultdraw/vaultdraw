@@ -15,6 +15,8 @@ export interface Context {
   emptyMessage?: string;
   /** The user chose to send nothing from the drawing. */
   none?: boolean;
+  /** `text` only says that the note is empty (Summarise refuses it). */
+  textless?: boolean;
 }
 
 const round = (n: number) => Math.round(n);
@@ -129,6 +131,7 @@ export function summarizeDrawing(
   selection: readonly string[],
   limit: number,
   path: string | null,
+  scope: "drawing" | "selection" = "drawing",
 ): Context {
   if (path === null && elements.length === 0) {
     return {
@@ -197,9 +200,11 @@ export function summarizeDrawing(
   }
   return {
     text: out.join("\n"),
-    summary: `The whole drawing: ${elements.length} element${
-      elements.length === 1 ? "" : "s"
-    }${picked.length ? `, ${picked.length} selected` : ""}`,
+    summary: `${
+      scope === "selection" ? "The selection" : "The whole drawing"
+    }: ${elements.length} element${elements.length === 1 ? "" : "s"}${
+      picked.length ? `, ${picked.length} selected` : ""
+    }`,
     cut: left,
   };
 }

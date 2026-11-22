@@ -47,6 +47,10 @@ describe("the drawing summary", () => {
       '- e1 rectangle: "Client"\n- e51 text: "second row"',
     );
     expect(c.summary).toBe("The whole drawing: 2 elements");
+    expect(
+      summarizeDrawing([el(1)], ["e1"], 4000, "a.excalidraw", "selection")
+        .summary,
+    ).toBe("The selection: 1 element, 1 selected");
   });
 
   it("an empty drawing and no open drawing are said plainly", () => {

@@ -16,7 +16,7 @@ import { friendlyError, statusMessage } from "./errors";
 import { conversation } from "./memory";
 import { lastImages } from "./images";
 import { systemPrompt, userMessage } from "./prompts";
-import { parseReply } from "./reply";
+import { completeOnly, parseReply } from "./reply";
 import { runReviewPass } from "./reviewPass";
 import {
   buildRequest,
@@ -63,6 +63,8 @@ export interface Turn {
   applied?: boolean;
   /** The drawing an applied change can still be undone in (not kept in saved chats). */
   undoPath?: string;
+  /** How many of the app's undo steps Undo replays (default 1; a two-round tidy-up is 2). */
+  undoSteps?: number;
   undone?: boolean;
 }
 
@@ -179,7 +181,11 @@ export interface Session {
     request: string,
   ): Promise<{ context: Context | null; sent: string; system: string }>;
   /** Asks; `images` (at most the composer's limit) go with the question. */
-  run(request: string, images?: readonly MessageImage[]): Promise<void>;
+  run(
+    request: string,
+    images?: readonly MessageImage[],
+    opts?: { needsText?: boolean },
+  ): Promise<void>;
   cancel(): void;
   /** Empties the shown chat (it stays in the history). */
   clear(): void;
@@ -458,16 +464,21 @@ export function createSession(ctx: PluginContext): Session {
         none: true,
       };
     }
-    const notePath = ctx.workspace.activeNotePath();
+    // a note in the active tab is what the assistant sees, unless the user chose the drawing
+    const notePath = mode === "auto" ? ctx.workspace.activeNotePath() : null;
     if (notePath) {
       const name = noteName(notePath);
       try {
         const note = await ctx.vault.readNote(notePath);
         const c = noteText(note.text, name, limit());
-        // an empty note is refused with its own message (nothing to send)
+        // an empty note is said to the model; only Summarise refuses it (needsText)
         return c.text
-          ? { ...c, text: `The open note "${name}":\n${c.text}` }
-          : c;
+          ? {
+              ...c,
+              text: `The open note "${name}":\n${c.text}`,
+              emptyMessage: undefined,
+            }
+          : { ...c, text: `The open note "${name}" is empty.`, textless: true };
       } catch (err) {
         return {
           text: "",
@@ -493,14 +504,22 @@ export function createSession(ctx: PluginContext): Session {
             "Select something in the drawing first, or choose another context.",
         };
       }
-      return summarizeDrawing(picked, selection, limit(), ctx.scene.path());
+      return summarizeDrawing(
+        picked,
+        selection,
+        limit(),
+        ctx.scene.path(),
+        "selection",
+      );
     }
     return summarizeDrawing(all, selection, limit(), ctx.scene.path());
   }
 
   /** The request before this one (a vague follow-up keeps its recipe). */
-  const previousAsk = () =>
-    [...state.turns].reverse().find((t) => t.role === "user")?.ask;
+  const previousAsk = () => {
+    const t = [...state.turns].reverse().find((x) => x.role === "user");
+    return t ? t.ask || t.text : undefined;
+  };
 
   async function preview(request: string) {
     const context = await contextFor();
@@ -638,10 +657,9 @@ export function createSession(ctx: PluginContext): Session {
             text: r.said,
             outcome: `Tidied up: ${r.applied}`,
             applied: true,
-            // one tidy step can be undone from its line, like the change itself
-            ...(r.steps === 1
-              ? { undoPath: ctx.scene.path() ?? undefined }
-              : {}),
+            // the tidy-up is undone from its own line, all its steps at once
+            undoPath: ctx.scene.path() ?? undefined,
+            undoSteps: r.steps,
           }
         : null;
       put({
@@ -660,7 +678,11 @@ export function createSession(ctx: PluginContext): Session {
     }
   }
 
-  async function run(request: string, images: readonly MessageImage[] = []) {
+  async function run(
+    request: string,
+    images: readonly MessageImage[] = [],
+    opts: { needsText?: boolean } = {},
+  ) {
     if (state.status === "running") {
       return;
     }
@@ -686,7 +708,9 @@ export function createSession(ctx: PluginContext): Session {
     const cfg = config();
     const via = viaOf(cfg);
     const ask = request.trim();
-    const { context, sent, system } = await preview(ask);
+    const { context, sent, system } = await preview(
+      ask || (images.length ? "(See the attached image.)" : ""),
+    );
     const refuse = (error: string) =>
       put({
         request,
@@ -700,7 +724,10 @@ export function createSession(ctx: PluginContext): Session {
     if (!ask && images.length === 0) {
       return refuse("Type a message first.");
     }
-    if (context?.emptyMessage && !context.text) {
+    if (
+      context?.emptyMessage &&
+      (!context.text || (opts.needsText && context.textless))
+    ) {
       return refuse(context.emptyMessage);
     }
     if (needsKey(cfg) && !hasKey) {
@@ -792,7 +819,7 @@ export function createSession(ctx: PluginContext): Session {
     put: (patch: Partial<SessionState>) => void,
     token: number,
   ) {
-    const reply = parseReply(answer);
+    const reply = completeOnly(parseReply(answer));
     const prose = reply.prose;
     const source =
       reply.blocks
@@ -1296,16 +1323,18 @@ export function createSession(ctx: PluginContext): Session {
       }
       // the app's own undo (one step); the canvas listens for its key on the document
       const mac = /mac/i.test(navigator.platform);
-      document.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "z",
-          code: "KeyZ",
-          metaKey: mac,
-          ctrlKey: !mac,
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
+      for (let n = 0; n < Math.max(1, t.undoSteps ?? 1); n++) {
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "z",
+            code: "KeyZ",
+            metaKey: mac,
+            ctrlKey: !mac,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      }
       set({
         turns: state.turns.map((x) =>
           x.id === turnId ? { ...x, undone: true } : x,

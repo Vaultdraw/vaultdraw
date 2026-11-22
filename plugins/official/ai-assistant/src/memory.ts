@@ -47,7 +47,7 @@ export function outcomeLine(t: HistoryTurn): string {
 
 const fullText = (t: HistoryTurn, withSource: boolean) =>
   t.role === "user"
-    ? t.ask ?? t.text
+    ? t.ask || t.text
     : [
         t.text,
         outcomeLine(t),
@@ -58,7 +58,7 @@ const fullText = (t: HistoryTurn, withSource: boolean) =>
 
 const shortText = (t: HistoryTurn) =>
   t.role === "user"
-    ? `- asked: ${one(t.ask ?? t.text, 140)}`
+    ? `- asked: ${one(t.ask || t.text, 140)}`
     : `- you: ${one(t.text || "(changed the drawing)", 140)}${
         outcomeLine(t) ? ` ${one(outcomeLine(t), 120)}` : ""
       }`;
