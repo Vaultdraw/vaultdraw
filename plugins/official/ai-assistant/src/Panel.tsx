@@ -1,298 +1,249 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
-import { TASK_TITLES, SYSTEM, type Task } from "./prompts";
-
+import Composer, { SLASH, TASKS } from "./Composer";
 import Ghosts from "./Ghosts";
+import { Icon, Mark } from "./Icons";
+import Markdown from "./markdown";
+import { TASK_TITLES, type Task } from "./prompts";
+import { providerDef } from "./providers";
+import SettingsView from "./SettingsView";
 
-import type { Session } from "./session";
+import type { Session, Turn } from "./session";
 
-const TASKS: Task[] = [
-  "ask",
-  "describe",
-  "edit",
-  "create",
-  "diagram",
-  "summarise",
-];
-
-const PLACEHOLDER: Record<Task, string> = {
+const HINT: Record<Task, string> = {
   ask: "Ask about this drawing",
-  describe: "Describe the selection (add a note if you like)",
-  diagram: "Describe the diagram to draw, e.g. login flow with a retry",
-  summarise: "Summarise (add a note if you like)",
-  edit: "Say what to change, e.g. make the login box red and add a Logout box",
-  create: "Describe the new drawing, e.g. a three-tier web app",
+  describe: "Describe the selection",
+  edit: "Change the drawing",
+  create: "Make a new drawing",
+  diagram: "Draw a diagram from text",
+  summarise: "Summarise this note or drawing",
 };
 
 export default function Panel({ session }: { session: Session }) {
   const s = useSyncExternalStore(session.subscribe, session.get);
-  const [draft, setDraft] = useState("");
-  const [key, setKey] = useState("");
-  const [showSent, setShowSent] = useState(false);
-  const [preview, setPreview] = useState<{
-    sent: string;
-    summary: string;
-  } | null>(null);
-  const box = useRef<HTMLTextAreaElement>(null);
-  const keyBox = useRef<HTMLInputElement>(null);
-  const keyDetails = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     void session.refreshKey();
+    void session.detect(false);
+    void session.refreshKeys();
   }, [session]);
 
-  useEffect(() => {
-    if (s.focus.tick === 0) {
-      return;
-    }
-    if (s.focus.target === "key") {
-      if (keyDetails.current) {
-        keyDetails.current.open = true;
-      }
-      keyBox.current?.focus();
-    } else {
-      box.current?.focus();
-    }
-  }, [s.focus.tick, s.focus.target]);
-
-  // The "what is sent" view follows the drawing and the question until it is sent.
-  useEffect(() => {
-    if (!showSent || s.status === "running") {
-      return;
-    }
-    let live = true;
-    void session.preview(s.task, draft).then((p) => {
-      if (live) {
-        setPreview({ sent: p.sent, summary: p.context?.summary ?? "" });
-      }
-    });
-    return () => {
-      live = false;
-    };
-  }, [showSent, s.task, draft, s.status, session]);
-
-  const running = s.status === "running";
-  const planTask = s.task === "edit" || s.task === "create";
-  const send = () => {
-    if (!running) {
-      const asked = draft;
-      void session.run(s.task, draft).then(() => {
-        // A question that was refused (no key, Offline mode, an empty drawing) stays in the box
-        // for the next try (toimprove 270).
-        const now = session.get();
-        if (now.error && !now.answer) {
-          setDraft((d) => (d === "" ? asked : d));
-        }
-      });
-      if (s.task === "ask" || s.task === "edit" || s.task === "create") {
-        setDraft("");
-      }
-    }
-  };
-  const sent = running || s.answer || s.error ? s.sent : preview?.sent ?? "";
-  const ctxSummary =
-    running || s.answer ? s.context?.summary : preview?.summary;
-
+  const def = providerDef(s.provider);
   return (
     <div className="vd-ai">
       <div className="vd-ai-head">
-        <strong>AI assistant</strong>
-        <span className="vd-ai-via">{s.via || session.config().provider}</span>
-      </div>
-
-      <div className="vd-ai-tasks" role="tablist" aria-label="What to do">
-        {TASKS.map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={s.task === t}
-            className="vd-ai-task"
-            onClick={() => session.setTask(t)}
-          >
-            {TASK_TITLES[t]}
-          </button>
-        ))}
-      </div>
-
-      <textarea
-        ref={box}
-        className="vd-ai-input"
-        aria-label={PLACEHOLDER[s.task]}
-        placeholder={PLACEHOLDER[s.task]}
-        value={draft}
-        rows={3}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            send();
-          } else if (e.key === "Escape" && running) {
-            e.stopPropagation();
-            session.cancel();
-          }
-        }}
-      />
-      <div className="vd-ai-row">
-        {running ? (
-          <button className="vd-ai-btn" onClick={() => session.cancel()}>
-            Stop
-          </button>
-        ) : (
-          <button className="vd-ai-btn vd-ai-primary" onClick={send}>
-            Send
-          </button>
-        )}
+        <div className="vd-ai-tab" aria-label="Current chat" title={s.via}>
+          <Mark />
+          <span className="vd-ai-ellipsis">{def.label}</span>
+        </div>
         <button
-          className="vd-ai-btn"
+          type="button"
+          className="vd-ai-icon"
+          aria-label="New chat"
+          title="New chat"
           onClick={() => session.clear()}
-          disabled={!s.answer && !s.error && s.history.length === 0}
         >
-          Clear
+          <Icon name="plus" />
         </button>
-        <label className="vd-ai-check">
-          <input
-            type="checkbox"
-            checked={showSent}
-            onChange={(e) => setShowSent(e.target.checked)}
-          />
-          Show what is sent
-        </label>
+        <span className="vd-ai-spacer" />
+        <button
+          type="button"
+          className="vd-ai-icon"
+          aria-label="AI settings"
+          aria-pressed={s.view === "settings"}
+          title="Settings"
+          onClick={() =>
+            session.setView(s.view === "settings" ? "chat" : "settings")
+          }
+        >
+          <Icon name="gear" />
+        </button>
       </div>
+      {s.view === "settings" ? (
+        <SettingsView session={session} s={s} />
+      ) : (
+        <>
+          <Thread session={session} s={s} />
+          <Composer session={session} s={s} />
+        </>
+      )}
+    </div>
+  );
+}
 
-      {showSent ? (
-        <div className="vd-ai-sent" aria-label="What is sent">
-          <div className="vd-ai-sent-title">
-            Sent to {s.via || "the model"}
-            {ctxSummary ? ` (${ctxSummary})` : ""}
-          </div>
-          <pre>{`Instructions:\n${SYSTEM[s.task]}\n\nMessage:\n${
-            sent || "(nothing yet)"
-          }`}</pre>
+function Thread({
+  session,
+  s,
+}: {
+  session: Session;
+  s: ReturnType<Session["get"]>;
+}) {
+  const end = useRef<HTMLDivElement>(null);
+  const running = s.status === "running";
+  const planTask = s.task === "edit" || s.task === "create";
+  useEffect(() => {
+    end.current?.scrollIntoView?.({ block: "end" });
+  }, [s.turns.length, s.answer, s.error, s.proposal, s.kept]);
+
+  const lastAssistant = [...s.turns]
+    .reverse()
+    .find((t) => t.role === "assistant");
+  return (
+    <div className="vd-ai-thread" role="log" aria-label="Conversation">
+      {s.turns.length === 0 && !running ? (
+        <div className="vd-ai-empty">
+          <Mark size={28} />
+          <h2>What can I do for you?</h2>
+          <ul className="vd-ai-hints" aria-label="Modes">
+            {TASKS.map((t) => (
+              <li key={t}>
+                <button type="button" onClick={() => session.setTask(t)}>
+                  <code>/{SLASH[t]}</code> {HINT[t]}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
-
+      {s.turns.map((t) => (
+        <TurnView
+          key={t.id}
+          turn={t}
+          session={session}
+          s={s}
+          last={t === lastAssistant && !running}
+        />
+      ))}
+      {running ? (
+        <div
+          className="vd-ai-turn vd-ai-assistant"
+          aria-live="polite"
+          aria-busy
+        >
+          {planTask ? (
+            <p className="vd-ai-wait">Working out the changes…</p>
+          ) : s.answer ? (
+            <Markdown text={s.answer} />
+          ) : (
+            <p className="vd-ai-wait">Waiting for the answer…</p>
+          )}
+        </div>
+      ) : null}
       {s.error ? (
         <p className="vd-ai-error" role="alert">
           {s.error}
         </p>
       ) : null}
-
       {s.kept ? (
         <p className="vd-ai-kept" role="status">
           {s.kept}
         </p>
       ) : null}
+      <div ref={end} />
+    </div>
+  );
+}
 
-      {s.proposal ? (
+function TurnView({
+  turn,
+  session,
+  s,
+  last,
+}: {
+  turn: Turn;
+  session: Session;
+  s: ReturnType<Session["get"]>;
+  last: boolean;
+}) {
+  if (turn.role === "user") {
+    return (
+      <div className="vd-ai-turn vd-ai-user">
+        <span className="vd-ai-badge">{TASK_TITLES[turn.task]}</span>
+        <p>{turn.text}</p>
+      </div>
+    );
+  }
+  const p = turn.proposal;
+  if (p && turn.outcome) {
+    // once kept or discarded, the card shrinks to one line in the history
+    return (
+      <p className="vd-ai-kept">
+        {p.headline}: {turn.outcome}
+      </p>
+    );
+  }
+  return (
+    <div className="vd-ai-turn vd-ai-assistant">
+      {turn.text ? <Markdown text={turn.text} /> : null}
+      {p ? (
         <div className="vd-ai-proposal" aria-label="Proposed change">
-          <strong>{s.proposal.headline}</strong>
+          <strong>{p.headline}</strong>
           <span className="vd-ai-via">
-            {s.proposal.kind === "edit"
+            {turn.outcome
+              ? turn.outcome
+              : p.kind === "edit"
               ? "Nothing is changed until you keep it."
               : "Nothing is saved until you keep it."}
           </span>
-          <Ghosts ghosts={s.proposal.ghosts} />
+          <Ghosts ghosts={p.ghosts} />
           <ul className="vd-ai-changes" aria-label="Changes">
-            {s.proposal.lines.map((l, i) => (
+            {p.lines.map((l, i) => (
               <li key={i}>{l}</li>
             ))}
           </ul>
-          {s.proposal.skipped > 0 ? (
+          {p.skipped > 0 ? (
             <span className="vd-ai-via">
-              {s.proposal.skipped} part{s.proposal.skipped === 1 ? "" : "s"} of
-              the reply made no sense and{" "}
-              {s.proposal.skipped === 1 ? "was" : "were"} left out.
+              {p.skipped} part{p.skipped === 1 ? "" : "s"} of the reply made no
+              sense and {p.skipped === 1 ? "was" : "were"} left out.
             </span>
           ) : null}
-          <div className="vd-ai-row">
-            <button
-              className="vd-ai-btn vd-ai-primary"
-              onClick={() => void session.keep()}
-            >
-              Keep
-            </button>
-            <button className="vd-ai-btn" onClick={() => session.discard()}>
-              Discard
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {running || (s.answer && !planTask) ? (
-        <div className="vd-ai-answer" aria-live="polite" aria-busy={running}>
-          <pre>
-            {planTask && running
-              ? "Working out the changes…"
-              : s.answer || "Waiting for the answer…"}
-          </pre>
-          {!running && s.answer && !planTask ? (
+          {!turn.outcome && s.proposal === p ? (
             <div className="vd-ai-row">
               <button
-                className="vd-ai-btn"
-                onClick={() => void session.copyAnswer()}
+                type="button"
+                className="vd-ai-btn vd-ai-primary"
+                onClick={() => void session.keep()}
               >
-                Copy
+                Keep
               </button>
-              {s.task === "diagram" ? (
-                <button
-                  className="vd-ai-btn vd-ai-primary"
-                  onClick={() => void session.draw()}
-                >
-                  Draw it
-                </button>
-              ) : null}
-              {s.drawn !== null ? (
-                <span className="vd-ai-via">
-                  Drew {s.drawn} shapes. Undo with{" "}
-                  {/mac/i.test(navigator.platform) ? "Cmd" : "Ctrl"}+Z.
-                </span>
-              ) : null}
+              <button
+                type="button"
+                className="vd-ai-btn"
+                onClick={() => session.discard()}
+              >
+                Discard
+              </button>
             </div>
           ) : null}
         </div>
       ) : null}
-
-      <details className="vd-ai-key" ref={keyDetails}>
-        <summary>Key and provider</summary>
-        <p className="vd-ai-note">
-          {s.hasKey ? "A key is saved on this computer." : "No key is saved."}{" "}
-          It is kept outside your config and your vault, and the app cannot show
-          it again. Provider, model and address are in Settings, Plugins, AI
-          assistant.
-        </p>
-        <div className="vd-ai-row">
-          <input
-            ref={keyBox}
-            type="password"
-            className="vd-ai-keyinput"
-            aria-label="API key"
-            placeholder="Paste your API key"
-            autoComplete="off"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && key.trim()) {
-                void session.setKey(key).then(() => setKey(""));
-              }
-            }}
-          />
+      {turn.text ? (
+        <div className="vd-ai-row vd-ai-actions">
           <button
-            className="vd-ai-btn vd-ai-primary"
-            disabled={!key.trim()}
-            onClick={() => void session.setKey(key).then(() => setKey(""))}
+            type="button"
+            className="vd-ai-btn vd-ai-ghost"
+            aria-label="Copy"
+            onClick={() => void session.copyAnswer(turn.text)}
           >
-            Save key
+            <Icon name="copy" size={12} /> Copy
           </button>
-          {s.hasKey ? (
+          {last && turn.task === "diagram" ? (
             <button
-              className="vd-ai-btn"
-              onClick={() => void session.removeKey()}
+              type="button"
+              className="vd-ai-btn vd-ai-primary"
+              onClick={() => void session.draw()}
             >
-              Remove key
+              Draw it
             </button>
           ) : null}
+          {last && s.drawn !== null ? (
+            <span className="vd-ai-via">
+              Drew {s.drawn} shapes. Undo with{" "}
+              {/mac/i.test(navigator.platform) ? "Cmd" : "Ctrl"}+Z.
+            </span>
+          ) : null}
         </div>
-      </details>
+      ) : null}
     </div>
   );
 }

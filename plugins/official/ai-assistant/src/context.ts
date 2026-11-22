@@ -13,6 +13,8 @@ export interface Context {
   cut: number;
   /** What to tell the user when `text` is empty (default: the drawing is empty). */
   emptyMessage?: string;
+  /** The user chose to send nothing from the drawing. */
+  none?: boolean;
 }
 
 const round = (n: number) => Math.round(n);

@@ -14,6 +14,8 @@ import { boot, type TestPlugin } from "@vaultdraw/api/testing";
 import { parseManifest } from "../../../../sdk/examples/testing/readManifest";
 import plugin from "../src/main";
 
+import { openSettings, saveKey } from "./ui";
+
 let p: TestPlugin | undefined;
 afterEach(async () => {
   await p?.dispose();
@@ -140,13 +142,15 @@ describe("a key goes only to the service it was saved for (toimprove M-17)", () 
       p.scene.setElements([{ type: "text", x: 10, y: 10, text: "Login page" }]);
       await p.openPanel("assistant");
       // Saved while the provider was Anthropic, through the panel as a user does.
-      fireEvent.change(screen.getByLabelText("API key"), {
-        target: { value: anthropicKey },
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Save key" }));
+      openSettings();
+      saveKey("Anthropic", anthropicKey);
       await waitFor(() =>
-        expect(screen.getByText(/A key is saved/)).toBeTruthy(),
+        expect(
+          screen.getByRole("status", { name: "Anthropic key status" })
+            .textContent,
+        ).toBe("Key saved"),
       );
+      fireEvent.click(screen.getByRole("button", { name: "Back to the chat" }));
       for (const [k, v] of Object.entries(settings)) {
         await p.setSetting(k, v);
       }

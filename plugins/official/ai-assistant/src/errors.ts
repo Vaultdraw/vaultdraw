@@ -1,12 +1,14 @@
 /** Plain-words messages for what can go wrong: no codes, no jargon, one next step. */
-import { ProviderError } from "./providers";
+import { ProviderError, providerDef } from "./providers";
 
 import type { ProviderId } from "./providers";
 
-const NAMES: Record<ProviderId, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  ollama: "Ollama",
+const nameOf = (id: ProviderId) => providerDef(id).label;
+const isCli = (id: ProviderId) => providerDef(id).kind === "cli";
+const LOGIN_HINT: Partial<Record<ProviderId, string>> = {
+  "claude-cli":
+    "Run claude in a terminal once and sign in, or open Settings in this panel.",
+  "codex-cli": "Run codex login in a terminal, or open Settings in this panel.",
 };
 
 /** The message for an answer with a status outside 200 to 299. `detail` is the provider's own text. */
@@ -15,7 +17,7 @@ export function statusMessage(
   status: number,
   detail: string,
 ): string {
-  const name = NAMES[provider];
+  const name = nameOf(provider);
   const extra = detail ? ` ${name} says: ${detail}` : "";
   if (status === 401 || status === 403) {
     return `${name} did not accept the key. Check it with "AI: Set API key".${extra}`;
@@ -39,17 +41,31 @@ export function statusMessage(
 
 /** The message for any thrown error. */
 export function friendlyError(err: unknown, provider: ProviderId): string {
-  const name = NAMES[provider];
+  const name = nameOf(provider);
   if (err instanceof ProviderError) {
+    if (
+      isCli(provider) &&
+      /log ?in|auth|credential|sign ?in|401/i.test(err.message)
+    ) {
+      return `${name} is not signed in. ${LOGIN_HINT[provider] ?? ""}`.trim();
+    }
     return `${name} reported a problem: ${err.message}`;
   }
   const code = (err as { code?: string } | null)?.code;
   const message = (err as Error | null)?.message ?? String(err);
   switch (code) {
     case "NETWORK_DISABLED":
-      return "Offline mode is on, so nothing was sent. Turn Offline mode off in Settings, or use a model on this computer (Ollama).";
+      return isCli(provider)
+        ? `Offline mode is on, so nothing was sent: ${name} needs the internet. Turn Offline mode off in Settings, or use a model on this computer (Ollama).`
+        : "Offline mode is on, so nothing was sent. Turn Offline mode off in Settings, or use a model on this computer (Ollama).";
     case "NETWORK_NOT_ALLOWED":
       return "AI requests are turned off by network.allow_ai in your config file. Remove it or set it to true.";
+    case "CLI_NOT_FOUND":
+      return `${name} is not installed on this computer. Install it, or pick another model in the panel.`;
+    case "CLI_FAILED":
+      return /log ?in|auth|credential|sign ?in|401/i.test(message)
+        ? `${name} is not signed in. ${LOGIN_HINT[provider] ?? ""}`.trim()
+        : `${name} stopped with an error: ${message}`;
     case "SECRET_MISSING":
       return `No API key is saved. Use "AI: Set API key" to add one.`;
     case "NETWORK_TIMEOUT":

@@ -13,6 +13,8 @@ import {
   type ProviderId,
 } from "../src/providers";
 
+import { openSettings, pickMode, saveKey } from "./ui";
+
 let p: TestPlugin | undefined;
 afterEach(async () => {
   await p?.dispose();
@@ -66,6 +68,7 @@ describe("manifest", () => {
     expect(m.permissions).toEqual([
       "net",
       "secret",
+      "cli",
       "vault.read",
       "vault.write",
     ]);
@@ -80,12 +83,19 @@ describe("manifest", () => {
       "discard",
       "cancel",
       "clear",
+      "new-chat",
+      "choose-model",
+      "cycle-effort",
+      "settings",
+      "open",
       "set-key",
       "remove-key",
     ]);
     expect(m.contributes.settings.map((s) => s.key)).toEqual([
       "provider",
       "model",
+      "effort",
+      "context",
       "base_url",
       "timeout_s",
       "max_context_chars",
@@ -336,7 +346,9 @@ describe("what is sent", () => {
       .content as string;
     expect(sent).toContain("Login page");
     expect(sent).not.toContain("Secret plan");
-    fireEvent.click(screen.getByLabelText("Show what is sent"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose what is sent" }),
+    );
     await waitFor(() =>
       expect(screen.getByLabelText("What is sent").textContent).toContain(
         "Login page",
@@ -451,7 +463,7 @@ describe("what is sent", () => {
     p!.net.respond = () => ({
       chunks: sse("```mermaid\nflowchart TD\nA-->B\n```"),
     });
-    fireEvent.click(screen.getByRole("tab", { name: "Generate a diagram" }));
+    pickMode("Generate a diagram");
     fireEvent.change(screen.getByLabelText(/Describe the diagram/), {
       target: { value: "login flow" },
     });
@@ -468,23 +480,23 @@ describe("what is sent", () => {
 describe("the key", () => {
   it("is saved through the app, shown as saved, and cannot be read back", async () => {
     await start({ key: false });
-    fireEvent.change(screen.getByLabelText("API key"), {
-      target: { value: `  ${KEY} ` },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save key" }));
+    openSettings();
+    saveKey("OpenAI", `  ${KEY} `);
     await waitFor(() =>
       expect(
         p!.net.secrets["ai-assistant"]?.["api-key-openai-api.openai.com"],
       ).toBe(KEY),
     );
     await waitFor(() =>
-      expect(screen.getByText(/A key is saved on this computer/)).toBeTruthy(),
+      expect(
+        screen.getByRole("status", { name: "OpenAI key status" }).textContent,
+      ).toBe("Key saved"),
     );
-    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe(
-      "",
-    );
+    expect(
+      (screen.getByLabelText("OpenAI API key") as HTMLInputElement).value,
+    ).toBe("");
     expect(document.body.textContent).not.toContain(KEY);
-    expect(screen.getByLabelText("API key").getAttribute("type")).toBe(
+    expect(screen.getByLabelText("OpenAI API key").getAttribute("type")).toBe(
       "password",
     );
   });
@@ -496,11 +508,13 @@ describe("the key", () => {
     expect(p!.toasts().join(" ")).toMatch(/key removed/);
   });
 
-  it("AI: Set API key opens the panel on the key box", async () => {
+  it("AI: Set API key opens the settings on the key box", async () => {
     await start({ key: false });
     await p!.run("set-key");
     await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getByLabelText("API key")),
+      expect(document.activeElement).toBe(
+        screen.getByLabelText("OpenAI API key"),
+      ),
     );
   });
 

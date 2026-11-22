@@ -9,6 +9,8 @@ import { parseManifest } from "../../../../sdk/examples/testing/readManifest";
 import plugin from "../src/main";
 import { secretNameOf, type ProviderConfig } from "../src/providers";
 
+import { pickMode } from "./ui";
+
 let p: TestPlugin | undefined;
 afterEach(async () => {
   await p?.dispose();
@@ -48,7 +50,7 @@ const send = async (
   model: string,
 ) => {
   p!.net.respond = () => ({ chunks: sse(model) });
-  fireEvent.click(screen.getByRole("tab", { name: tab }));
+  pickMode(tab);
   fireEvent.change(screen.getByLabelText(label), { target: { value: text } });
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
   await waitFor(() =>
@@ -176,7 +178,7 @@ describe("edit this drawing", () => {
   it("a reply that is not a plan is a plain error with nothing to keep", async () => {
     await start();
     p!.net.respond = () => ({ chunks: sse("Sorry, I can't.") });
-    fireEvent.click(screen.getByRole("tab", { name: "Edit this drawing" }));
+    pickMode("Edit this drawing");
     fireEvent.change(screen.getByLabelText(/Say what to change/), {
       target: { value: "x" },
     });
@@ -205,7 +207,7 @@ describe("edit this drawing", () => {
 
   it("asks for words and for an open drawing before sending anything", async () => {
     await start();
-    fireEvent.click(screen.getByRole("tab", { name: "Edit this drawing" }));
+    pickMode("Edit this drawing");
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toMatch(
@@ -228,7 +230,7 @@ describe("edit this drawing", () => {
   it("Offline mode blocks it in plain words and proposes nothing", async () => {
     await start();
     p!.net.offline = () => true;
-    fireEvent.click(screen.getByRole("tab", { name: "Edit this drawing" }));
+    pickMode("Edit this drawing");
     fireEvent.change(screen.getByLabelText(/Say what to change/), {
       target: { value: "x" },
     });

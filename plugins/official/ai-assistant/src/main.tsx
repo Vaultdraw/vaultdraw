@@ -43,6 +43,22 @@ export default definePlugin({
     });
     ctx.commands.register("discard", () => session.discard());
     ctx.commands.register("cancel", () => session.cancel());
+    ctx.commands.register("open", () => open("ask"));
+    ctx.commands.register("new-chat", () => {
+      session.clear();
+      open(session.get().task);
+    });
+    ctx.commands.register("choose-model", () => {
+      ctx.panels.open("assistant");
+      session.openModelPicker();
+    });
+    ctx.commands.register("cycle-effort", () => {
+      void session.cycleEffort();
+    });
+    ctx.commands.register("settings", () => {
+      ctx.panels.open("assistant");
+      session.setView("settings");
+    });
     ctx.commands.register("set-key", () => open(session.get().task, "key"));
     ctx.commands.register("remove-key", async () => {
       await session.removeKey();
