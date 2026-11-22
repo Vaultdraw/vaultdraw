@@ -1,24 +1,16 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
-import Composer, { SLASH, TASKS } from "./Composer";
+import Composer from "./Composer";
+import { EMPTY_HINT } from "./composerLogic";
 import Ghosts from "./Ghosts";
 import { Icon, Mark } from "./Icons";
 import Markdown from "./markdown";
 import History from "./History";
-import { type Task } from "./prompts";
+import { TASK_TITLES } from "./prompts";
 import { providerDef } from "./providers";
 import SettingsView from "./SettingsView";
 
 import type { Session, Turn } from "./session";
-
-const HINT: Record<Task, string> = {
-  ask: "Ask about this drawing",
-  describe: "Describe the selection",
-  edit: "Change the drawing",
-  create: "Make a new drawing",
-  diagram: "Draw a diagram from text",
-  summarise: "Summarise this note or drawing",
-};
 
 export default function Panel({ session }: { session: Session }) {
   const s = useSyncExternalStore(session.subscribe, session.get);
@@ -110,15 +102,7 @@ function Thread({
         <div className="vd-ai-empty">
           <Mark size={28} />
           <h2>What can I do for you?</h2>
-          <ul className="vd-ai-hints" aria-label="Modes">
-            {TASKS.map((t) => (
-              <li key={t}>
-                <button type="button" onClick={() => session.setTask(t)}>
-                  <code>/{SLASH[t]}</code> {HINT[t]}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <p className="vd-ai-emptyhint">{EMPTY_HINT}</p>
         </div>
       ) : null}
       {s.turns.map((t) => (

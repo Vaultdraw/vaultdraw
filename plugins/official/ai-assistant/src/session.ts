@@ -19,6 +19,7 @@ import {
   type Proposal,
 } from "./edits";
 import { friendlyError, statusMessage } from "./errors";
+import { lastImages } from "./images";
 import { SYSTEM, TASK_TITLES, userMessage, type Task } from "./prompts";
 import {
   buildRequest,
@@ -38,6 +39,7 @@ import {
   type ProviderId,
 } from "./providers";
 
+import type { MessageImage } from "./images";
 import type { CliToolStatus, Json, PluginContext } from "@vaultdraw/api";
 
 /** What the question is built from: chosen in the panel, default from the `context` setting. */
@@ -150,7 +152,12 @@ export interface Session {
     task: Task,
     request: string,
   ): Promise<{ context: Context | null; sent: string }>;
-  run(task: Task, request: string): Promise<void>;
+  /** Asks; `images` (at most the composer's limit) go with the question. */
+  run(
+    task: Task,
+    request: string,
+    images?: readonly MessageImage[],
+  ): Promise<void>;
   cancel(): void;
   clear(): void;
   refreshKey(): Promise<void>;
@@ -451,6 +458,7 @@ export function createSession(ctx: PluginContext): Session {
           effort: cfg.effort || undefined,
           system,
           prompt: transcript(messages),
+          ...(lastImages(messages).length ? { images: lastImages(messages) } : {}),
           timeoutMs: Math.max(cfg.timeoutMs, 300_000),
         },
         { signal },
@@ -466,7 +474,11 @@ export function createSession(ctx: PluginContext): Session {
     return res;
   }
 
-  async function run(task: Task, request: string) {
+  async function run(
+    task: Task,
+    request: string,
+    images: readonly MessageImage[] = [],
+  ) {
     if (state.status === "running") {
       return;
     }
@@ -534,15 +546,26 @@ export function createSession(ctx: PluginContext): Session {
       return refuse(friendlyError({ code: "SECRET_MISSING" }, cfg.provider));
     }
     const prior = task === "ask" && state.task === "ask" ? state.history : [];
-    const messages: ChatMessage[] = [...prior, { role: "user", content: sent }];
+    // pictures go with the newest message only; earlier turns keep just their words
+    const messages: ChatMessage[] = [
+      ...prior,
+      images.length
+        ? { role: "user", content: sent, images }
+        : { role: "user", content: sent },
+    ];
     controller = new AbortController();
     const shown =
-      request.trim() ||
+      (request.trim() ||
       (task === "describe"
         ? "Describe the selection"
         : task === "summarise"
         ? "Summarise this"
-        : TASK_TITLES[task]);
+        : TASK_TITLES[task])) +
+      (images.length
+        ? `${request.trim() ? "\n" : " "}+ ${images.length} image${
+            images.length === 1 ? "" : "s"
+          }`
+        : "");
     set({
       status: "running",
       task,
@@ -589,7 +612,10 @@ export function createSession(ctx: PluginContext): Session {
       }
       const history =
         task === "ask"
-          ? [...messages, { role: "assistant" as const, content: answer }]
+          ? [
+              ...messages.map((m) => ({ role: m.role, content: m.content })),
+              { role: "assistant" as const, content: answer },
+            ]
           : [];
       if (task === "edit" || task === "create") {
         try {

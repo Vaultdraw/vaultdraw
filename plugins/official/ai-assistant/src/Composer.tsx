@@ -1,12 +1,26 @@
 /**
  * The box at the bottom of the panel, built like the agent panels of Zed and opencode: the text
  * grows with what you type (Enter sends, Shift+Enter is a new line, Esc stops), `/` picks a mode,
- * `@` picks what is sent, and a row of controls below holds the model, the reasoning level, the
- * mode and the send button.
+ * `@` picks what is sent, and a row of controls below holds the + button (what is sent, add an
+ * image), the model, the reasoning level, the mode and the send button. Images are pasted or
+ * dropped in and shown as thumbnails. The row shortens its labels when the panel is narrow.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  barLevel,
+  checkImages,
+  contextChip,
+  helperKind,
+  imageFilesOf,
+  imageNote,
+  shortEffort,
+  shortModelLabel,
+  type BarLevel,
+  type ImageAttachment,
+} from "./composerLogic";
 import { Icon } from "./Icons";
+import { imageProblem, readImage } from "./imageFiles";
 import Menu, { List, arrowKeys, type MenuItem } from "./Menu";
 import { TASK_TITLES, SYSTEM, type Task } from "./prompts";
 import { availableModels, providerDef, type ProviderId } from "./providers";
@@ -56,7 +70,26 @@ const CONTEXTS: { id: ContextMode; label: string; hint: string; at: string }[] =
     { id: "none", label: "Nothing from the drawing", hint: "", at: "none" },
   ];
 
-type Open = null | "model" | "effort" | "mode" | "add" | "ctx";
+type Open = null | "model" | "effort" | "mode" | "add" | "sent";
+
+/** The toolbar's width, followed as the panel is resized (full labels where jsdom has no layout). */
+function useBarLevel(ref: React.RefObject<HTMLElement | null>): BarLevel {
+  const [level, setLevel] = useState<BarLevel>(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const update = () => setLevel(barLevel(el.clientWidth));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return level;
+}
+
+const capital = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
 
 export default function Composer({
   session,
@@ -68,12 +101,18 @@ export default function Composer({
   const [draft, setDraft] = useState("");
   const [open, setOpen] = useState<Open>(null);
   const [active, setActive] = useState(0);
+  const [images, setImages] = useState<ImageAttachment[]>([]);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState<{
     sent: string;
     summary: string;
   } | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const root = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  const files = useRef<HTMLInputElement>(null);
+  const level = useBarLevel(bar);
   const running = s.status === "running";
   const def = providerDef(s.provider);
   const cfg = session.config();
@@ -113,14 +152,15 @@ export default function Composer({
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
 
-  // What would be sent, for the context chip and its list; follows the mode, the choice and the drawing.
+  // What would be sent: built only while the "what is sent" view is open (nothing runs otherwise).
   const wantsContext = s.task !== "create" && s.task !== "diagram";
+  const showSent = open === "sent";
   useEffect(() => {
-    if (running || !wantsContext) {
+    if (!showSent || running) {
       return;
     }
     let live = true;
-    void session.preview(s.task, open === "ctx" ? draft : "").then((p) => {
+    void session.preview(s.task, draft).then((p) => {
       if (live) {
         setPreview({ sent: p.sent, summary: p.context?.summary ?? "" });
       }
@@ -128,21 +168,12 @@ export default function Composer({
     return () => {
       live = false;
     };
-  }, [
-    session,
-    s.task,
-    s.contextMode,
-    s.status,
-    s.turns.length,
-    open,
-    draft,
-    running,
-    wantsContext,
-  ]);
+  }, [session, s.task, s.contextMode, s.turns.length, showSent, draft, running]);
 
   // `/` at the start picks a mode; `@` at the end picks what is sent
-  const slash = /^\/([a-z]*)$/i.exec(draft);
-  const at = /(?:^|\s)@([a-z]*)$/i.exec(draft);
+  const kind = helperKind(draft);
+  const slash = kind === "slash" ? /^\/([a-z]*)$/i.exec(draft) : null;
+  const at = kind === "at" ? /(?:^|\s)@([a-z]*)$/i.exec(draft) : null;
   const helper: MenuItem[] = useMemo(() => {
     if (slash) {
       const q = slash[1].toLowerCase();
@@ -179,22 +210,60 @@ export default function Composer({
     }
   };
 
+  // Pasted or dropped pictures: checked, shrunk where large, then shown as thumbnails.
+  const addFiles = async (picked: File[]) => {
+    if (picked.length === 0) {
+      return;
+    }
+    const { accept, problems } = checkImages(
+      images.length,
+      picked.map((f) => ({ name: f.name, type: f.type, size: f.size })),
+    );
+    const read: ImageAttachment[] = [];
+    for (const i of accept) {
+      try {
+        read.push(await readImage(picked[i]));
+      } catch {
+        problems.push(`${picked[i].name || "The image"} could not be read.`);
+      }
+    }
+    setImages((now) => [...now, ...read].slice(0, 4));
+    setProblem(problems.length ? problems.join(" ") : null);
+  };
+
+  const attachProblem = imageProblem(s.provider, images);
+  const note = problem ?? attachProblem ?? (images.length ? imageNote(s.provider) : null);
+
   const send = () => {
     if (running) {
       return;
     }
+    if (attachProblem) {
+      setProblem(attachProblem);
+      return;
+    }
     const asked = draft;
-    void session.run(s.task, draft).then(() => {
-      // A question that was refused (no key, Offline mode, an empty drawing) stays in the box
-      // for the next try (toimprove 270).
-      const now = session.get();
-      if (now.error && !now.answer) {
-        setDraft((d) => (d === "" ? asked : d));
-      }
-    });
+    const sentImages = images;
+    void session
+      .run(
+        s.task,
+        draft,
+        sentImages.map((i) => ({ mime: i.mime, data: i.data })),
+      )
+      .then(() => {
+        // A question that was refused (no key, Offline mode, an empty drawing) stays in the box
+        // for the next try (toimprove 270).
+        const now = session.get();
+        if (now.error && !now.answer) {
+          setDraft((d) => (d === "" ? asked : d));
+          setImages((cur) => (cur.length === 0 ? sentImages : cur));
+        }
+      });
     if (s.task === "ask" || s.task === "edit" || s.task === "create") {
       setDraft("");
     }
+    setImages([]);
+    setProblem(null);
   };
 
   const available = availableModels({
@@ -214,7 +283,7 @@ export default function Composer({
         }));
   const modelLabel =
     def.models.find((m) => m.id === cfg.model)?.label ?? cfg.model ?? "Default";
-  const shortModel = modelLabel.replace(" (recommended)", "");
+  const shortModel = shortModelLabel(modelLabel);
   const effortItems: MenuItem[] = ["", ...def.efforts].map((e) => ({
     id: e,
     label: e || "Default",
@@ -226,20 +295,66 @@ export default function Composer({
     hint: `/${SLASH[t]}`,
     checked: s.task === t,
   }));
-  const ctxItems: MenuItem[] = CONTEXTS.map((c) => ({
-    id: c.id,
-    label: c.label,
-    hint: c.hint,
-    checked: s.contextMode === c.id,
-  }));
-  const chip =
-    s.contextMode === "none" && (s.task === "ask" || s.task === "describe")
-      ? "Nothing from the drawing"
-      : preview?.summary ||
-        (s.task === "summarise" ? "Note or text" : "Drawing");
+  // Behind +: what is sent (only for modes that send the drawing), a look at it, and images.
+  const addItems: MenuItem[] = [
+    ...(wantsContext
+      ? CONTEXTS.map((c) => ({
+          id: `ctx:${c.id}`,
+          label: c.label,
+          hint: c.hint,
+          group: "Send from the drawing",
+          checked: s.contextMode === c.id,
+        }))
+      : []),
+    {
+      id: "attach",
+      label: "Attach image…",
+      group: "Add",
+      disabled: images.length >= 4,
+    },
+    ...(wantsContext
+      ? [{ id: "sent", label: "Show what is sent", group: "Add" }]
+      : []),
+  ];
+  const onAdd = (it: MenuItem) => {
+    if (it.id === "attach") {
+      files.current?.click();
+    } else if (it.id === "sent") {
+      setOpen("sent");
+    } else {
+      session.setContextMode(it.id.slice(4) as ContextMode);
+    }
+  };
+  const chip = contextChip(s.contextMode, wantsContext);
+  const modeWord = capital(SLASH[s.task]);
+  const effortWord = shortEffort(cfg.effort);
 
   return (
-    <div className="vd-ai-composer" ref={root}>
+    <div
+      className="vd-ai-composer"
+      ref={root}
+      data-dragging={dragging || undefined}
+      onDragOver={(e) => {
+        if (Array.from(e.dataTransfer?.types ?? []).includes("Files")) {
+          e.preventDefault();
+          setDragging(true);
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!root.current?.contains(e.relatedTarget as Node | null)) {
+          setDragging(false);
+        }
+      }}
+      onDrop={(e) => {
+        setDragging(false);
+        const dropped = imageFilesOf(e.dataTransfer?.files);
+        if (dropped.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          void addFiles(dropped);
+        }
+      }}
+    >
       {helperOn ? (
         <div className="vd-ai-pop vd-ai-helper">
           <List
@@ -250,15 +365,50 @@ export default function Composer({
           />
         </div>
       ) : null}
+      {images.length > 0 ? (
+        <ul className="vd-ai-thumbs" aria-label="Attached images">
+          {images.map((im, n) => (
+            <li key={`${im.name}-${n}`} className="vd-ai-thumb">
+              <img
+                src={`data:${im.mime};base64,${im.data}`}
+                alt={im.name || `Image ${n + 1}`}
+              />
+              <button
+                type="button"
+                aria-label={`Remove ${im.name || `image ${n + 1}`}`}
+                title="Remove"
+                onClick={() =>
+                  setImages((now) => now.filter((_, k) => k !== n))
+                }
+              >
+                <Icon name="close" size={10} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {note ? (
+        <p className="vd-ai-imgnote" role="status">
+          {note}
+        </p>
+      ) : null}
       <textarea
         ref={box}
         className="vd-ai-input"
         aria-label={PLACEHOLDER[s.task]}
-        placeholder="Ask anything • @ to add context • / for commands"
+        placeholder={PLACEHOLDER[s.task]}
         value={draft}
         rows={1}
         onChange={(e) => setDraft(e.target.value)}
         onFocus={() => setOpen(null)}
+        onPaste={(e) => {
+          const pasted = imageFilesOf(e.clipboardData?.files);
+          if (pasted.length > 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            void addFiles(pasted);
+          }
+        }}
         onKeyDown={(e) => {
           if (helperOn) {
             if (arrowKeys(e, helper.length, active, setActive)) {
@@ -280,47 +430,78 @@ export default function Composer({
           }
         }}
       />
-      {wantsContext ? (
+      {chip ? (
         <div className="vd-ai-ctxrow">
-          <Menu
-            label="Choose what is sent"
-            title="What is sent: click to change"
-            className="vd-ai-chip"
-            trigger={<span className="vd-ai-chip-text">{chip}</span>}
-            items={ctxItems}
-            open={open === "ctx"}
-            setOpen={(o) => setOpen(o ? "ctx" : null)}
-            onPick={(it) => session.setContextMode(it.id as ContextMode)}
-          />
-          {open === "ctx" ? (
-            <div className="vd-ai-sent" aria-label="What is sent">
-              <div className="vd-ai-sent-title">
-                Sent to {s.via || "the model"}
-                {preview?.summary ? ` (${preview.summary})` : ""}
-              </div>
-              <pre>{`Instructions:\n${SYSTEM[s.task]}\n\nMessage:\n${
-                preview?.sent || "(nothing yet)"
-              }`}</pre>
-            </div>
-          ) : null}
+          <span className="vd-ai-chip" title="What is sent from the drawing">
+            <button
+              type="button"
+              className="vd-ai-chip-text"
+              aria-label="Show what is sent"
+              onClick={() => setOpen("sent")}
+            >
+              {chip}
+            </button>
+            <button
+              type="button"
+              className="vd-ai-chip-x"
+              aria-label="Back to the default context"
+              title="Back to the default"
+              onClick={() => session.setContextMode("auto")}
+            >
+              <Icon name="close" size={10} />
+            </button>
+          </span>
         </div>
       ) : null}
-      <div className="vd-ai-bar">
+      {showSent ? (
+        <div className="vd-ai-sent" aria-label="What is sent">
+          <div className="vd-ai-sent-title">
+            Sent to {s.via || "the model"}
+            {preview?.summary ? ` (${preview.summary})` : ""}
+            <button
+              type="button"
+              className="vd-ai-icon"
+              aria-label="Close what is sent"
+              onClick={() => setOpen(null)}
+            >
+              <Icon name="close" size={11} />
+            </button>
+          </div>
+          <pre>{`Instructions:\n${SYSTEM[s.task]}\n\nMessage:\n${
+            preview?.sent || "(nothing yet)"
+          }`}</pre>
+        </div>
+      ) : null}
+      <input
+        ref={files}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        multiple
+        hidden
+        aria-label="Choose images"
+        onChange={(e) => {
+          void addFiles(imageFilesOf(e.target.files));
+          e.target.value = "";
+        }}
+      />
+      <div className="vd-ai-bar" ref={bar} data-level={level}>
         <Menu
           label="Add context"
+          title="Add context or an image"
           trigger={<Icon name="plus" />}
           className="vd-ai-icon"
-          items={ctxItems}
+          items={addItems}
           open={open === "add"}
           setOpen={(o) => setOpen(o ? "add" : null)}
-          onPick={(it) => session.setContextMode(it.id as ContextMode)}
+          onPick={onAdd}
         />
         <Menu
           label="Model"
           className="vd-ai-model"
+          title={`Model: ${modelLabel}`}
           trigger={
             <>
-              <span className="vd-ai-ellipsis">{shortModel || "Default"}</span>
+              <span className="vd-ai-ellipsis">{shortModel}</span>
               <Icon name="chevron" size={11} />
             </>
           }
@@ -349,10 +530,11 @@ export default function Composer({
           <Menu
             label="Reasoning effort"
             className="vd-ai-effort"
+            title={`Reasoning effort: ${cfg.effort || "default"}`}
             trigger={
               <>
-                <span>{cfg.effort || "effort"}</span>
-                <Icon name="chevron" size={11} />
+                <Icon name="levels" size={13} />
+                {level < 2 ? <span>{effortWord}</span> : null}
               </>
             }
             items={effortItems}
@@ -364,10 +546,11 @@ export default function Composer({
         <Menu
           label="Mode"
           className="vd-ai-mode"
+          title={`Mode: ${TASK_TITLES[s.task]} (/${SLASH[s.task]})`}
           trigger={
             <>
-              <span className="vd-ai-ellipsis">{TASK_TITLES[s.task]}</span>
-              <Icon name="chevron" size={11} />
+              <Icon name="slash" size={13} />
+              {level === 0 ? <span>{modeWord}</span> : null}
             </>
           }
           items={modeItems}

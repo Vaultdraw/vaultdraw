@@ -44,10 +44,6 @@
 .vd-ai-thread { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; display: flex; flex-direction: column; gap: 12px; user-select: text; }
 .vd-ai-empty { margin: auto 0; display: flex; flex-direction: column; gap: 10px; padding: 16px 0; color: var(--vault-text-muted, inherit); }
 .vd-ai-empty h2 { margin: 0; font-size: 20px; font-weight: 500; line-height: 1.25; color: var(--vault-text, inherit); }
-.vd-ai-hints { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
-.vd-ai-hints button { width: 100%; text-align: left; background: none; border: 0; padding: 4px 6px; border-radius: var(--vd-radius-pop, 6px); cursor: pointer; color: var(--vault-text-muted, inherit); font-size: var(--vd-fs-small, 12px); }
-.vd-ai-hints button:hover { background: var(--vault-surface-hover, rgba(128,128,128,.14)); color: var(--vault-text, inherit); }
-.vd-ai-hints code { color: var(--vault-primary, #6965db); margin-right: 4px; }
 .vd-ai-turn { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .vd-ai-user { align-self: flex-end; max-width: 92%; padding: 6px 10px; border-radius: 10px; background: var(--vault-primary-light, rgba(105,101,219,.16)); }
 .vd-ai-user p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
@@ -81,17 +77,13 @@
 .vd-ai-input { width: 100%; font: inherit; color: inherit; background: none; border: 0; outline: none; resize: none; padding: 2px 4px; min-height: 22px; max-height: 168px; line-height: 1.45; }
 .vd-ai-input::placeholder { color: var(--vault-text-faint, #888); }
 .vd-ai-ctxrow { display: flex; flex-wrap: wrap; gap: 6px; }
-.vd-ai-bar { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.vd-ai-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; min-width: 0; }
 .vd-ai-tool { display: inline-flex; align-items: center; gap: 4px; min-width: 0; padding: 3px 6px; background: none; border: 0; border-radius: var(--vd-radius-pop, 6px); cursor: pointer; color: var(--vault-text-muted, inherit); font-size: var(--vd-fs-small, 12px); }
 .vd-ai-tool:hover, .vd-ai-tool[aria-expanded="true"] { background: var(--vault-surface-hover, rgba(128,128,128,.14)); color: var(--vault-text, inherit); }
 .vd-ai-tool.vd-ai-icon { width: 26px; height: 26px; padding: 0; justify-content: center; }
-.vd-ai-model { flex: 0 1 auto; max-width: 42%; }
-.vd-ai-mode { flex: 0 1 auto; max-width: 34%; }
-.vd-ai-chip { border: 1px solid var(--vault-border, rgba(128,128,128,.35)); border-radius: 999px; padding: 1px 8px; max-width: 100%; }
-.vd-ai-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vd-ai-send { flex: none; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: var(--vault-primary, #6965db); color: var(--vault-on-primary, #fff); cursor: pointer; }
 .vd-ai-send:hover { filter: brightness(1.1); }
-.vd-ai-icon:focus-visible, .vd-ai-tool:focus-visible, .vd-ai-send:focus-visible, .vd-ai-btn:focus-visible, .vd-ai-search:focus-visible, .vd-ai-keyinput:focus-visible, .vd-ai-field select:focus-visible, .vd-ai-hints button:focus-visible { outline: none; box-shadow: var(--vault-ring-inset); }
+.vd-ai-icon:focus-visible, .vd-ai-tool:focus-visible, .vd-ai-send:focus-visible, .vd-ai-btn:focus-visible, .vd-ai-search:focus-visible, .vd-ai-keyinput:focus-visible, .vd-ai-field select:focus-visible { outline: none; box-shadow: var(--vault-ring-inset); }
 
 /* pop-up lists open above the composer, as wide as it is */
 .vd-ai-pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); z-index: 5; max-height: min(320px, 50vh); display: flex; flex-direction: column; border: 1px solid var(--vault-border, rgba(128,128,128,.35)); border-radius: var(--vd-radius-pop, 8px); background: var(--vault-surface, Canvas); box-shadow: 0 6px 24px rgba(0,0,0,.28); outline: none; }
@@ -165,3 +157,21 @@
 .vd-ai-chat-delete { opacity: 0; }
 .vd-ai-chat:hover .vd-ai-chat-delete, .vd-ai-chat:focus-within .vd-ai-chat-delete { opacity: 1; }
 @media (hover: none) { .vd-ai-chat-delete { opacity: 1; } }
+/* composer: toolbar, chip, images */
+.vd-ai-model { flex: 0 1 auto; min-width: 0; }
+.vd-ai-effort, .vd-ai-mode { flex: none; white-space: nowrap; }
+.vd-ai-bar[data-level="1"] .vd-ai-mode, .vd-ai-bar[data-level="2"] .vd-ai-mode, .vd-ai-bar[data-level="2"] .vd-ai-effort { padding: 3px 5px; }
+.vd-ai-emptyhint { margin: 0; font-size: var(--vd-fs-small, 12px); color: var(--vault-text-faint, #888); }
+.vd-ai-chip { display: inline-flex; align-items: center; max-width: 100%; border: 1px solid var(--vault-border, rgba(128,128,128,.35)); border-radius: 999px; font-size: var(--vd-fs-small, 12px); color: var(--vault-text-muted, inherit); }
+.vd-ai-chip button { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 1px 6px; display: inline-flex; align-items: center; }
+.vd-ai-chip button:hover { color: var(--vault-text, inherit); }
+.vd-ai-chip button:focus-visible { outline: none; box-shadow: var(--vault-ring-inset); border-radius: 999px; }
+.vd-ai-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 8px !important; }
+.vd-ai-sent-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.vd-ai-thumbs { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.vd-ai-thumb { position: relative; width: 52px; height: 52px; border-radius: 8px; overflow: hidden; border: 1px solid var(--vault-border, rgba(128,128,128,.35)); }
+.vd-ai-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vd-ai-thumb button { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; cursor: pointer; background: var(--vault-surface, #fff); color: var(--vault-text, inherit); opacity: .9; }
+.vd-ai-thumb button:focus-visible { outline: none; box-shadow: var(--vault-ring); }
+.vd-ai-imgnote { margin: 0; font-size: var(--vd-fs-small, 12px); color: var(--vault-text-muted, inherit); }
+.vd-ai-composer[data-dragging] { border-color: var(--vault-primary, #6965db); border-style: dashed; }

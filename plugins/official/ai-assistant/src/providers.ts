@@ -4,6 +4,8 @@
  */
 import type { NetRequest } from "@vaultdraw/api";
 
+import { wireMessages, type MessageImage } from "./images";
+
 /** Where a provider is reached: the user's own command line, or an HTTP API. */
 export type ProviderKind = "cli" | "http";
 
@@ -195,6 +197,8 @@ export interface ProviderConfig {
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  /** Pictures that go with this message (only the newest message carries them). */
+  images?: readonly MessageImage[];
 }
 
 export const DEFAULT_BASE: Record<ProviderId, string> = Object.fromEntries(
@@ -285,11 +289,14 @@ export function buildRequest(
         max_tokens: 4096,
         stream: true,
         system,
-        messages,
+        messages: wireMessages("anthropic", messages),
       }),
     };
   }
-  const withSystem = [{ role: "system", content: system }, ...messages];
+  const withSystem = [
+    { role: "system", content: system },
+    ...wireMessages(cfg.provider, messages),
+  ];
   if (cfg.provider === "openai") {
     return {
       ...common,
