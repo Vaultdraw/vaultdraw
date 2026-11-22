@@ -53,7 +53,7 @@ import { createVaultApi } from "./vaultContext";
 import { createDiagramsApi } from "./diagramsContext";
 import { createClipboardApi } from "./clipboardContext";
 import { createPdfApi } from "./pdfContext";
-import { createNetApi } from "./netContext";
+import { createCliApi, createNetApi } from "./netContext";
 import { createNetworkApi } from "./networkContext";
 import { createSecretApi } from "./secretContext";
 import { createPresentApi } from "./presentContext";
@@ -217,6 +217,7 @@ export function createPluginContext(
   let networkApi: PluginContext["network"] | undefined;
   let netApi: PluginContext["net"] | undefined;
   let secretApi: PluginContext["secret"] | undefined;
+  let cliApi: PluginContext["cli"] | undefined;
   let thumbnailsApi: ThumbnailsApi | undefined;
   let diagramsApi: DiagramsApi | undefined;
   let pdfApi: PdfApi | undefined;
@@ -495,6 +496,9 @@ export function createPluginContext(
     },
     get net() {
       return (netApi ??= createNetApi(rt));
+    },
+    get cli() {
+      return (cliApi ??= createCliApi(rt));
     },
     get secret() {
       return (secretApi ??= createSecretApi(rt));

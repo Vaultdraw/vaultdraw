@@ -69,6 +69,7 @@ export type {
   Plugin,
   PluginContext,
   NetworkApi,
+  CliApi,
   NetApi,
   NetRequest,
   NetResponse,

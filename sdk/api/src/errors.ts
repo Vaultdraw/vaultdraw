@@ -6,10 +6,14 @@
  * `ctx.net`: `ABORTED`, `INVALID_URL`, `NETWORK_DISABLED`, `NETWORK_TIMEOUT`, `PRIVATE_ADDRESS`,
  * `SECRET_MISSING`, `TOO_MANY_STREAMS`.
  *
+ * Added in 1.4.0: `CLI_FAILED` and `CLI_NOT_FOUND` (`ctx.cli`).
+ *
  * @since 1.0.0
  */
 export type PluginErrorCode =
   | "ABORTED"
+  | "CLI_FAILED"
+  | "CLI_NOT_FOUND"
   | "CONFLICT"
   | "DRAWING_CHANGED"
   | "FONT_UNAVAILABLE"

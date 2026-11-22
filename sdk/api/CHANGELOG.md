@@ -2,6 +2,13 @@
 
 The history of `@vaultdraw/api` (the types), the manifest and the `vaultdraw-plugin` tool. The API follows [semantic versioning](https://semver.org/spec/v2.0.0.html) from 1.0.0 on; [stability.md](../docs/stability.md) says what that promises. The app's own change log is `CHANGELOG.md` at the repository root.
 
+## 1.4.0
+
+### Added
+
+- **`ctx.cli`** (permission `cli`, `@experimental`): `detect()` finds the AI command lines the user already has (Claude Code, Codex) and, with `check`, whether each is logged in; `run(...)` asks one and streams its output. The plugin names the tool; the app builds the command (absolute path, no shell, the question on standard input, a time limit, killed on `signal`). Offline mode and `network.allow_ai = false` refuse it. The tool keeps its own login; the app never reads or stores it.
+- Error codes `CLI_NOT_FOUND` and `CLI_FAILED`. The permission `cli` counts as a write permission: an update that adds it asks the user again.
+
 ## 1.3.0
 
 ### Added

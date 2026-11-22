@@ -26,7 +26,34 @@ export interface FakeNetRequest {
   authHeader?: { name: string; value: string };
 }
 
+/** One `ctx.cli.run` the fake saw. */
+export interface FakeCliRun {
+  pluginId: string;
+  tool: string;
+  model?: string;
+  effort?: string;
+  system?: string;
+  prompt: string;
+}
+
+/** The stand-in for the `cli.*` rows (permission `cli`): script the tools and the output. */
+export interface FakeCli {
+  /** What `detect` reports per tool id; a tool not listed is missing. */
+  tools: Record<
+    string,
+    { state: "found" | "ready" | "login"; path?: string; detail?: string }
+  >;
+  /** The tool's output (its stdout chunks). Unset: `CLI_FAILED`. */
+  respond?: (run: FakeCliRun) => FakeNetReply | Promise<FakeNetReply>;
+  /** Every run started, in order. */
+  runs: FakeCliRun[];
+  /** Every `detect` call: whether it asked for the login check. */
+  detects: boolean[];
+}
+
 export interface FakeNet {
+  /** `ctx.cli` in tests and the e2e harness. */
+  cli: FakeCli;
   /** The provider: what to answer. Unset: a connection error. Throw `{code, message}` to fail the open. */
   respond?: (request: FakeNetRequest) => FakeNetReply | Promise<FakeNetReply>;
   /** Every request opened, in order. */
@@ -111,7 +138,14 @@ interface Stream {
   closed: boolean;
 }
 
+export const createFakeCli = (): FakeCli => ({
+  tools: {},
+  runs: [],
+  detects: [],
+});
+
 export const createFakeNet = (): FakeNet => ({
+  cli: createFakeCli(),
   requests: [],
   secrets: {},
   closed: [],
@@ -130,6 +164,12 @@ const tagged = (tag: number, rest?: Uint8Array) => {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const NET_ROWS = new Set(["net.open", "net.read", "net.close"]);
+export const CLI_ROWS = new Set([
+  "cli.detect",
+  "cli.open",
+  "cli.read",
+  "cli.close",
+]);
 export const SECRET_ROWS = new Set([
   "secret.set",
   "secret.has",
@@ -146,6 +186,55 @@ export async function fakeNetRow(
   body: Uint8Array,
 ): Promise<Uint8Array> {
   const arg = JSON.parse(dec.decode(body)) as Record<string, unknown>;
+  if (method === "cli.detect") {
+    fake.cli.detects.push(arg.check === true);
+    const tools = ["claude", "codex"].map((id) => {
+      const t = fake.cli.tools[id];
+      if (!t) {
+        return { id, path: null, state: "missing", detail: "" };
+      }
+      const state =
+        arg.check === true || t.state === "found" ? t.state : "found";
+      return {
+        id,
+        path: t.path ?? `/usr/local/bin/${id}`,
+        state,
+        detail: arg.check === true ? t.detail ?? "" : "",
+      };
+    });
+    return enc.encode(JSON.stringify({ tools }));
+  }
+  if (method === "cli.open") {
+    if (fake.offline?.()) {
+      throw coded(
+        "NETWORK_DISABLED",
+        "Offline mode is on. Turn it off in Settings to use the internet.",
+      );
+    }
+    const tool = String(arg.tool);
+    if (!fake.cli.tools[tool]) {
+      throw coded("CLI_NOT_FOUND", `${tool} is not installed on this computer`);
+    }
+    const run: FakeCliRun = {
+      pluginId,
+      tool,
+      model: arg.model as string | undefined,
+      effort: arg.effort as string | undefined,
+      system: arg.system as string | undefined,
+      prompt: String(arg.prompt),
+    };
+    fake.cli.runs.push(run);
+    if (!fake.cli.respond) {
+      throw coded("CLI_FAILED", "The program stopped with an error");
+    }
+    const reply = await fake.cli.respond(run);
+    const id = nextId++;
+    streams.set(id, { pluginId, reply, next: 0, closed: false });
+    return enc.encode(JSON.stringify({ id }));
+  }
+  if (method === "cli.read" || method === "cli.close") {
+    return fakeNetRow(fake, pluginId, method.replace("cli.", "net."), body);
+  }
   if (method === "net.open") {
     // The same checks, in the same order, as the app's net.rs check_url (toimprove 274).
     let url: URL;

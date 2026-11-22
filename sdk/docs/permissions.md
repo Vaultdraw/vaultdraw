@@ -29,6 +29,7 @@ permissions = ["vault.read", "vault.write", "folders.import", "control", "pdf", 
 | `clipboard` | Read the clipboard text and see the text you paste | `ctx.clipboard` (since 0.28.0): `readText()` and `onPaste(cb)` for multi-line plain text; copied shapes and images never reach a plugin. Not a write permission, so adding it needs no review |
 | `network.images` | Download the pictures of web pages that your notes show, unless Offline mode or the user's setting turns it off | `ctx.network` (since 0.31.0): `askImages(urls)` answers whether web pictures are on (no dialog is shown) and `fetchImage(url)` returns the bytes. Only the `images` purpose: public http or https, no private or local address, at most 10 MiB, a picture by its bytes. |
 | `net` | Send requests to the addresses it is set up for, such as an AI provider, with keys you store | `ctx.net` (since 1.1.0, experimental): `request(...)` sent by the app. https only, or http to this computer; no private address; no redirects. Offline mode blocks other computers and still allows this computer |
+| `cli` | Run the AI command line you already have on this computer (Claude Code or Codex) to answer your questions, only when you press send | `ctx.cli` (since 1.4.0, experimental): `detect`, `run`. The plugin names a tool from a fixed list; the app builds the command |
 | `secret` | Keep secrets such as API keys on this computer (in the system keychain) where the plugin can never read them back | `ctx.secret` (since 1.1.0, experimental): `set`, `has`, `delete`. Used by `ctx.net` through `auth`. Kept in the system keychain, or in a protected file when the user chose that or there is no keychain |
 | `pdf` | Open PDF files you pick and draw their pages | `ctx.pdf` (since 0.26.0): a native file dialog for a PDF, opening PDF bytes, and rendering pages to pictures with the app's renderer. It reads the file you pick or the bytes you pass and writes nothing, so adding it needs no review |
 
@@ -68,6 +69,7 @@ Since API 0.3.0 the app checks them in its native layer: every native call of th
 | `ctx.network.askImages(urls)`, `ctx.network.fetchImage(url)` | `network.images` | 0.31.0 |
 | `ctx.net.request(...)` | `net` | 1.1.0 |
 | `ctx.secret.set`, `has`, `delete` | `secret` | 1.1.0 |
+| `ctx.cli.detect`, `ctx.cli.run` | `cli` | 1.4.0 |
 | `ctx.pdf.settings()`, `ctx.scene.placePages(sizes)`, `ctx.scene.sizeBytes()` | none | 0.26.0 |
 
 A call that needs a permission your `plugin.toml` does not declare fails with `code: "PERMISSION"`. An importer runs on a file the user chose, so its input needs no permission; an importer that calls `ctx.vault` still needs the permission for that call.

@@ -21,6 +21,7 @@ import type { VaultApi } from "./vault";
 import type { ShapesApi } from "./shapes";
 import type { DiagramsApi } from "./diagrams";
 import type { ClipboardApi, ToastOptions } from "./clipboard";
+import type { CliApi } from "./cli";
 import type { NetApi } from "./net";
 import type { NetworkApi } from "./network";
 import type { SecretApi } from "./secret";
@@ -135,6 +136,8 @@ export interface PluginContext {
   readonly network: NetworkApi;
   /** Requests to the internet or this computer, sent by the app. Needs the permission `net`. @experimental @since 1.1.0 */
   readonly net: NetApi;
+  /** Run the AI command line the user already has (Claude Code, Codex). Needs the permission `cli`. @experimental @since 1.4.0 */
+  readonly cli: CliApi;
   /** Secrets such as API keys, never readable back. Needs the permission `secret`. @experimental @since 1.1.0 */
   readonly secret: SecretApi;
   /** Full-screen presenting of the open drawing. @since 0.29.0 */

@@ -2,6 +2,7 @@
 import {
   createFakeNet,
   fakeNetRow,
+  CLI_ROWS,
   NET_ROWS,
   SECRET_ROWS,
   type FakeNet,
@@ -491,8 +492,16 @@ export function createFakeBackend(
         }
         return pdfRow(fake.pdf, method, body);
       }
-      if (NET_ROWS.has(method) || SECRET_ROWS.has(method)) {
-        const need = method.startsWith("net.") ? "net" : "secret";
+      if (
+        NET_ROWS.has(method) ||
+        SECRET_ROWS.has(method) ||
+        CLI_ROWS.has(method)
+      ) {
+        const need = method.startsWith("net.")
+          ? "net"
+          : method.startsWith("cli.")
+          ? "cli"
+          : "secret";
         if (!plugin.permissions.includes(need)) {
           throw coded(
             "PERMISSION",

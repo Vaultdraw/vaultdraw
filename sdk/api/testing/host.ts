@@ -588,6 +588,7 @@ export function createMockHost(
     let networkApi: PluginContext["network"] | undefined;
     let netApi: PluginContext["net"] | undefined;
     let secretApi: PluginContext["secret"] | undefined;
+    let cliApi: PluginContext["cli"] | undefined;
     let menusApi: PluginContext["menus"] | undefined;
     let pagesApi: PluginContext["pages"] | undefined;
     let foldersApi: PluginContext["folders"] | undefined;
@@ -861,6 +862,9 @@ export function createMockHost(
       },
       get net() {
         return (netApi ??= netModel.netApi(id, info.permissions));
+      },
+      get cli() {
+        return (cliApi ??= netModel.cliApi(id, info.permissions));
       },
       get secret() {
         return (secretApi ??= netModel.secretApi(id, info.permissions));

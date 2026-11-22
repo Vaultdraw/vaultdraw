@@ -1,4 +1,33 @@
-// @vaultdraw/api 1.3.0
+// @vaultdraw/api 1.4.0
+// cli.ts
+export type CliToolId = "claude" | "codex";
+export interface CliToolStatus {
+    id: CliToolId;
+    path: string | null;
+    state: "missing" | "found" | "ready" | "login";
+    detail: string;
+}
+export interface CliRequest {
+    tool: CliToolId;
+    model?: string;
+    effort?: string;
+    system?: string;
+    prompt: string;
+    timeoutMs?: number;
+}
+export interface CliRun {
+    readonly body: AsyncIterable<Uint8Array>;
+    close(): void;
+}
+export interface CliApi {
+    detect(options?: {
+        check?: boolean;
+    }): Promise<CliToolStatus[]>;
+    run(request: CliRequest, options?: {
+        signal?: AbortSignal;
+    }): Promise<CliRun>;
+}
+
 // clipboard.ts
 import type { Disposable } from "./disposable";
 export interface PasteEvent {
@@ -52,7 +81,7 @@ export interface Disposable {
 }
 
 // errors.ts
-export type PluginErrorCode = "ABORTED" | "CONFLICT" | "DRAWING_CHANGED" | "FONT_UNAVAILABLE" | "INTERNAL" | "INVALID_ARGUMENT" | "INVALID_FILE" | "INVALID_PATH" | "INVALID_URL" | "IO_ERROR" | "NAME_COLLISION" | "NETWORK_DISABLED" | "NETWORK_ERROR" | "NETWORK_NOT_ALLOWED" | "NETWORK_TIMEOUT" | "NO_VAULT" | "NO_VERSION" | "NOT_FOUND" | "NOT_SUPPORTED" | "PERMISSION" | "PRIVATE_ADDRESS" | "QUOTA" | "READ_ONLY" | "SECRET_MISSING" | "TIMEOUT" | "TOO_LARGE" | "TOO_MANY_STREAMS";
+export type PluginErrorCode = "ABORTED" | "CLI_FAILED" | "CLI_NOT_FOUND" | "CONFLICT" | "DRAWING_CHANGED" | "FONT_UNAVAILABLE" | "INTERNAL" | "INVALID_ARGUMENT" | "INVALID_FILE" | "INVALID_PATH" | "INVALID_URL" | "IO_ERROR" | "NAME_COLLISION" | "NETWORK_DISABLED" | "NETWORK_ERROR" | "NETWORK_NOT_ALLOWED" | "NETWORK_TIMEOUT" | "NO_VAULT" | "NO_VERSION" | "NOT_FOUND" | "NOT_SUPPORTED" | "PERMISSION" | "PRIVATE_ADDRESS" | "QUOTA" | "READ_ONLY" | "SECRET_MISSING" | "TIMEOUT" | "TOO_LARGE" | "TOO_MANY_STREAMS";
 export interface PluginApiError extends Error {
     readonly name: "PluginApiError";
     readonly code: PluginErrorCode;
@@ -187,6 +216,7 @@ export type { DiagramsApi, MermaidDrawing } from "./diagrams";
 export type { ThumbnailState, ThumbnailsApi } from "./thumbnails";
 export type { PdfApi, PdfDocument, PdfImportSettings, PdfPageSize, PdfRenderOptions, } from "./pdf";
 export type { ClipboardApi, PasteEvent, PasteResult, ToastOptions, } from "./clipboard";
+export type { CliApi, CliRequest, CliRun, CliToolId, CliToolStatus, } from "./cli";
 export type { NetApi, NetRequest, NetResponse } from "./net";
 export type { NetworkApi } from "./network";
 export type { SecretApi } from "./secret";
@@ -208,7 +238,7 @@ export interface PluginManifestInfo {
     permissions: readonly PluginPermission[];
     dataKey: string;
 }
-export type PluginPermission = "vault.read" | "vault.write" | "folders.import" | "control" | "pdf" | "clipboard" | "network.images" | "net" | "secret";
+export type PluginPermission = "vault.read" | "vault.write" | "folders.import" | "control" | "pdf" | "clipboard" | "network.images" | "net" | "secret" | "cli";
 export interface CommandContribution {
     id: string;
     title: string;
@@ -686,6 +716,7 @@ import type { VaultApi } from "./vault";
 import type { ShapesApi } from "./shapes";
 import type { DiagramsApi } from "./diagrams";
 import type { ClipboardApi, ToastOptions } from "./clipboard";
+import type { CliApi } from "./cli";
 import type { NetApi } from "./net";
 import type { NetworkApi } from "./network";
 import type { SecretApi } from "./secret";
@@ -739,6 +770,7 @@ export interface PluginContext {
     readonly clipboard: ClipboardApi;
     readonly network: NetworkApi;
     readonly net: NetApi;
+    readonly cli: CliApi;
     readonly secret: SecretApi;
     readonly present: PresentApi;
     readonly subscriptions: Disposable[];

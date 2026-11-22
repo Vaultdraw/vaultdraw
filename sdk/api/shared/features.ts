@@ -1,10 +1,13 @@
 // Generated from the @since tags of sdk/api/src by sdk/api/scripts/gen-features.mjs. Do not edit.
 
 /** The API revision of this build (the version of sdk/api/package.json). */
-export const API_REVISION = "1.3.0";
+export const API_REVISION = "1.4.0";
 
 /** Feature name to the revision that added it. `ctx.host.has(name)` is true for these. */
 export const FEATURES: Readonly<Record<string, string>> = {
+  cli: "1.4.0",
+  "cli.detect": "1.4.0",
+  "cli.run": "1.4.0",
   clipboard: "0.28.0",
   "clipboard.onPaste": "0.28.0",
   "clipboard.readText": "0.28.0",

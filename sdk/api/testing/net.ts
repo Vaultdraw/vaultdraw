@@ -3,13 +3,28 @@
  * was sent in `net.requests`, and see stored keys in `net.secrets`. Nothing goes on the wire. The
  * permissions `net` and `secret` are checked first, as in the app.
  */
-import { createFakeNet, fakeNetRow, type FakeNet } from "../shared/fakeNet";
-import { createNetClient, createSecretClient } from "../shared/netClient";
+import {
+  createFakeCli,
+  createFakeNet,
+  fakeNetRow,
+  type FakeNet,
+} from "../shared/fakeNet";
+import {
+  createCliClient,
+  createNetClient,
+  createSecretClient,
+} from "../shared/netClient";
 import { permissionError } from "../shared/vaultPaths";
 
-import type { NetApi, SecretApi } from "@vaultdraw/api";
+import type { CliApi, NetApi, SecretApi } from "@vaultdraw/api";
 
-export type { FakeNet, FakeNetReply, FakeNetRequest } from "../shared/fakeNet";
+export type {
+  FakeCli,
+  FakeCliRun,
+  FakeNet,
+  FakeNetReply,
+  FakeNetRequest,
+} from "../shared/fakeNet";
 
 export function createNetModel() {
   const fake: FakeNet = createFakeNet();
@@ -24,6 +39,13 @@ export function createNetModel() {
         }
       });
     },
+    cliApi(id: string, permissions: readonly string[]): CliApi {
+      return createCliClient(raw(id), () => {
+        if (!permissions.includes("cli")) {
+          throw permissionError(id, "cli.run", "cli");
+        }
+      });
+    },
     secretApi(id: string, permissions: readonly string[]): SecretApi {
       return createSecretClient(raw(id), (method) => {
         if (!permissions.includes("secret")) {
@@ -32,6 +54,7 @@ export function createNetModel() {
       });
     },
     reset() {
+      fake.cli = createFakeCli();
       fake.respond = undefined;
       fake.requests = [];
       fake.secrets = {};

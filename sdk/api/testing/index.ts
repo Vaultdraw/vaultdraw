@@ -20,7 +20,13 @@ import type {
 
 export type { FakeClipboard } from "./clipboard";
 export type { FakeNetwork } from "./network";
-export type { FakeNet, FakeNetReply, FakeNetRequest } from "./net";
+export type {
+  FakeCli,
+  FakeCliRun,
+  FakeNet,
+  FakeNetReply,
+  FakeNetRequest,
+} from "./net";
 export type {
   BootOptions,
   FakeBatch,

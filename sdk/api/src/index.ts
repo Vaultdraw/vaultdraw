@@ -124,6 +124,13 @@ export type {
   PasteResult,
   ToastOptions,
 } from "./clipboard";
+export type {
+  CliApi,
+  CliRequest,
+  CliRun,
+  CliToolId,
+  CliToolStatus,
+} from "./cli";
 export type { NetApi, NetRequest, NetResponse } from "./net";
 export type { NetworkApi } from "./network";
 export type { SecretApi } from "./secret";

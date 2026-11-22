@@ -13,7 +13,7 @@ export const SUPPORTED_API = 1;
  * the version in sdk/api/package.json (a test keeps the three equal). The app refuses a plugin
  * whose `min_api` is newer.
  */
-export const API_REVISION = "1.3.0";
+export const API_REVISION = "1.4.0";
 /** The pre-1.0 level: still accepted, with a warning, until API 2.0. */
 export const LEGACY_API = 0;
 const MAX_COMMANDS = 200;
@@ -88,6 +88,7 @@ export const PERMISSIONS = [
   "network.images",
   "net",
   "secret",
+  "cli",
 ];
 /** Kept for later API revisions; an app that knows them as reserved refuses a manifest that uses one. */
 const RESERVED_PERMISSIONS = [];

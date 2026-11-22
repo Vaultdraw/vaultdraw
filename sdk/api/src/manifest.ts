@@ -34,6 +34,7 @@ export interface PluginManifestInfo {
  * (`ctx.folders`), `control` (since 0.22.0) lets other programs call the
  * plugin's declared methods (`ctx.methods`), `pdf` (since 0.26.0) opens PDF files and renders their
  * pages (`ctx.pdf`), `clipboard` (since 0.28.0) reads the clipboard text and sees pasted text (`ctx.clipboard`). `network.images` (since 0.31.0) downloads the pictures of web pages a note shows, after the user allows it (`ctx.network`). `net` (since 1.1.0) sends requests to the internet addresses the plugin is configured for (`ctx.net`), and `secret` (since 1.1.0) keeps secrets such as API keys that the plugin can never read back (`ctx.secret`).
+ `cli` (since 1.4.0) runs the AI command line you already have, Claude Code or Codex (`ctx.cli`).
  *
  * @since 0.2.0
  */
@@ -46,7 +47,8 @@ export type PluginPermission =
   | "clipboard"
   | "network.images"
   | "net"
-  | "secret";
+  | "secret"
+  | "cli";
 
 /**
  * A command declared in `plugin.toml`.
