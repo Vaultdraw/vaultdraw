@@ -469,6 +469,24 @@ export const SETTINGS_SCHEMA: readonly SettingSchema[] = [
     configKey: "interface.zoom",
   },
   {
+    id: "interface-font-size",
+    page: "interface",
+    label: "Interface font size",
+    description:
+      "Text size of the file tree, tabs, menus, dialogs and Settings. Drawings and notes keep their own sizes.",
+    keywords: ["font", "text", "size", "bigger", "smaller", "type", "ui"],
+    configKey: "interface.font_size",
+  },
+  {
+    id: "interface-font-family",
+    page: "interface",
+    label: "Interface font",
+    description:
+      "Typeface of the file tree, tabs, menus, dialogs and Settings. Type the name of any font installed on this computer. Drawings and notes keep theirs.",
+    keywords: ["font", "typeface", "family", "system", "serif", "monospace"],
+    configKey: "interface.font_family",
+  },
+  {
     id: "show-tag-chips",
     page: "interface",
     label: "Show tag chips in the file tree",

@@ -2122,6 +2122,8 @@ The app window around the canvas.
 | `thumbnail_max_elements` | `8000` | an integer between 100 and 50000 |  | Biggest drawing (in elements) that gets a thumbnail. |
 | `thumbnail_cache_mb` | `128` | an integer between 8 and 8192 (megabytes) |  | Size cap of a vault's thumbnail cache on disk, in megabytes; the oldest thumbnails go first. Applies at the next thumbnail saved. |
 | `home_page` | `"full"` | "full", "minimal" or "blank" |  | What the home pane shows when no drawing is open: `full` (actions and recent drawings), `minimal` (actions only) or `blank` (nothing). |
+| `font_size` | `13` | a whole number between 11 and 20 (pixels) |  | Text size of the interface (file tree, tabs, menus, dialogs, Settings) in pixels; rows and controls grow with it. Drawings and notes keep their own sizes. |
+| `font_family` | `""` | a font name or CSS font list (at most 200 characters), or "" for the default |  | Typeface of the interface: `""` for the default (Assistant), `"system-ui"` for the system font, or any installed font name or CSS font list (`"Inter"`, `"Inter, sans-serif"`). Drawings and notes keep theirs. |
 | `defer_home_pane` | `true` | true or false |  | When a vault opens, paint the file tree first and the home pane one frame later, in the same place; `false` draws both together. |
 | `activity_bar` | `true` | true or false | yes | Show the activity bar. |
 | `activity_bar_order` | `[]` | a list of entry ids like ["library", "history"] | yes | Activity bar entry order: `library`, `history`, `graph`, `gallery`, `search`, `tags`, `templates`, `hotkeys`, `settings`; unlisted entries follow in their default order. |

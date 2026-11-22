@@ -205,6 +205,12 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
       home_page: {
         doc: "What the home pane shows when no drawing is open: `full` (actions and recent drawings), `minimal` (actions only) or `blank` (nothing).",
       },
+      font_size: {
+        doc: "Text size of the interface (file tree, tabs, menus, dialogs, Settings) in pixels; rows and controls grow with it. Drawings and notes keep their own sizes.",
+      },
+      font_family: {
+        doc: 'Typeface of the interface: `""` for the default (Assistant), `"system-ui"` for the system font, or any installed font name or CSS font list (`"Inter"`, `"Inter, sans-serif"`). Drawings and notes keep theirs.',
+      },
       defer_home_pane: {
         doc: "When a vault opens, paint the file tree first and the home pane one frame later, in the same place; `false` draws both together.",
       },

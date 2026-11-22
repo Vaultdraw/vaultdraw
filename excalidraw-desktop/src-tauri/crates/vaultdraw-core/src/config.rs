@@ -145,6 +145,10 @@ autosave_delay_ms = 500
 # thumbnail_cache_mb = 128
 # Start page when no drawing is open: "full", "minimal" (actions only) or "blank"
 # home_page = "full"
+# Interface text size in px, 11 to 20 (file tree, tabs, menus, dialogs; not drawings or notes)
+# font_size = 13
+# Interface typeface: "" = default, "system-ui", or an installed font name
+# font_family = ""
 # Paint the file tree first, the home pane one frame later
 # defer_home_pane = true
 # Show the activity bar

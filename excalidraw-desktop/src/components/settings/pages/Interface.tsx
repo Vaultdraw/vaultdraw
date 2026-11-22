@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { DEFAULT_ZOOM, clampZoom } from "../../../vault/zoom";
 import {
   MAX_NOTICE_SECONDS,
@@ -11,7 +13,11 @@ import {
   type SortOrder,
 } from "../../../vault/sortOrder";
 import {
+  DEFAULT_UI_FONT_SIZE,
   HOME_PAGES,
+  MAX_UI_FONT_FAMILY_LENGTH,
+  MAX_UI_FONT_SIZE,
+  MIN_UI_FONT_SIZE,
   updatePreferences,
   type HomePage,
 } from "../../../vault/preferences";
@@ -49,6 +55,116 @@ const ZoomSetting = () => {
         <span className="vault-setting-readout" aria-live="polite">
           {zoom} %
         </span>
+      </div>
+    </SettingRow>
+  );
+};
+
+const FontSizeSetting = () => {
+  const size = usePreference("interfaceFontSize");
+  return (
+    <SettingRow
+      id="interface-font-size"
+      onReset={
+        size !== DEFAULT_UI_FONT_SIZE
+          ? () => updatePreferences({ interfaceFontSize: DEFAULT_UI_FONT_SIZE })
+          : undefined
+      }
+    >
+      <Stepper
+        label="Interface font size"
+        unit="px"
+        min={MIN_UI_FONT_SIZE}
+        max={MAX_UI_FONT_SIZE}
+        step={1}
+        value={size}
+        onChange={(next) => updatePreferences({ interfaceFontSize: next })}
+      />
+    </SettingRow>
+  );
+};
+
+/** Choices offered before typing a font name ("" = the default UI font). */
+export const FONT_FAMILY_CHOICES: readonly { value: string; label: string }[] =
+  [
+    { value: "", label: "Default (Assistant)" },
+    { value: "system-ui", label: "System font" },
+    { value: "ui-serif", label: "Serif" },
+    { value: "ui-monospace", label: "Monospace" },
+  ];
+const OTHER_FONT = "__other__";
+
+const FontFamilySetting = () => {
+  const family = usePreference("interfaceFontFamily");
+  const preset = FONT_FAMILY_CHOICES.some((c) => c.value === family);
+  const [typing, setTyping] = useState(!preset);
+  const [draft, setDraft] = useState<string | null>(null);
+  const showInput = typing || !preset;
+  const commit = () => {
+    if (draft === null) {
+      return;
+    }
+    const next = draft.trim();
+    setDraft(null);
+    if (next !== family) {
+      updatePreferences({ interfaceFontFamily: next });
+    }
+  };
+  return (
+    <SettingRow
+      id="interface-font-family"
+      onReset={
+        family !== ""
+          ? () => {
+              setTyping(false);
+              setDraft(null);
+              updatePreferences({ interfaceFontFamily: "" });
+            }
+          : undefined
+      }
+    >
+      <div className="vault-setting-inline">
+        <select
+          className="vault-input"
+          aria-label="Interface font"
+          value={showInput ? OTHER_FONT : family}
+          onChange={(e) => {
+            if (e.target.value === OTHER_FONT) {
+              setTyping(true);
+              return;
+            }
+            setTyping(false);
+            setDraft(null);
+            updatePreferences({ interfaceFontFamily: e.target.value });
+          }}
+        >
+          {FONT_FAMILY_CHOICES.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+          <option value={OTHER_FONT}>Other font…</option>
+        </select>
+        {showInput && (
+          <input
+            className="vault-input"
+            aria-label="Font name"
+            placeholder="Font name, e.g. Inter"
+            spellCheck={false}
+            maxLength={MAX_UI_FONT_FAMILY_LENGTH}
+            value={draft ?? (preset ? "" : family)}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                commit();
+              } else if (e.key === "Escape" && draft !== null) {
+                e.stopPropagation();
+                setDraft(null);
+              }
+            }}
+          />
+        )}
       </div>
     </SettingRow>
   );
@@ -159,6 +275,8 @@ const SortOrderSetting = () => (
 
 export const interfaceControls: SettingControls = {
   "interface-zoom": { Component: ZoomSetting },
+  "interface-font-size": { Component: FontSizeSetting },
+  "interface-font-family": { Component: FontFamilySetting },
   "show-tag-chips": { Component: ShowTagChipsSetting },
   "home-page": { Component: HomePageSetting },
   "notice-seconds": { Component: NoticeSecondsSetting },
