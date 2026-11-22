@@ -141,6 +141,22 @@
   opacity: 1;
 }
 
+/* Unsaved: the dot stands where the close icon is; hover swaps them. */
+.vault-tabs__close--dirty {
+  opacity: 1;
+}
+.vault-tabs__close--dirty svg {
+  display: none;
+}
+.vault-tabs__tab:hover .vault-tabs__close--dirty svg,
+.vault-tabs__close--dirty:focus-visible svg {
+  display: block;
+}
+.vault-tabs__tab:hover .vault-tabs__close--dirty .vault-tabs__dot,
+.vault-tabs__close--dirty:focus-visible .vault-tabs__dot {
+  display: none;
+}
+
 .vault-tabs__close:hover,
 .vault-tabs__new:hover {
   background: var(--vault-surface-active);

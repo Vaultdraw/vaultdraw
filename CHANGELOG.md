@@ -27,6 +27,7 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 
 ### Changed
 
+- **No more "Saved" flicker.** The header no longer cycles Unsaved, Saving… and Saved while you type. Only unsaved edits are marked, as a dot in the tab where its close button is (the tab keeps its width; hovering shows the close button), and only when autosave is off or slower than 2 seconds. Save errors and conflicts still show.
 - **End-to-end tests have a Linux profile.** A second Playwright project sends a Linux user agent, so the Linux keys and words (Ctrl, "file manager") are tested on every machine and in the Linux CI, not only the macOS ones.
 - **Menus show only what can act.** **Re-import from its Markdown**, **Update to my theme and font anyway** and the two folder items for imported notes now appear only on a note the import made, or a folder that holds one (a very large folder shows them anyway). **Import: Cancel** is offered only while an import runs. Plugins get the same through `when` on a menu entry (plugin API 1.3.0).
 

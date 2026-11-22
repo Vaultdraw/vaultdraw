@@ -15,6 +15,8 @@ interface VaultHeaderProps {
   vault: VaultInfo | null;
   activePath: string | null;
   saveStatus: SaveStatus;
+  /** Show the "Unsaved" button: autosave is off or slow and no tab strip carries the dot. */
+  showUnsaved?: boolean;
   saveError?: string | null;
   recoveryCount?: number;
   navigatorCollapsed: boolean;
@@ -32,6 +34,7 @@ export const VaultHeader = ({
   vault,
   activePath,
   saveStatus,
+  showUnsaved = false,
   saveError,
   recoveryCount = 0,
   navigatorCollapsed,
@@ -130,10 +133,10 @@ export const VaultHeader = ({
         {activePath && (
           <>
             {saveStatus === "saved" && (
+              // Kept for scripts and tests, never drawn: only unsaved is shown (toimprove 347).
               <span
-                className="vault-status vault-status--saved"
-                title="All edits saved to disk"
-                role="status"
+                className="vault-status vault-status--saved visually-hidden"
+                aria-hidden="true"
               >
                 <i className="vault-status__dot" />
                 <span>Saved</span>
@@ -142,7 +145,11 @@ export const VaultHeader = ({
             {saveStatus === "dirty" && (
               <button
                 type="button"
-                className="vault-status vault-status--dirty"
+                className={`vault-status vault-status--dirty${
+                  showUnsaved ? "" : " visually-hidden"
+                }`}
+                aria-hidden={showUnsaved ? undefined : true}
+                tabIndex={showUnsaved ? undefined : -1}
                 onClick={onSave}
                 disabled={!onSave || vault.readOnly}
                 title={saveKeys ? `Save now (${saveKeys})` : "Save now"}
@@ -154,9 +161,8 @@ export const VaultHeader = ({
             )}
             {saveStatus === "saving" && (
               <span
-                className="vault-status vault-status--saving"
-                title="Saving…"
-                role="status"
+                className="vault-status vault-status--saving visually-hidden"
+                aria-hidden="true"
               >
                 <span className="vault-spinner" />
                 <span>Saving…</span>

@@ -142,13 +142,6 @@ const TabItem = memo(
           <>
             <IconDrawing className="vault-tabs__icon" width={13} height={13} />
             <span className="vault-tabs__name">{label}</span>
-            {status === "dirty" && (
-              <span
-                className="vault-tabs__dot"
-                role="img"
-                aria-label="Unsaved changes"
-              />
-            )}
             {(status === "conflict" || status === "error") && (
               <span
                 className="vault-tabs__warn"
@@ -162,7 +155,9 @@ const TabItem = memo(
             )}
             <button
               type="button"
-              className="vault-tabs__close"
+              className={`vault-tabs__close${
+                status === "dirty" ? " vault-tabs__close--dirty" : ""
+              }`}
               data-testid="vault-tab-close"
               tabIndex={-1}
               aria-label={`Close ${label}`}
@@ -172,6 +167,15 @@ const TabItem = memo(
                 onClose(tab.id);
               }}
             >
+              {/* Unsaved: a dot in the close button's place, so the tab never
+                  changes width; hovering the tab shows the close icon (Zed). */}
+              {status === "dirty" && (
+                <span
+                  className="vault-tabs__dot"
+                  role="img"
+                  aria-label="Unsaved changes"
+                />
+              )}
               <IconClose width={12} height={12} />
             </button>
           </>

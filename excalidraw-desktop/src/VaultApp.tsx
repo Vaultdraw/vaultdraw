@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { showUnsavedMark, tabStatusFor } from "./tabs/unsavedMark";
 import { writeNewDrawing } from "./vault/writeNewDrawing";
 import { fileKind, drawingStem } from "./vault/fileKind";
 
@@ -3652,6 +3653,10 @@ export const VaultApp = ({
           vault={vault}
           activePath={activeDoc?.path ?? null}
           saveStatus={saveStatus}
+          showUnsaved={
+            !(layout.shown.tab_strip && tabs.stripProps) &&
+            showUnsavedMark(saveStatus, prefsNow.autosaveDelayMs)
+          }
           saveError={saveError}
           recoveryCount={recoveryCount}
           navigatorCollapsed={navigatorHidden}
@@ -3692,7 +3697,7 @@ export const VaultApp = ({
           {layout.shown.tab_strip && tabs.stripProps && (
             <TabStrip
               {...tabs.stripProps}
-              activeStatus={saveStatus === "saving" ? "dirty" : saveStatus}
+              activeStatus={tabStatusFor(saveStatus, prefsNow.autosaveDelayMs)}
             />
           )}
           <div
