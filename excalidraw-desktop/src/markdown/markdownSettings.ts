@@ -21,6 +21,7 @@ export const MARKDOWN_FIELDS = [
   "markdownHeadingBold",
   "markdownInlineStyles",
   "markdownLivePreview",
+  "markdownConvertOnEnable",
 ] as const;
 export type MarkdownField = typeof MARKDOWN_FIELDS[number];
 
@@ -45,6 +46,8 @@ export interface MarkdownPreferences {
   markdownInlineStyles: boolean;
   /** markdown.live_preview: bold, italic and code words drawn without their marks. */
   markdownLivePreview: boolean;
+  /** markdown.convert_on_enable: turning the mode on converts the text already there. */
+  markdownConvertOnEnable: boolean;
 }
 
 const SIZE_FIELDS = [
@@ -68,6 +71,7 @@ export const MARKDOWN_DEFAULTS: MarkdownPreferences = {
   markdownHeadingBold: true,
   markdownInlineStyles: true,
   markdownLivePreview: true,
+  markdownConvertOnEnable: true,
 };
 
 const isBool = (v: unknown): v is boolean => typeof v === "boolean";
@@ -88,6 +92,7 @@ const VALID: Record<MarkdownField, (v: unknown) => boolean> = {
   markdownHeadingBold: isBool,
   markdownInlineStyles: isBool,
   markdownLivePreview: isBool,
+  markdownConvertOnEnable: isBool,
 };
 
 export const MARKDOWN_MAPPINGS: readonly ConfigMapping[] = [
@@ -126,6 +131,12 @@ export const MARKDOWN_MAPPINGS: readonly ConfigMapping[] = [
   {
     field: "markdownLivePreview",
     key: "markdown.live_preview",
+    expected: "true or false",
+    valid: isBool,
+  },
+  {
+    field: "markdownConvertOnEnable",
+    key: "markdown.convert_on_enable",
     expected: "true or false",
     valid: isBool,
   },

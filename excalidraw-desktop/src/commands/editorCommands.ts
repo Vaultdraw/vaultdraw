@@ -120,6 +120,13 @@ export const EDITOR_COMMANDS: readonly CommandDefinition[] = [
     when: ["drawingOpen", "writable", "editorFocus"],
   },
   {
+    id: "markdown.convertExisting",
+    title: "Markdown: Convert existing text",
+    category: "Markdown",
+    keys: { default: [] },
+    when: ["drawingOpen", "writable", "editorFocus"],
+  },
+  {
     id: "library.toggle",
     title: "Library: Open/close",
     category: "Library",

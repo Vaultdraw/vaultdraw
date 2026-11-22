@@ -31,6 +31,7 @@ import { toggleFirstTask, toggleTaskInTextarea } from "./taskToggle";
 export const MARKDOWN_TOGGLE_COMMAND = "markdown.toggle";
 export const MARKDOWN_TOGGLE_TASK_COMMAND = "markdown.toggleTask";
 export const MARKDOWN_TOGGLE_BOLD_COMMAND = "markdown.toggleBold";
+export const MARKDOWN_CONVERT_COMMAND = "markdown.convertExisting";
 
 /**
  * ☐ <-> ☑: on the caret's line while a text is edited, else on the first task
@@ -80,6 +81,21 @@ const toggleBold = async (api: ExcalidrawImperativeAPI | null) => {
     const { toggleBoldSelected } = await import("./boldToggle");
     await toggleBoldSelected(api);
   }
+};
+
+/**
+ * Text already on the canvas converted as if typed (toimprove 345): the
+ * selection, else the whole drawing; one undo step. The module loads only when used.
+ */
+const convertExisting = async (
+  api: ExcalidrawImperativeAPI | null,
+  win: Window | null,
+) => {
+  if (!api) {
+    return;
+  }
+  const { convertExistingText } = await import("./convertExisting");
+  await convertExistingText(api, typingSettingsFrom(getPreferences(win)));
 };
 
 type TypingModule = typeof import("./markdownTyping");
@@ -200,12 +216,25 @@ export function useMarkdownMode({
     setDrawingValue(!onRef.current);
     onRef.current = !onRef.current;
     live.current.onChange();
+    const win = live.current.getWindow();
+    if (onRef.current && getPreferences(win).markdownConvertOnEnable) {
+      void convertExisting(live.current.getApi(), win);
+    }
   }, [setDrawingValue]);
 
   useEffect(
     () =>
       registerCommandHandlers({
         [MARKDOWN_TOGGLE_COMMAND]: toggle,
+        [MARKDOWN_CONVERT_COMMAND]: () => {
+          // only in a drawing with the mode on: off, its text stays as written
+          if (live.current.isWritable() && onRef.current) {
+            void convertExisting(
+              live.current.getApi(),
+              live.current.getWindow(),
+            );
+          }
+        },
         [MARKDOWN_TOGGLE_BOLD_COMMAND]: () => {
           if (live.current.isWritable()) {
             void toggleBold(live.current.getApi());
