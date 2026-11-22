@@ -3,8 +3,8 @@
  * edits.ts, content (headings, text, notes, element drawings, Mermaid diagrams) laid out by
  * layout.ts, replaced elements deleted, all applied together as one undo step on Keep.
  */
-import { drawToOps } from "./elements";
 import { buildProposal, NoChange, type Ghost, type Proposal } from "./edits";
+import { expandElements } from "./shapesKit";
 import {
   anchorFor,
   bounds,
@@ -190,22 +190,17 @@ export async function buildActions(
       counts.note++;
       lines.push(`Adds note "${b.body.replace(/\s+/g, " ").slice(0, 40)}"`);
     } else if (b.kind === "draw") {
-      try {
-        const r = drawToOps(b.body);
-        if (r.ops.length) {
-          await titled(b, r);
+      const r = expandElements(b.body, {
+        existingIds: new Set(existing.map((e) => e.id)),
+      });
+      for (const id of r.deletes) {
+        if (existing.some((e) => e.id === id)) {
+          replaced.add(id);
         }
-        if (r.skipped) {
-          problems.push(
-            plural(
-              r.skipped,
-              "element that made no sense",
-              "elements that made no sense",
-            ),
-          );
-        }
-      } catch (err) {
-        problems.push((err as Error).message);
+      }
+      problems.push(...r.problems);
+      if (r.ops.length) {
+        await titled(b, r);
       }
     } else if (b.kind === "diagram") {
       const text = b.body.replace(/^```\w*\n?|```$/g, "").trim();

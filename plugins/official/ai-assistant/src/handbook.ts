@@ -42,7 +42,13 @@ const fill = (text: string) =>
     return list ? list.join(", ") : all;
   });
 
-export const CORE = core.trim();
+/** The always-on drawing paragraph inside drawing.md (between its `drawing-core` marks). */
+export const DRAWING_CORE =
+  /<!-- drawing-core -->\s*([\s\S]*?)\s*<!-- \/drawing-core -->/.exec(
+    drawing,
+  )?.[1] ?? "";
+
+export const CORE = core.trim().replace("{{drawing-core}}", DRAWING_CORE);
 
 export const SECTIONS: readonly Section[] = Object.entries({
   teach,
@@ -57,7 +63,12 @@ export const SECTIONS: readonly Section[] = Object.entries({
   markdown,
 }).map(([name, raw]) => {
   const s = parseSection(name, raw);
-  return { ...s, body: fill(s.body) };
+  // the drawing paragraph is in the core already; comments are for people
+  const body = s.body
+    .replace(/<!-- drawing-core -->[\s\S]*?<!-- \/drawing-core -->/, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .trim();
+  return { ...s, body: fill(body) };
 });
 
 /** A rough token count (four characters a token), for the budget checks. */

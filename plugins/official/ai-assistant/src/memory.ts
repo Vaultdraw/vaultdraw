@@ -38,7 +38,9 @@ export function outcomeLine(t: HistoryTurn): string {
     return t.summary ? `[Proposed, not decided yet: ${t.summary}]` : "";
   }
   if (t.applied) {
-    return `[Applied to the drawing${t.undone ? ", then undone by the user" : ""}: ${t.outcome}]`;
+    return `[Applied to the drawing${
+      t.undone ? ", then undone by the user" : ""
+    }: ${t.outcome}]`;
   }
   return `[${t.outcome} by the user: ${t.summary ?? "the proposed change"}]`;
 }
@@ -100,7 +102,8 @@ export function conversation(
     return msgs;
   };
   let msgs = build(from);
-  const size = (m: ChatMessage[]) => m.reduce((n, x) => n + x.content.length, 0);
+  const size = (m: ChatMessage[]) =>
+    m.reduce((n, x) => n + x.content.length, 0);
   while (size(msgs) > cap && from < usable.length) {
     from++;
     while (from < usable.length && usable[from].role !== "user") {

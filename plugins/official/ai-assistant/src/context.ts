@@ -162,9 +162,9 @@ export function summarizeDrawing(
     ]
       .map(([t, n]) => `${n} ${t}`)
       .join(", ")}.`,
-    `Area: x ${round(box.x1)} to ${round(box.x2)}, y ${round(box.y1)} to ${round(
-      box.y2,
-    )}.`,
+    `Area: x ${round(box.x1)} to ${round(box.x2)}, y ${round(
+      box.y1,
+    )} to ${round(box.y2)}.`,
   ];
   const out: string[] = [...head];
   let used = head.join("\n").length;

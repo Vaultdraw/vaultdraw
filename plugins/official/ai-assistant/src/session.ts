@@ -447,7 +447,12 @@ export function createSession(ctx: PluginContext): Session {
   async function contextFor(): Promise<Context | null> {
     const mode = state.contextMode;
     if (mode === "none") {
-      return { text: "", summary: "Nothing from the drawing", cut: 0, none: true };
+      return {
+        text: "",
+        summary: "Nothing from the drawing",
+        cut: 0,
+        none: true,
+      };
     }
     const notePath = ctx.workspace.activeNotePath();
     if (notePath) {
@@ -593,9 +598,10 @@ export function createSession(ctx: PluginContext): Session {
     // every turn carries the conversation (toimprove 364: a follow-up such as "you didn't change
     // anything" must know what came before); pictures go with the newest message only
     const prior = conversation(state.turns);
-    const content = prior.at(-1)?.role === "user"
-      ? `${prior.pop()!.content}\n\n${sent}`
-      : sent;
+    const content =
+      prior.at(-1)?.role === "user"
+        ? `${prior.pop()!.content}\n\n${sent}`
+        : sent;
     const messages: ChatMessage[] = [
       ...prior,
       images.length

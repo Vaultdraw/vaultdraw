@@ -17,9 +17,9 @@ A paragraph, or "- " bullet pointers, one per line. Keep lines short.
 A boxed callout: an example, key terms, a tip or a warning.
 ```
 ```vd draw title="What it shows" caption="The one-line point" replace=selection
-[{"type":"rectangle","id":"c","x":0,"y":0,"width":160,"height":70,"backgroundColor":"#a5d8ff","label":{"text":"Browser"}},
- {"type":"rectangle","id":"s","x":300,"y":0,"width":160,"height":70,"backgroundColor":"#d0bfff","label":{"text":"Web server"}},
- {"type":"arrow","x":160,"y":35,"points":[[0,0],[140,0]],"start":{"id":"c"},"end":{"id":"s"},"label":{"text":"1. GET /page"}}]
+[{"type":"rectangle","id":"c","x":0,"y":0,"width":160,"height":70,"backgroundColor":"input","label":{"text":"Browser"}},
+ {"type":"rectangle","id":"s","x":300,"y":0,"width":160,"height":70,"backgroundColor":"processing","label":{"text":"Web server"}},
+ {"type":"arrow","x":160,"y":35,"points":[[0,0],[140,0]],"start":"c","end":"s","label":{"text":"1. GET /page"}}]
 ```
 ```vd diagram title="…" caption="…" replace=selection
 Mermaid, laid out automatically. Only flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, erDiagram.
@@ -44,8 +44,8 @@ Mermaid, laid out automatically. Only flowchart, sequenceDiagram, classDiagram, 
 - New content never covers existing content; it goes below it, or replaces what the user asked to replace.
 
 ## Style
-- The app styles what it adds: labelled shapes, solid pastel fills, fonts of at least 16 px, 40 px between groups. Don't fight it with colours of your own.
-- Colour has a meaning when you choose it in `vd edit`: blue #a5d8ff input or client, green #b2f2bb success or result, amber #ffd8a8 warning or decision, purple #d0bfff processing, red #ffc9c9 error. Dark text on light fills; no emoji (the drawing font can't show them).
+{{drawing-core}}
+The app styles what it adds (solid pastel fills, fonts of at least 16 px) and lays out headings, text and notes.
 
 ## Diagram checklist
 1. Pick the type from the question: steps between parties (protocols, logins, requests) = sequenceDiagram with `autonumber`; decisions and processes = flowchart; parts of a system = flowchart with subgraphs; states = stateDiagram-v2; data = erDiagram.

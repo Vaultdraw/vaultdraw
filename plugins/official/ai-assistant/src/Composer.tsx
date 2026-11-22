@@ -151,17 +151,11 @@ export default function Composer({
     return () => {
       live = false;
     };
-  }, [
-    session,
-    s.contextMode,
-    s.turns.length,
-    showSent,
-    draft,
-    running,
-  ]);
+  }, [session, s.contextMode, s.turns.length, showSent, draft, running]);
 
   // `@` at the end picks what is sent
-  const at = helperKind(draft) === "at" ? /(?:^|\s)@([a-z]*)$/i.exec(draft) : null;
+  const at =
+    helperKind(draft) === "at" ? /(?:^|\s)@([a-z]*)$/i.exec(draft) : null;
   const atQuery = at?.[1];
   const helper: MenuItem[] = useMemo(() => {
     if (atQuery === undefined) {
