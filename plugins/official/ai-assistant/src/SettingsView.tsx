@@ -116,6 +116,11 @@ export default function SettingsView({
                 {tool?.path ? (
                   <span className="vd-ai-via vd-ai-path">{tool.path}</span>
                 ) : null}
+                {p.tool === "codex" ? (
+                  <span className="vd-ai-via" data-testid="codex-warning">
+                    Codex can read files on this computer while answering.
+                  </span>
+                ) : null}
                 {!s.checking && HELP[p.tool!]?.[state] ? (
                   <span className="vd-ai-via">{HELP[p.tool!][state]}</span>
                 ) : null}

@@ -107,10 +107,13 @@ const respond = (page: Page, reply: object) =>
   }, reply);
 
 const saveKey = async (page: Page) => {
-  await page.getByText("Key and provider").click();
-  await page.getByLabel("API key").fill(KEY);
-  await page.getByRole("button", { name: "Save key" }).click();
-  await expect(page.getByText("A key is saved on this computer")).toBeVisible();
+  await page.getByRole("button", { name: "AI settings" }).click();
+  await page.getByLabel("Anthropic API key").fill(KEY);
+  await page.getByRole("button", { name: "Save Anthropic key" }).click();
+  await expect(
+    page.getByRole("status", { name: "Anthropic key status" }),
+  ).toHaveText("Key saved");
+  await page.getByRole("button", { name: "Back to the chat" }).click();
 };
 
 test.use({ actionTimeout: 8000 });
@@ -149,8 +152,11 @@ test("AI: a wrong key says so in plain words; Remove key forgets it", async ({
   const alert = page.getByRole("alert");
   await expect(alert).toContainText("did not accept the key");
   await expect(page.locator("body")).not.toContainText(KEY);
-  await page.getByRole("button", { name: "Remove key" }).click();
-  await expect(page.getByText("No key is saved.")).toBeVisible();
+  await page.getByRole("button", { name: "AI settings" }).click();
+  await page.getByRole("button", { name: "Remove Anthropic key" }).click();
+  await expect(
+    page.getByRole("status", { name: "Anthropic key status" }),
+  ).toHaveText("No key");
   expect(
     await page.evaluate(
       () =>
@@ -188,14 +194,15 @@ test("AI: Draw it, then one Cmd+Z removes the whole diagram", async ({
   const errors = trackErrors(page);
   await setup(page);
   await saveKey(page);
-  await page.getByRole("tab", { name: /diagram/i }).click();
+  await page.getByRole("button", { name: "Mode", exact: true }).click();
+  await page.getByRole("option", { name: /^Generate a diagram/ }).click();
   await respond(page, {
     chunks: anthropic([
       "```mermaid\nflowchart LR\n  A[Login] --> B[Checkout]\n```",
     ]),
   });
   const before = (await live(page)).elements.length;
-  await page.getByRole("textbox").first().fill("login then checkout");
+  await page.locator(".vd-ai-input").fill("login then checkout");
   await page.getByRole("button", { name: "Send" }).click();
   await page.getByRole("button", { name: "Draw it" }).click();
   await expect(page.getByText(/Drew \d+ shapes/)).toBeVisible();
@@ -233,7 +240,11 @@ for (const theme of ["light", "dark"] as const) {
         ]),
       });
       await page.getByLabel("Ask about this drawing").fill("Pages?");
-      await page.getByLabel("Show what is sent").check();
+      // the "what is sent" list is open too: it is the widest thing the panel can show
+      await page.getByRole("button", { name: "Choose what is sent" }).click();
+      await expect(
+        page.getByLabel("What is sent", { exact: true }),
+      ).toBeVisible();
       await page.getByRole("button", { name: "Send" }).click();
       await expect(page.getByText(/two pages/)).toBeVisible();
       const panel = page.locator(".vd-ai");
@@ -254,7 +265,12 @@ for (const theme of ["light", "dark"] as const) {
           ".vd-ai, .vd-ai *",
         )) {
           if (el.scrollWidth > el.clientWidth + 1 && el.tagName !== "PRE") {
-            const ox = getComputedStyle(el).overflowX;
+            const cs = getComputedStyle(el);
+            const ox = cs.overflowX;
+            // a label cut with an ellipsis is a designed cut, not a clip
+            if (cs.textOverflow === "ellipsis") {
+              continue;
+            }
             if (ox === "visible" || ox === "hidden") {
               out.push(`${el.tagName}.${el.className}`);
             }
@@ -272,22 +288,28 @@ for (const theme of ["light", "dark"] as const) {
   }
 }
 
-// toimprove M-21: the panel's "Show what is sent" checkbox keeps the system colour (green on this
-// Mac) in every theme; the app's own checkboxes and the graph plugin's use the theme's primary
-// colour (`accent-color: var(--vault-primary)`, settings.css, paper.css, graph.css).
-test("AI panel: the checkbox follows the theme colour like the app's own", async ({
+// toimprove M-21 (the old "Show what is sent" checkbox is gone; the panel now has no checkbox):
+// the panel's own controls must follow the theme's primary colour like the app's, not a system
+// colour. The send button is the panel's primary control.
+test("AI panel: the controls follow the theme colour like the app's own", async ({
   page,
 }) => {
   const errors = trackErrors(page);
   await setup(page);
-  const box = page.getByLabel("Show what is sent");
-  const [accent, primary] = await box.evaluate((el) => [
-    getComputedStyle(el).accentColor,
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--vault-primary")
-      .trim(),
-  ]);
-  expect(primary).not.toBe("");
+  const [bg, primary] = await page.locator(".vd-ai-send").evaluate((el) => {
+    const probe = document.createElement("i");
+    probe.style.background = "var(--vault-primary)";
+    document.body.appendChild(probe);
+    const p = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return [getComputedStyle(el).backgroundColor, p];
+  });
+  expect(primary).not.toBe("rgba(0, 0, 0, 0)");
+  expect(bg).toBe(primary);
+  // form controls inside the panel (the settings selects and key boxes) take the theme accent too
+  const accent = await page
+    .locator(".vd-ai")
+    .evaluate((el) => getComputedStyle(el).accentColor);
   expect(accent).not.toBe("auto");
   expect(errors).toEqual([]);
 });

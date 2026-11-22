@@ -414,6 +414,17 @@ describe("settings: one place for everything", () => {
     );
   });
 
+  it("Codex always carries the one-line warning that it can read files", async () => {
+    await start({ codex: { state: "ready" } });
+    openSettings();
+    await waitFor(() =>
+      expect(screen.getByTestId("codex-warning").textContent).toBe(
+        "Codex can read files on this computer while answering.",
+      ),
+    );
+    expect(screen.getAllByTestId("codex-warning")).toHaveLength(1);
+  });
+
   it("a missing tool says how to get it", async () => {
     await start({});
     openSettings();
