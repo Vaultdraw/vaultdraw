@@ -125,6 +125,8 @@ const THEME_WORDS: Record<string, string> = {
 /** What people say for the paper pattern: "ruled", "squared" … */
 const PAPER_ALIASES: Record<string, string> = {
   line: "lines",
+  lines: "lines",
+  dots: "dots",
   lined: "lines",
   ruled: "lines",
   grid: "grid",
@@ -180,7 +182,9 @@ function pickDrawing(src: Record<string, unknown>): DrawingSettings | null {
   if (paper) {
     out.paper = paper as DrawingSettings["paper"];
   }
-  const theme = text(src.paperTheme).replace(/[\s_-]/g, "").toLowerCase();
+  const theme = text(src.paperTheme)
+    .replace(/[\s_-]/g, "")
+    .toLowerCase();
   const themes: Record<string, DrawingSettings["paperTheme"]> = {
     normal: "normal",
     oldschool: "oldSchool",
@@ -230,7 +234,9 @@ export function drawingWords(d: DrawingSettings): string {
     parts.push(d.orientation);
   }
   if (d.layout) {
-    parts.push(d.layout === "continuous" ? "one continuous page" : "separate pages");
+    parts.push(
+      d.layout === "continuous" ? "one continuous page" : "separate pages",
+    );
   }
   if (d.background) {
     parts.push(

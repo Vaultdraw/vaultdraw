@@ -241,10 +241,8 @@ describe("applyOps drawing settings", () => {
       "lines",
     );
     expect(
-      patchOf(
-        { viewBackgroundPattern: { type: "grid" } },
-        { paper: "plain" },
-      ).viewBackgroundPattern,
+      patchOf({ viewBackgroundPattern: { type: "grid" } }, { paper: "plain" })
+        .viewBackgroundPattern,
     ).toBeNull();
     const { api, updateScene } = stubApi([], {
       viewBackgroundPattern: { type: "dots" },

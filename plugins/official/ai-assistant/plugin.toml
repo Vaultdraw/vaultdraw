@@ -67,7 +67,6 @@ title = "AI: New chat"
 [[contributes.commands]]
 id = "cycle-access"
 title = "AI: Cycle permission mode"
-when = ["vaultOpen"]
 
 [[contributes.commands]]
 id = "history"

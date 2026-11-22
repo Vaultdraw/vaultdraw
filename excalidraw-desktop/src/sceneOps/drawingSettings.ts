@@ -22,10 +22,7 @@ type State = Pick<
 >;
 
 export type DrawingPatch = Partial<
-  Pick<
-    AppState,
-    "pageSetup" | "viewBackgroundColor" | "viewBackgroundPattern"
-  >
+  Pick<AppState, "pageSetup" | "viewBackgroundColor" | "viewBackgroundPattern">
 >;
 
 /** The settings as they are now, every field filled (no `pageSize` for a custom size). */

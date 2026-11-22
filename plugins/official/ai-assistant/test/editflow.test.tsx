@@ -179,7 +179,7 @@ describe("edit this drawing", () => {
     expect(p!.scene.batches).toHaveLength(0);
   });
 
-  it("a reply that is not a plan is a plain error with nothing to keep", async () => {
+  it("a reply that is not a plan is said calmly, in normal text, with the model's words and nothing to keep", async () => {
     await start();
     p!.net.respond = () => ({ chunks: sse("Sorry, I can't.") });
     pickMode("Edit this drawing");
@@ -188,10 +188,12 @@ describe("edit this drawing", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toMatch(
-        /not a plan I can read/,
+      expect(document.body.textContent).toMatch(
+        /couldn.t turn that into a change to this drawing/,
       ),
     );
+    expect(document.body.textContent).toContain("Sorry, I can't.");
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("button", { name: "Keep" })).toBeNull();
   });
 

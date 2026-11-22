@@ -5,6 +5,7 @@ import {
   describeForEdit,
   drawingName,
   jsonFrom,
+  NoChange,
   stillValid,
 } from "../src/edits";
 
@@ -136,7 +137,7 @@ describe("buildProposal", () => {
       build([{ op: "move", id: "a", x: 1, y: 2, strokeColor: "#f00" }]).ops,
     ).toEqual([{ op: "update", id: "a", props: { x: 1, y: 2 } }]);
     expect(() => build([{ op: "delete", id: "a" }], "create")).toThrow(
-      /nothing I can draw/,
+      /couldn.t turn that into a new drawing/,
     );
   });
 
@@ -162,10 +163,90 @@ describe("buildProposal", () => {
   });
 
   it("refuses a reply with nothing usable, in plain words", () => {
-    expect(() => build([])).toThrow(/no change I can make/);
+    expect(() => build([])).toThrow(NoChange);
+    expect(() => build([])).toThrow(/couldn.t turn that into a change/);
     expect(() => buildProposal('{"x":1}', "edit", WORLD, "d", 5)).toThrow(
-      /no list of changes/,
+      NoChange,
     );
+  });
+
+  it("keeps the model's own words for the calm message", () => {
+    const say = (reply: string) => {
+      try {
+        buildProposal(reply, "edit", WORLD, "d", 5);
+      } catch (e) {
+        return (e as NoChange).said;
+      }
+      return null;
+    };
+    expect(say("Sorry, I can't draw that.")).toBe("Sorry, I can't draw that.");
+    expect(say('{"title":"","ops":[],"message":"Nothing to change."}')).toBe(
+      "Nothing to change.",
+    );
+    expect(say('{"ops":[]}')).toBe("");
+  });
+});
+
+describe("drawing settings", () => {
+  it("turns the drawing op into settings, a plain headline and lines", () => {
+    const p = build([
+      { op: "drawing", pageMode: true, paper: "lines", paperTheme: "normal" },
+    ]);
+    expect(p.ops).toEqual([]);
+    expect(p.drawing).toEqual({
+      pageMode: true,
+      paper: "lines",
+      paperTheme: "normal",
+    });
+    expect(p.headline).toBe("Page mode on, normal paper, lined paper");
+    expect(p.done).toBe("Page mode on, normal paper, lined paper");
+    expect(p.lines).toEqual([
+      "Turns page mode on",
+      "Uses normal paper",
+      "Uses lined paper",
+    ]);
+  });
+
+  it("accepts the words people use, and size, orientation, layout and a colour name", () => {
+    const p = build([
+      {
+        op: "drawing",
+        paper: "ruled",
+        pageSize: "A5",
+        orientation: "Landscape",
+        layout: "continuous",
+        background: "Cream",
+      },
+    ]);
+    expect(p.drawing).toEqual({
+      paper: "lines",
+      pageSize: "a5",
+      orientation: "landscape",
+      layout: "continuous",
+      background: "#f8efd4",
+    });
+  });
+
+  it("drops bad values, skips an op with nothing valid, and is not allowed for a new drawing", () => {
+    const p = build([
+      { op: "drawing", paper: "stripes", pageMode: false },
+      { op: "drawing", background: "not a colour" },
+      { op: "add", type: "rectangle" },
+    ]);
+    expect(p.drawing).toEqual({ pageMode: false });
+    expect(p.skipped).toBe(1);
+    expect(p.headline).toBe("Adds 1 box, page mode off");
+    expect(() => build([{ op: "drawing", pageMode: true }], "create")).toThrow(
+      NoChange,
+    );
+  });
+
+  it("several drawing ops merge, the later one winning", () => {
+    const p = build([
+      { op: "drawing", paper: "grid", pageMode: true },
+      { op: "drawing", paper: "dots" },
+    ]);
+    expect(p.drawing).toEqual({ paper: "dots", pageMode: true });
   });
 });
 

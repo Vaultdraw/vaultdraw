@@ -686,7 +686,9 @@ export function createSession(ctx: PluginContext): Session {
                 {
                   id: ++turnId,
                   role: "assistant",
-                  text: err.said ? `${err.message}\n\n${err.said}` : err.message,
+                  text: err.said
+                    ? `${err.message}\n\n${err.said}`
+                    : err.message,
                   task,
                 },
               ],
@@ -1035,10 +1037,12 @@ export function createSession(ctx: PluginContext): Session {
     },
     async setAccess(mode) {
       await ctx.settings.set("access", mode);
+      set({ access: mode });
     },
     async cycleAccess() {
       const next = nextAccess(accessNow());
       await ctx.settings.set("access", next);
+      set({ access: next });
       ctx.ui.toast(`Permission: ${ACCESS_LABEL[next]}`);
     },
     openModelPicker() {
