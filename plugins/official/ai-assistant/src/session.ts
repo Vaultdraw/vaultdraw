@@ -886,7 +886,7 @@ export function createSession(ctx: PluginContext): Session {
     }
     // apply at once: a change goes in as one undo step; a new drawing still asks (it is a new
     // file and the view moves to it)
-    if (accessNow() === "auto" && proposal.kind === "edit") {
+    if (accessNow() === "auto") {
       await session.keep();
     }
   }

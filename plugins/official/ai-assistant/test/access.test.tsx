@@ -82,13 +82,13 @@ describe("permission modes", () => {
     ).toBeTruthy();
   });
 
-  it("apply at once still asks before making a new drawing", async () => {
+  it("apply at once makes a new drawing straight away too (toimprove 367)", async () => {
     await start("auto");
     await ask("x", newDrawing);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Keep" })).toBeTruthy(),
+      expect(Object.keys(p!.vault.drawings()).length).toBeGreaterThan(0),
     );
-    expect(Object.keys(p!.vault.drawings())).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Keep" })).toBeNull();
   });
 
   it("read only: an edit request is answered in words and never proposes or applies", async () => {

@@ -60,7 +60,7 @@ export interface ReviewOptions {
   cancelled?: () => boolean;
 }
 
-const OPEN = /^[ \t]*(`{3,}|~{3,})[ \t]*vd[ \t]+edit\b.*$/;
+const OPEN = /^[ \t]*(`{3,}|~{3,})[ \t]*vd(?:[ \t]+edit\b.*)?[ \t]*$/;
 
 /** The `vd edit` blocks of a reply; a block whose JSON is bad or has no `ops` list is skipped. */
 export function parseFixes(reply: string): ReviewFix[] {

@@ -79,7 +79,15 @@ export function parseReply(answer: string): Reply {
       open = true;
     }
     i = j;
-    if ((BLOCK_KINDS as readonly string[]).includes(word)) {
+    if (!word && looksLikeJson(body.join("\n"))) {
+      // a bare ```vd fence with JSON (models do this): ops are an edit, elements a drawing
+      const text = body.join("\n").trim();
+      blocks.push({
+        kind: /"ops"\s*:/.test(text) ? "edit" : "draw",
+        attrs: parseAttrs(info),
+        body: text,
+      });
+    } else if ((BLOCK_KINDS as readonly string[]).includes(word)) {
       blocks.push({
         kind: word as BlockKind,
         attrs: parseAttrs(info.slice(word.length)),
@@ -91,7 +99,102 @@ export function parseReply(answer: string): Reply {
       );
     }
   }
-  return { prose: tidy(prose.join("\n")), blocks, skipped, open };
+  const text = tidy(prose.join("\n"));
+  const content = blocks.some((b) => CONTENT.has(b.kind));
+  if (!content && !open) {
+    const page = proseToBlocks(text);
+    if (page) {
+      // the model wrote the page as plain Markdown instead of vd blocks: use it, don't lose it
+      return {
+        prose: page.intro,
+        blocks: [...blocks, ...page.blocks],
+        skipped,
+        open,
+      };
+    }
+  }
+  return { prose: text, blocks, skipped, open };
+}
+
+const CONTENT = new Set<BlockKind>([
+  "heading",
+  "text",
+  "note",
+  "diagram",
+  "draw",
+]);
+
+const looksLikeJson = (text: string) => /^\s*[[{]/.test(text);
+
+/**
+ * A plain Markdown page (headings, paragraphs, bullets, ```mermaid fences) as content blocks.
+ * Used only when the reply has no vd content blocks and clearly is a page: a mermaid diagram or at
+ * least two headings. The text before the first heading stays in the chat.
+ */
+export function proseToBlocks(
+  prose: string,
+): { intro: string; blocks: Block[] } | null {
+  const lines = prose.split("\n");
+  const headings = lines.filter((l) => /^#{1,6}\s+\S/.test(l)).length;
+  const mermaid = lines.some((l) => /^\s*(`{3,}|~{3,})\s*mermaid\b/i.test(l));
+  if (!mermaid && headings < 2) {
+    return null;
+  }
+  const blocks: Block[] = [];
+  const intro: string[] = [];
+  let para: string[] = [];
+  let started = false;
+  const flush = () => {
+    const body = para.join("\n").trim();
+    para = [];
+    if (!body) {
+      return;
+    }
+    if (started) {
+      blocks.push({ kind: "text", attrs: {}, body });
+    } else {
+      intro.push(body);
+    }
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const h = /^(#{1,6})\s+(.*\S)\s*$/.exec(line);
+    const fence = /^\s*(`{3,}|~{3,})\s*(\w*)/.exec(line);
+    if (h) {
+      flush();
+      started = true;
+      blocks.push({
+        kind: "heading",
+        attrs: { level: String(Math.min(3, h[1].length)) },
+        body: h[2].replace(/\*\*/g, ""),
+      });
+    } else if (fence) {
+      flush();
+      const body: string[] = [];
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim().startsWith(fence[1])) {
+        body.push(lines[j]);
+        j++;
+      }
+      i = j;
+      if (fence[2].toLowerCase() === "mermaid") {
+        started = true;
+        blocks.push({
+          kind: "diagram",
+          attrs: {},
+          body: body.join("\n").trim(),
+        });
+      } else {
+        para.push(body.join("\n"));
+      }
+    } else if (!line.trim()) {
+      flush();
+    } else {
+      para.push(line);
+    }
+  }
+  flush();
+  return blocks.length ? { intro: intro.join("\n\n"), blocks } : null;
 }
 
 /** A reply cut off inside a block: that half block is dropped, never applied. */

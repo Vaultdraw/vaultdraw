@@ -122,8 +122,11 @@ export async function buildActions(
   }
   const problems = [...reply.skipped];
   const wantsNew = blocks.some((b) => b.kind === "new");
+  // an open drawing that is still empty is filled, not left for a new one (the user is on it)
   const kind: Proposal["kind"] =
-    wantsNew || env.path === null ? "create" : "edit";
+    env.path === null || (wantsNew && env.elements.length > 0)
+      ? "create"
+      : "edit";
   const existing = kind === "edit" ? env.elements : [];
 
   // 1. Element edits and drawing settings, through the checks edits.ts already has.
