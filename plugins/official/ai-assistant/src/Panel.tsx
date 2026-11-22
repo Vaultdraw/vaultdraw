@@ -6,7 +6,7 @@ import Ghosts from "./Ghosts";
 import { Icon, Mark } from "./Icons";
 import Markdown from "./markdown";
 import History from "./History";
-import { providerDef } from "./providers";
+import Tabs from "./Tabs";
 import SettingsView from "./SettingsView";
 
 import type { Session, Turn } from "./session";
@@ -18,22 +18,19 @@ export default function Panel({ session }: { session: Session }) {
     void session.refreshKey();
     void session.detect(false);
     void session.refreshKeys();
+    void session.restoreTabs();
   }, [session]);
 
-  const def = providerDef(s.provider);
   return (
     <div className="vd-ai">
       <div className="vd-ai-head">
-        <div className="vd-ai-tab" aria-label="Current chat" title={s.via}>
-          <Mark />
-          <span className="vd-ai-ellipsis">{def.label}</span>
-        </div>
+        <Tabs session={session} s={s} />
         <button
           type="button"
           className="vd-ai-icon"
           aria-label="New chat"
           title="New chat"
-          onClick={() => session.clear()}
+          onClick={() => session.newChat()}
         >
           <Icon name="plus" />
         </button>
@@ -70,7 +67,7 @@ export default function Panel({ session }: { session: Session }) {
       ) : (
         <>
           <Thread session={session} s={s} />
-          <Composer session={session} s={s} />
+          <Composer key={s.tab} session={session} s={s} />
         </>
       )}
     </div>

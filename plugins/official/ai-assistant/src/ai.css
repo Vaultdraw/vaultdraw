@@ -17,8 +17,7 @@
   --ai-control: 28px;
 }
 .vd-ai { background: var(--ai-surface); }
-.vd-ai-head { height: 40px; padding: 0 var(--ai-sp-2); gap: var(--ai-sp-1); border-bottom: 1px solid var(--ai-line); }
-.vd-ai-tab { height: var(--ai-control); padding: 0 var(--ai-sp-3) 0 var(--ai-sp-2); font-size: var(--ai-fs-body); line-height: 1; border-radius: var(--ai-radius); }
+.vd-ai-head { position: relative; height: 40px; padding: 0 var(--ai-sp-2); gap: var(--ai-sp-1); border-bottom: 1px solid var(--ai-line); }
 .vd-ai-head .vd-ai-icon { width: var(--ai-control); height: var(--ai-control); border-radius: var(--ai-radius); flex: none; }
 .vd-ai-thread, .vd-ai-settings { padding: var(--ai-sp-3) var(--ai-sp-3) var(--ai-sp-2); scrollbar-width: thin; scrollbar-color: var(--ai-line) transparent; }
 .vd-ai-thread::-webkit-scrollbar, .vd-ai-settings::-webkit-scrollbar { width: 8px; }
@@ -36,7 +35,6 @@
 
 /* header: the chat tab, new chat, settings */
 .vd-ai-head { display: flex; align-items: center; gap: 4px; padding: 6px 8px; flex: none; }
-.vd-ai-tab { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 60%; padding: 4px 10px; border-radius: var(--vd-radius-pop, 6px); background: var(--vault-surface-hover, rgba(128,128,128,.14)); font-weight: 600; }
 .vd-ai-icon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; background: none; border: 0; border-radius: var(--vd-radius-pop, 6px); color: var(--vault-text-muted, inherit); cursor: pointer; }
 .vd-ai-icon:hover, .vd-ai-icon[aria-pressed="true"], .vd-ai-icon[aria-expanded="true"] { background: var(--vault-surface-hover, rgba(128,128,128,.14)); color: var(--vault-text, inherit); }
 
@@ -177,3 +175,19 @@
 
 /* access: the permission icon in the composer bar */
 .vd-ai-access { display: inline-flex; }
+
+/* tabs agent: the chat tab strip */
+.vd-ai-tabs { display: flex; align-items: center; gap: var(--ai-sp-1); flex: 0 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.vd-ai-tabs::-webkit-scrollbar { display: none; }
+.vd-ai-tabitem { position: relative; display: flex; align-items: center; flex: none; max-width: 160px; height: var(--ai-control); border-radius: var(--ai-radius); color: var(--ai-text-muted); }
+.vd-ai-tabitem:hover, .vd-ai-tabitem[data-active="true"] { background: var(--ai-hover); color: var(--ai-text); }
+.vd-ai-tabbtn { display: flex; align-items: center; gap: 6px; min-width: 0; height: 100%; padding: 0 var(--ai-sp-3) 0 var(--ai-sp-2); background: none; border: 0; border-radius: var(--ai-radius); font-size: var(--ai-fs-body); line-height: 1; cursor: pointer; }
+.vd-ai-tabbtn:focus-visible, .vd-ai-tabx:focus-visible, .vd-ai-tablist-item:focus-visible { outline: none; box-shadow: var(--vault-ring-inset); }
+.vd-ai-tabx { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); display: none; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; background: var(--ai-hover); border: 0; border-radius: var(--ai-radius); color: var(--ai-text-muted); cursor: pointer; }
+.vd-ai-tabx:hover { color: var(--ai-text); }
+.vd-ai-tabitem:hover .vd-ai-tabx, .vd-ai-tabitem[data-active="true"] .vd-ai-tabx, .vd-ai-tabitem:focus-within .vd-ai-tabx { display: inline-flex; }
+@media (hover: none) { .vd-ai-tabx { display: inline-flex; } }
+.vd-ai-tablist-wrap { display: inline-flex; flex: none; }
+.vd-ai-tablist { position: absolute; z-index: 5; top: calc(100% - 2px); left: var(--ai-sp-2); right: var(--ai-sp-2); margin: 0; padding: var(--ai-sp-1); list-style: none; max-height: 240px; overflow-y: auto; background: var(--ai-surface); border: 1px solid var(--ai-line); border-radius: var(--ai-radius); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.vd-ai-tablist-item { display: block; width: 100%; padding: 6px var(--ai-sp-2); background: none; border: 0; border-radius: var(--ai-radius); text-align: left; cursor: pointer; }
+.vd-ai-tablist-item:hover, .vd-ai-tablist-item[aria-checked="true"] { background: var(--ai-hover); }

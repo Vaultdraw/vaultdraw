@@ -453,7 +453,9 @@ export function createSession(ctx: PluginContext): Session {
     const vault = ctx.vault.info()?.name ?? "";
     const rec = { open: [...order], active: activeId };
     saveChain = saveChain
-      .then(() => ctx.storage.global.set(tabsKey(vault), rec as unknown as Json))
+      .then(() =>
+        ctx.storage.global.set(tabsKey(vault), rec as unknown as Json),
+      )
       .catch((err) => ctx.log.warn("could not save the open tabs", err));
   }
 
@@ -696,12 +698,7 @@ export function createSession(ctx: PluginContext): Session {
     });
     let answer = "";
     try {
-      const res = await openAnswer(
-        cfg,
-        SYSTEM[task],
-        messages,
-        mine.signal,
-      );
+      const res = await openAnswer(cfg, SYSTEM[task], messages, mine.signal);
       const parser = createParser(cfg.provider);
       const dec = new TextDecoder();
       const add = (parts: string[]) => {

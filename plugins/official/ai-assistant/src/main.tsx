@@ -45,8 +45,19 @@ export default definePlugin({
     ctx.commands.register("cancel", () => session.cancel());
     ctx.commands.register("open", () => open("ask"));
     ctx.commands.register("new-chat", () => {
-      session.clear();
+      session.newChat();
       open(session.get().task);
+    });
+    ctx.commands.register("next-tab", () => {
+      ctx.panels.open("assistant");
+      session.cycleTab(1);
+    });
+    ctx.commands.register("previous-tab", () => {
+      ctx.panels.open("assistant");
+      session.cycleTab(-1);
+    });
+    ctx.commands.register("close-tab", () => {
+      session.closeTab(session.get().tab);
     });
     ctx.commands.register("history", () => {
       ctx.panels.open("assistant");

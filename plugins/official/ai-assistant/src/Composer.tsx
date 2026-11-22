@@ -100,7 +100,7 @@ export default function Composer({
   session: Session;
   s: ReturnType<Session["get"]>;
 }) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() => session.getDraft());
   const [open, setOpen] = useState<Open>(null);
   const [active, setActive] = useState(0);
   const [images, setImages] = useState<ImageAttachment[]>([]);
@@ -126,7 +126,8 @@ export default function Composer({
       el.style.height = "auto";
       el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
     }
-  }, [draft]);
+    session.setDraft(draft); // each chat tab keeps its own unsent text
+  }, [draft, session]);
 
   useEffect(() => {
     if (s.menu.tick > 0) {

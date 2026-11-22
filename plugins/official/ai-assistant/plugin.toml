@@ -69,6 +69,18 @@ id = "cycle-access"
 title = "AI: Cycle permission mode"
 
 [[contributes.commands]]
+id = "next-tab"
+title = "AI: Next chat tab"
+
+[[contributes.commands]]
+id = "previous-tab"
+title = "AI: Previous chat tab"
+
+[[contributes.commands]]
+id = "close-tab"
+title = "AI: Close chat tab"
+
+[[contributes.commands]]
 id = "history"
 title = "AI: Chat history"
 

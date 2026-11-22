@@ -106,9 +106,7 @@ describe("a subscription, one step", () => {
     expect(run.system).toMatch(/help someone/i);
     expect(p!.net.requests).toHaveLength(0);
     expect(screen.getByText("world").tagName).toBe("STRONG");
-    expect(screen.getByLabelText("Current chat").textContent).toContain(
-      "Claude",
-    );
+    expect(screen.getByRole("tab").getAttribute("title")).toContain("Claude");
   });
 
   it("Codex is used when only Codex is on the computer", async () => {
