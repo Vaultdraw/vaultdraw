@@ -75,6 +75,8 @@
 }
 
 .note-reading {
+  /* The note body is text, not interface: interface.font_family does not apply. */
+  font-family: var(--vd-font-default);
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
@@ -87,6 +89,8 @@
 }
 
 .note-editor-wrap {
+  /* The note body is text, not interface: interface.font_family does not apply. */
+  font-family: var(--vd-font-default);
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;

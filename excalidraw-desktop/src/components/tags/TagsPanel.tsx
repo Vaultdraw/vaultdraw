@@ -35,12 +35,15 @@ import {
   IconSort,
 } from "../Icons";
 
+import { useUiRowHeight } from "../../theme/useInterfaceFont";
+
 import "./TagsPanel.css";
 
 import type { CSSProperties, Ref } from "react";
 
 import type { ListController } from "../../commands/listNav";
 
+/** Row height at the default interface font size (`--vd-row`); see uiRowHeight. */
 export const ROW_HEIGHT = 26;
 export const VIRTUALIZE_ABOVE = 500;
 const OVERSCAN = 10;
@@ -75,12 +78,13 @@ export function windowRange(
   total: number,
   scrollTop: number,
   viewport: number,
+  rowHeight: number = ROW_HEIGHT,
 ): [number, number] {
   if (total <= VIRTUALIZE_ABOVE) {
     return [0, total];
   }
-  const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  const last = Math.ceil((scrollTop + viewport) / ROW_HEIGHT) + OVERSCAN;
+  const first = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN);
+  const last = Math.ceil((scrollTop + viewport) / rowHeight) + OVERSCAN;
   return [Math.min(first, total), Math.min(total, last)];
 }
 
@@ -95,6 +99,7 @@ export const TagsPanel = ({
   onExit,
   ref,
 }: TagsPanelProps) => {
+  const rowHeight = useUiRowHeight();
   const [saved] = useState(() => (vaultKey ? loadPaneState(vaultKey) : {}));
   const [open, setOpen] = useState(saved.open ?? true);
   const [sortChoice, setSortChoice] = useState<TagSort | undefined>(saved.sort);
@@ -150,12 +155,12 @@ export const TagsPanel = ({
     if (!list) {
       return;
     }
-    const top = index * ROW_HEIGHT;
+    const top = index * rowHeight;
     const view = list.clientHeight || FALLBACK_VIEWPORT;
     if (top < list.scrollTop) {
       list.scrollTop = top;
-    } else if (top + ROW_HEIGHT > list.scrollTop + view) {
-      list.scrollTop = top + ROW_HEIGHT - view;
+    } else if (top + rowHeight > list.scrollTop + view) {
+      list.scrollTop = top + rowHeight - view;
     }
   };
   // Only a cursor move scrolls; typing in the search must not.
@@ -269,6 +274,7 @@ export const TagsPanel = ({
     total,
     scrollTop,
     listRef.current?.clientHeight || FALLBACK_VIEWPORT,
+    rowHeight,
   );
   const virtual = total > VIRTUALIZE_ABOVE;
   const nextSort = sort === "name" ? "count" : "name";
@@ -311,7 +317,7 @@ export const TagsPanel = ({
             virtual ? (e) => setScrollTop(e.currentTarget.scrollTop) : undefined
           }
         >
-          {virtual && <div style={{ height: from * ROW_HEIGHT }} aria-hidden />}
+          {virtual && <div style={{ height: from * rowHeight }} aria-hidden />}
           {rows.slice(from, to).map((row) => {
             const { node } = row;
             const q = tagQuery(node.key);
@@ -377,7 +383,7 @@ export const TagsPanel = ({
             );
           })}
           {virtual && (
-            <div style={{ height: (total - to) * ROW_HEIGHT }} aria-hidden />
+            <div style={{ height: (total - to) * rowHeight }} aria-hidden />
           )}
         </div>
       )}

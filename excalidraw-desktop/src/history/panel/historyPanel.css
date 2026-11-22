@@ -53,8 +53,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  /* Fixed: must equal HISTORY_ROW_HEIGHT (rowWindow.ts). */
-  height: 56px;
+  /* Fixed: must equal the row height rowWindow.ts uses (uiTallRowHeight). */
+  height: var(--vd-row-tall);
   box-sizing: border-box;
   padding: 0 14px;
   border-bottom: 1px solid var(--vault-border);

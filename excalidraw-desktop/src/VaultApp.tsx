@@ -107,6 +107,7 @@ import { watchFallbackMessage } from "./vault/watchFallbackNotice";
 import { useAppearance } from "./vault/useAppearance";
 import { useSnippets } from "./snippets/useSnippets";
 import { runZoomCommand, useInterfaceZoom } from "./vault/useInterfaceZoom";
+import { useInterfaceFont } from "./theme/useInterfaceFont";
 import { useVaultSettings } from "./vault/useVaultSettings";
 import { tagQuery } from "./tags/types";
 import { useTemplates } from "./templates/useTemplates";
@@ -564,6 +565,7 @@ export const VaultApp = ({
   // reach it through this ref.
   const thumbServiceRef = useRef<ThumbnailService | null>(null);
   useInterfaceZoom(win);
+  useInterfaceFont(win);
   useVaultThemeCommands(vaultSettings, (message) =>
     toastStore.push({ message }),
   );

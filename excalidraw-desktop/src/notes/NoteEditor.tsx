@@ -55,7 +55,7 @@ const theme = (fontSize: number) =>
       backgroundColor: "transparent",
     },
     ".cm-content": {
-      fontFamily: "var(--vd-font)",
+      fontFamily: "var(--vd-font-default)",
       padding: "var(--vd-space-4, 16px) 0",
       caretColor: "var(--vault-text)",
     },

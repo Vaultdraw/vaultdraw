@@ -33,7 +33,10 @@
   --vd-space-8: 32px;
 
   /* Component heights. */
+  /* interface.font_size scales these and the --vd-fs-* sizes below
+     (theme/interfaceFont.ts UI_SIZE_TOKENS keeps the same defaults). */
   --vd-row: 26px; /* tree rows, menu items, list rows */
+  --vd-row-tall: 56px; /* version history rows */
   --vd-bar: 38px; /* app bar, navigator header/footer */
   --vd-control: 28px; /* buttons, inputs, selects, steppers */
   --vd-control-sm: 24px;
@@ -43,8 +46,11 @@
      Excalidraw's "Assistant" (already loaded for the editor UI): the system
      font measured +35 % settings.open p95 and +15 % palette p95 in the
      low-end harness (DECISIONS.md D7). */
-  --vd-font: "Assistant", system-ui, -apple-system, "Segoe UI", Roboto,
+  --vd-font-default: "Assistant", system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
+  /* interface.font_family writes --vd-font inline on <html>; the note body
+     keeps --vd-font-default (theme/interfaceFont.ts). */
+  --vd-font: var(--vd-font-default);
   --vd-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --vd-line: 1.4;
   --vd-fs-kbd: 10px; /* key chips and key hints only */

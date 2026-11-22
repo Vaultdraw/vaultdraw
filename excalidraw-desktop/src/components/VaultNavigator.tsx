@@ -48,6 +48,8 @@ import {
 } from "../commands/listCommands";
 import { focusCanvasIfIdle } from "../palette/focus";
 
+import { useUiRowHeight } from "../theme/useInterfaceFont";
+
 import { userError } from "./userError";
 
 import {
@@ -80,7 +82,7 @@ import { flattenTree } from "./tree/flattenTree";
 import { copyEntryPath } from "./menu/copyPath";
 import { ContextMenu, MenuItem } from "./menu/ContextMenu";
 import { RowMenu, type RowMenuState } from "./menu/RowMenu";
-import { TREE_ROW_HEIGHT, useTreeWindow } from "./tree/useTreeWindow";
+import { useTreeWindow } from "./tree/useTreeWindow";
 import { ghostTransform, useTreeDrag } from "./tree/useTreeDrag";
 import {
   lazyTreeController,
@@ -717,7 +719,13 @@ export const VaultNavigator = ({
     };
     setSelection((sel) => pruneSelection(sel, exists));
   }, [treeNodes, selection.paths.size]);
-  const treeWindow = useTreeWindow(treeContainerRef, rows.length, !isSearching);
+  const rowHeight = useUiRowHeight();
+  const treeWindow = useTreeWindow(
+    treeContainerRef,
+    rows.length,
+    !isSearching,
+    rowHeight,
+  );
   const { scrollToRow } = treeWindow;
   // Keyboard focus moves between rows that may be outside the mounted window.
   useEffect(() => {
@@ -1257,6 +1265,7 @@ export const VaultNavigator = ({
             ) : (
               <TreeRows
                 rows={rows}
+                rowHeight={rowHeight}
                 start={treeWindow.start}
                 end={treeWindow.end}
                 activePath={activePath}
@@ -1613,12 +1622,15 @@ interface TreeRowsProps {
   /** Tags per drawing path; undefined hides the chips. */
   tagsByPath?: Record<string, string[]>;
   onFilterTag: (key: string) => void;
+  /** Row height in px at the interface font size (spacers above and below). */
+  rowHeight: number;
 }
 
 const TreeRows = ({
   rows,
   start,
   end,
+  rowHeight,
   activePath,
   focusedPath,
   dropTarget,
@@ -1631,7 +1643,7 @@ const TreeRows = ({
     {start > 0 && (
       <div
         aria-hidden="true"
-        style={{ height: start * TREE_ROW_HEIGHT, flexShrink: 0 }}
+        style={{ height: start * rowHeight, flexShrink: 0 }}
       />
     )}
     {rows.slice(start, end).map((row) => {
@@ -1656,7 +1668,7 @@ const TreeRows = ({
     {end < rows.length && (
       <div
         aria-hidden="true"
-        style={{ height: (rows.length - end) * TREE_ROW_HEIGHT, flexShrink: 0 }}
+        style={{ height: (rows.length - end) * rowHeight, flexShrink: 0 }}
       />
     )}
   </>

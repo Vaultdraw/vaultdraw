@@ -173,6 +173,12 @@ export const MIN_PLUGIN_STORAGE_KB = 64;
 export const MIN_NOTICE_SECONDS = 0;
 export const MAX_NOTICE_SECONDS = 120;
 export const DEFAULT_NOTICE_SECONDS = 8;
+/** `interface.font_size`: UI text size in px (13 = the design system's body size). */
+export const MIN_UI_FONT_SIZE = 11;
+export const MAX_UI_FONT_SIZE = 20;
+export const DEFAULT_UI_FONT_SIZE = 13;
+/** `interface.font_family`: longest accepted value (a name or a CSS font list). */
+export const MAX_UI_FONT_FAMILY_LENGTH = 200;
 export const MAX_PLUGIN_STORAGE_KB = 16384;
 /** `plugins.scene_max_ops`: ops per plugin batch (sceneRules MAX_OPS and MAX_OPS_LIMIT; a test keeps them equal). */
 export const DEFAULT_SCENE_MAX_OPS = 500;
@@ -345,6 +351,10 @@ interface VaultPreferencesBase {
   showTagChips: boolean;
   /** Vault home pane: actions and recent drawings (`full`), actions only (`minimal`) or nothing (`blank`). */
   homePage: HomePage;
+  /** UI text size in px (navigator, tabs, menus, dialogs, Settings); not drawings or notes. */
+  interfaceFontSize: number;
+  /** UI typeface: "" = the default (Assistant), else a font name or CSS font list. */
+  interfaceFontFamily: string;
   /** Mount the vault home pane one frame after the file tree first paints (faster vault open). */
   deferHomePane: boolean;
   /** Seconds an error notice stays before it closes itself; 0 keeps it until dismissed. */
@@ -565,6 +575,8 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   confirmDelete: true,
   showTagChips: true,
   homePage: "full",
+  interfaceFontSize: DEFAULT_UI_FONT_SIZE,
+  interfaceFontFamily: "",
   deferHomePane: true,
   noticeSeconds: DEFAULT_NOTICE_SECONDS,
   thumbnails: true,
@@ -977,6 +989,13 @@ const isNoticeSeconds = (value: unknown) =>
   Number.isInteger(value) &&
   value >= MIN_NOTICE_SECONDS &&
   value <= MAX_NOTICE_SECONDS;
+export const isUiFontSize = (value: unknown) =>
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= MIN_UI_FONT_SIZE &&
+  value <= MAX_UI_FONT_SIZE;
+export const isUiFontFamily = (value: unknown) =>
+  typeof value === "string" && value.length <= MAX_UI_FONT_FAMILY_LENGTH;
 const isThumbCacheMb = (value: unknown) =>
   typeof value === "number" &&
   Number.isInteger(value) &&
@@ -1212,6 +1231,16 @@ export function normalizePreferences(input: unknown): VaultPreferences {
     confirmDelete: pick(parsed.confirmDelete, isBoolean, d.confirmDelete),
     showTagChips: pick(parsed.showTagChips, isBoolean, d.showTagChips),
     homePage: pick(parsed.homePage, isHomePage, d.homePage),
+    interfaceFontSize: pick(
+      parsed.interfaceFontSize,
+      isUiFontSize,
+      d.interfaceFontSize,
+    ),
+    interfaceFontFamily: pick(
+      parsed.interfaceFontFamily,
+      isUiFontFamily,
+      d.interfaceFontFamily,
+    ),
     deferHomePane: pick(parsed.deferHomePane, isBoolean, d.deferHomePane),
     noticeSeconds: pick(parsed.noticeSeconds, isNoticeSeconds, d.noticeSeconds),
     thumbnails: pick(parsed.thumbnails, isBoolean, d.thumbnails),

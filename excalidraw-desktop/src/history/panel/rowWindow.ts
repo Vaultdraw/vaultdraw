@@ -1,6 +1,9 @@
 import { useCallback, useLayoutEffect, useState, type RefObject } from "react";
 
-/** Fixed row height; must match `.vault-history-row` in historyPanel.css. */
+/**
+ * Row height at the default interface font size; must match `--vd-row-tall`
+ * (`.vault-history-row`). Other sizes pass `uiTallRowHeight(size)`.
+ */
 export const HISTORY_ROW_HEIGHT = 56;
 const OVERSCAN = 6;
 /** Used before the list has layout (first paint, jsdom). */
@@ -13,9 +16,10 @@ export function computeRowWindow(
   total: number,
   scrollTop: number,
   viewport: number,
+  rowHeight: number = HISTORY_ROW_HEIGHT,
 ): RowWindow {
-  const first = Math.floor(scrollTop / HISTORY_ROW_HEIGHT);
-  const visible = Math.ceil(viewport / HISTORY_ROW_HEIGHT) + 1;
+  const first = Math.floor(scrollTop / rowHeight);
+  const visible = Math.ceil(viewport / rowHeight) + 1;
   const start = Math.min(Math.max(0, first - OVERSCAN), total);
   const end = Math.min(total, first + visible + OVERSCAN);
   return { start: Math.min(start, end), end };
@@ -29,6 +33,7 @@ export function computeRowWindow(
 export function useRowWindow(
   ref: RefObject<HTMLElement | null>,
   total: number,
+  rowHeight: number = HISTORY_ROW_HEIGHT,
 ) {
   const [view, setView] = useState({ first: 0, viewport: FALLBACK_VIEWPORT });
 
@@ -37,12 +42,12 @@ export function useRowWindow(
     if (!el) {
       return;
     }
-    const first = Math.floor(el.scrollTop / HISTORY_ROW_HEIGHT);
+    const first = Math.floor(el.scrollTop / rowHeight);
     const viewport = el.clientHeight || FALLBACK_VIEWPORT;
     setView((v) =>
       v.first === first && v.viewport === viewport ? v : { first, viewport },
     );
-  }, [ref]);
+  }, [ref, rowHeight]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -69,19 +74,24 @@ export function useRowWindow(
       if (!el || index < 0) {
         return;
       }
-      const top = index * HISTORY_ROW_HEIGHT;
+      const top = index * rowHeight;
       const height = el.clientHeight || FALLBACK_VIEWPORT;
       if (top < el.scrollTop) {
         el.scrollTop = top;
-      } else if (top + HISTORY_ROW_HEIGHT > el.scrollTop + height) {
-        el.scrollTop = top + HISTORY_ROW_HEIGHT - height;
+      } else if (top + rowHeight > el.scrollTop + height) {
+        el.scrollTop = top + rowHeight - height;
       }
     },
-    [ref],
+    [ref, rowHeight],
   );
 
   return {
-    ...computeRowWindow(total, view.first * HISTORY_ROW_HEIGHT, view.viewport),
+    ...computeRowWindow(
+      total,
+      view.first * rowHeight,
+      view.viewport,
+      rowHeight,
+    ),
     scrollToRow,
   };
 }

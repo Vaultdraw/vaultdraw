@@ -4340,6 +4340,30 @@
    "palette": true
   },
   {
+   "id": "view.interfaceFont.bigger",
+   "title": "Interface font: Bigger",
+   "category": "View",
+   "keys": [],
+   "when": [],
+   "palette": true
+  },
+  {
+   "id": "view.interfaceFont.smaller",
+   "title": "Interface font: Smaller",
+   "category": "View",
+   "keys": [],
+   "when": [],
+   "palette": true
+  },
+  {
+   "id": "view.interfaceFont.reset",
+   "title": "Interface font: Reset size",
+   "category": "View",
+   "keys": [],
+   "when": [],
+   "palette": true
+  },
+  {
    "id": "profile.switch",
    "title": "Profile: Switch profile",
    "category": "Profile",
@@ -4967,6 +4991,20 @@
    "page": "interface",
    "label": "Interface zoom",
    "configKey": "interface.zoom",
+   "section": null
+  },
+  {
+   "id": "interface-font-size",
+   "page": "interface",
+   "label": "Interface font size",
+   "configKey": "interface.font_size",
+   "section": null
+  },
+  {
+   "id": "interface-font-family",
+   "page": "interface",
+   "label": "Interface font",
+   "configKey": "interface.font_family",
    "section": null
   },
   {

@@ -1,6 +1,10 @@
 import { useCallback, useLayoutEffect, useState, type RefObject } from "react";
 
-/** Fixed row height; must match `.vault-tree-item` in VaultShell.css. */
+/**
+ * Row height at the default interface font size; must match `--vd-row`
+ * (`.vault-tree-item` in VaultShell.css). Other sizes pass
+ * `uiRowHeight(size)` (theme/interfaceFont.ts), which scales both alike.
+ */
 export const TREE_ROW_HEIGHT = 26;
 /** Top padding of `.vault-tree-container`. */
 const CONTAINER_PAD_TOP = 2;
@@ -17,11 +21,12 @@ export function computeWindow(
   total: number,
   firstRow: number,
   viewport: number,
+  rowHeight: number = TREE_ROW_HEIGHT,
 ): RowWindow {
   if (total <= WINDOW_MIN_ROWS) {
     return { start: 0, end: total };
   }
-  const visible = Math.ceil(viewport / TREE_ROW_HEIGHT) + 1;
+  const visible = Math.ceil(viewport / rowHeight) + 1;
   const start = Math.min(Math.max(0, firstRow - OVERSCAN), total);
   const end = Math.min(total, firstRow + visible + OVERSCAN);
   return { start: Math.min(start, end), end };
@@ -36,6 +41,7 @@ export function useTreeWindow(
   containerRef: RefObject<HTMLElement | null>,
   total: number,
   active: boolean,
+  rowHeight: number = TREE_ROW_HEIGHT,
 ) {
   const [view, setView] = useState({
     firstRow: 0,
@@ -49,7 +55,7 @@ export function useTreeWindow(
     }
     const firstRow = Math.max(
       0,
-      Math.floor((el.scrollTop - CONTAINER_PAD_TOP) / TREE_ROW_HEIGHT),
+      Math.floor((el.scrollTop - CONTAINER_PAD_TOP) / rowHeight),
     );
     const viewport = el.clientHeight || FALLBACK_VIEWPORT;
     setView((v) =>
@@ -57,7 +63,7 @@ export function useTreeWindow(
         ? v
         : { firstRow, viewport },
     );
-  }, [containerRef]);
+  }, [containerRef, rowHeight]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -84,20 +90,20 @@ export function useTreeWindow(
       if (!el || index < 0) {
         return;
       }
-      const top = CONTAINER_PAD_TOP + index * TREE_ROW_HEIGHT;
+      const top = CONTAINER_PAD_TOP + index * rowHeight;
       const height = el.clientHeight || FALLBACK_VIEWPORT;
       if (top < el.scrollTop) {
         el.scrollTop = top;
-      } else if (top + TREE_ROW_HEIGHT > el.scrollTop + height) {
-        el.scrollTop = top + TREE_ROW_HEIGHT - height;
+      } else if (top + rowHeight > el.scrollTop + height) {
+        el.scrollTop = top + rowHeight - height;
       }
     },
-    [containerRef],
+    [containerRef, rowHeight],
   );
 
   const range =
     active && total > WINDOW_MIN_ROWS
-      ? computeWindow(total, view.firstRow, view.viewport)
+      ? computeWindow(total, view.firstRow, view.viewport, rowHeight)
       : { start: 0, end: total };
   return { ...range, scrollToRow };
 }

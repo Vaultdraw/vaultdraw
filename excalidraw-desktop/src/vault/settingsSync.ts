@@ -146,6 +146,11 @@ import {
   isPageMode,
   isPagePaperTheme,
   isHomePage,
+  isUiFontFamily,
+  isUiFontSize,
+  MAX_UI_FONT_FAMILY_LENGTH,
+  MAX_UI_FONT_SIZE,
+  MIN_UI_FONT_SIZE,
   isPageSide,
   isThemeInstallMaxKb,
   isThemesIndexTtlHours,
@@ -373,6 +378,8 @@ type ConfigField =
   | "showTagChips"
   | "deferHomePane"
   | "homePage"
+  | "interfaceFontSize"
+  | "interfaceFontFamily"
   | "noticeSeconds"
   | "thumbnails"
   | "thumbnailMaxElements"
@@ -645,6 +652,18 @@ const CORE_MAPPING: readonly ConfigMapping[] = [
     key: "interface.home_page",
     expected: '"full", "minimal" or "blank"',
     valid: isHomePage,
+  },
+  {
+    field: "interfaceFontSize",
+    key: "interface.font_size",
+    expected: `a whole number between ${MIN_UI_FONT_SIZE} and ${MAX_UI_FONT_SIZE} (pixels)`,
+    valid: isUiFontSize,
+  },
+  {
+    field: "interfaceFontFamily",
+    key: "interface.font_family",
+    expected: `a font name or CSS font list (at most ${MAX_UI_FONT_FAMILY_LENGTH} characters), or "" for the default`,
+    valid: isUiFontFamily,
   },
   {
     field: "deferHomePane",

@@ -1,7 +1,10 @@
 import { useEffect, type RefObject } from "react";
 
+import { useUiTallRowHeight } from "../../theme/useInterfaceFont";
+
 import { VersionRow } from "./VersionRow";
-import { HISTORY_ROW_HEIGHT, useRowWindow } from "./rowWindow";
+
+import { useRowWindow } from "./rowWindow";
 
 import type { PanelThumbnails } from "./thumbnails";
 import type { VersionInfo } from "../types";
@@ -30,7 +33,12 @@ export const VersionList = ({
   onEnter,
   onDelete,
 }: VersionListProps) => {
-  const { start, end, scrollToRow } = useRowWindow(listRef, versions.length);
+  const rowHeight = useUiTallRowHeight();
+  const { start, end, scrollToRow } = useRowWindow(
+    listRef,
+    versions.length,
+    rowHeight,
+  );
 
   const selectedIndex = selectedId
     ? versions.findIndex((v) => v.id === selectedId)
@@ -46,8 +54,8 @@ export const VersionList = ({
       aria-label="Versions"
       tabIndex={0}
       style={{
-        paddingTop: start * HISTORY_ROW_HEIGHT,
-        paddingBottom: (versions.length - end) * HISTORY_ROW_HEIGHT,
+        paddingTop: start * rowHeight,
+        paddingBottom: (versions.length - end) * rowHeight,
       }}
       onKeyDown={(e) => {
         if (e.key === "ArrowDown") {
