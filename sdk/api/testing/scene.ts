@@ -1,4 +1,5 @@
 import { checkDrawingSettings } from "../shared/drawingRules";
+import { checkRenderOptions } from "../shared/renderRules";
 import { PluginApiError } from "../shared/rules";
 import {
   imageBudget,
@@ -218,6 +219,10 @@ const isFull = (e: FakeElementInput | FakeElement): e is FakeElement =>
   "version" in e;
 
 /** The fake editor plus the plugin-facing scene API. */
+/** A 1x1 transparent PNG as a data URL (what the mock `renderPng` returns). */
+const MOCK_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
 export function createSceneModel(
   initialPath: string | null,
   /** `plugins.scene_max_ops` of the test (undefined: the app's default). */
@@ -792,6 +797,23 @@ export function createSceneModel(
           return { rects, pageCount: null, firstPage: null, maxPages: null };
         },
         drawing: () => (path === null ? null : { ...drawingState }),
+        async renderPng(options) {
+          const checked = checkRenderOptions(options);
+          if (path === null) {
+            throw refusal("no drawing is open", "NOT_FOUND");
+          }
+          const els = live().filter(
+            (e) =>
+              !checked.ids ||
+              checked.ids.includes(e.id) ||
+              (e.containerId != null && checked.ids.includes(e.containerId)),
+          );
+          if (els.length === 0) {
+            throw refusal("nothing to draw", "NOT_FOUND");
+          }
+          // A 1x1 transparent PNG: the mock draws nothing.
+          return { dataUrl: MOCK_PNG, width: 1, height: 1 };
+        },
         sizeBytes: () =>
           path === null
             ? 0

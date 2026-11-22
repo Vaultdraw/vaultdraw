@@ -60,6 +60,8 @@ export type {
   PageRequest,
   PageSizeName,
   PaperStyle,
+  RenderPngOptions,
+  RenderPngResult,
   PageTextItem,
   PageTextTone,
   PagesApi,

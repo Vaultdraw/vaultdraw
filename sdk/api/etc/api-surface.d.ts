@@ -1,4 +1,4 @@
-// @vaultdraw/api 1.5.0
+// @vaultdraw/api 1.6.0
 // cli.ts
 export type CliToolId = "claude" | "codex";
 export interface CliToolStatus {
@@ -211,6 +211,7 @@ export type { PanelsApi } from "./panels";
 export { definePlugin } from "./plugin";
 export type { LogApi, Plugin, PluginContext, UiApi } from "./plugin";
 export type { DrawingSettings, PaperStyle } from "./scene";
+export type { RenderPngOptions, RenderPngResult } from "./scene";
 export type { BatchOptions, PagePlacement, PageRect, BatchResult, ElementId, ElementRef, ImageSource, FontFamilyName, NewElement, SceneContextApi, SceneElementDetail, SceneElement, SceneElementType, SceneOp, SceneOpIssue, } from "./scene";
 export type { SelectOption, SettingDecl, SettingScopeName, SettingsApi, SettingValue, } from "./settings";
 export type { StatusBarApi, StatusBarState } from "./statusBar";
@@ -887,6 +888,22 @@ export interface DrawingSettings {
     layout?: "separate" | "continuous";
     background?: string;
 }
+export interface RenderPngOptions {
+    ids?: readonly string[];
+    box?: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+    maxSide?: number;
+    padding?: number;
+}
+export interface RenderPngResult {
+    dataUrl: string;
+    width: number;
+    height: number;
+}
 export interface BatchResult {
     ids: string[];
     refs: Record<string, string>;
@@ -967,6 +984,7 @@ export interface SceneContextApi {
     }[]): PagePlacement;
     sizeBytes(): number;
     drawing(): DrawingSettings | null;
+    renderPng(options?: RenderPngOptions): Promise<RenderPngResult>;
 }
 
 // secret.ts

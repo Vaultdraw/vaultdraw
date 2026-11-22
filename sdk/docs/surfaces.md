@@ -53,6 +53,7 @@ if (ctx.host.has("statusBar")) ctx.statusBar.set("clock", { text });
 | 1.1.0 | `ctx.net` (`request`) and `ctx.secret` (`set`, `has`, `delete`), permissions `net` and `secret` (experimental): requests sent by the app, keys the plugin cannot read back | `ctx.host.has("net")`, `ctx.host.has("secret")` |
 | 1.4.0 | `ctx.cli` (`detect`, `run`), permission `cli` (experimental): ask the AI command line the user already has (Claude Code, Codex) | `ctx.host.has("cli")` |
 | 1.5.0 | `ctx.scene.batch(ops, { drawing })` and `ctx.scene.drawing()` (experimental): page mode, paper, page size and background of the open drawing, in the same undo step as the ops | `ctx.host.has("scene.drawing")` |
+| 1.6.0 | `ctx.scene.renderPng({ ids, box, maxSide, padding })` (experimental): the open drawing or some elements as a small PNG data URL, read only | `ctx.host.has("scene.renderPng")` |
 | 1.3.0 | `ctx.vault.readNote(path)` (a note's text, read only) and `ctx.workspace.activeNotePath()` | `ctx.host.has("vault.readNote")` |
 
 An older app refuses a `plugin.toml` with a table it does not know (`status_bar`, `views`, `menus`, `toolbar`, `tools`, `shapes`, `methods`), so set `min_app` to the app version that ships the revision you use; `vaultdraw-plugin check` warns when it is lower.

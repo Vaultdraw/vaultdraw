@@ -11,6 +11,8 @@ import {
   viewportCenter,
 } from "../../sceneOps";
 import { checkDrawingSettings } from "../../../../sdk/api/shared/drawingRules";
+import { checkRenderOptions } from "../../../../sdk/api/shared/renderRules";
+import { renderScenePng } from "../../sceneOps/renderPng";
 import { readDrawingSettings } from "../../sceneOps/drawingSettings";
 import { currentDrawingBytes } from "../../sceneOps/drawingBytes";
 import { FONT_NAME } from "../../sceneOps/project";
@@ -269,6 +271,20 @@ export function createSceneApi(
     drawing() {
       const scene = getActiveScene();
       return scene ? readDrawingSettings(scene.api.getAppState()) : null;
+    },
+    async renderPng(renderOptions) {
+      if (!isLive()) {
+        throw new Error("scene.renderPng: the plugin was stopped");
+      }
+      const checked = checkRenderOptions(renderOptions);
+      const scene = getActiveScene();
+      if (!scene) {
+        throw new PluginApiError(
+          "NOT_FOUND",
+          "scene.renderPng: no drawing is open",
+        );
+      }
+      return renderScenePng(scene, checked);
     },
     sizeBytes() {
       const scene = getActiveScene();

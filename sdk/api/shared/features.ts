@@ -1,7 +1,7 @@
 // Generated from the @since tags of sdk/api/src by sdk/api/scripts/gen-features.mjs. Do not edit.
 
 /** The API revision of this build (the version of sdk/api/package.json). */
-export const API_REVISION = "1.5.0";
+export const API_REVISION = "1.6.0";
 
 /** Feature name to the revision that added it. `ctx.host.has(name)` is true for these. */
 export const FEATURES: Readonly<Record<string, string>> = {
@@ -88,6 +88,7 @@ export const FEATURES: Readonly<Record<string, string>> = {
   "scene.onChange": "0.1.0",
   "scene.path": "0.4.0",
   "scene.placePages": "0.26.0",
+  "scene.renderPng": "1.6.0",
   "scene.scrollTo": "0.9.0",
   "scene.selection": "0.24.0",
   "scene.sizeBytes": "0.26.0",

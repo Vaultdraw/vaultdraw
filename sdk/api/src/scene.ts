@@ -291,6 +291,36 @@ export interface DrawingSettings {
 }
 
 /**
+ * What `scene.renderPng` draws and how big the picture gets.
+ *
+ * @experimental
+ * @since 1.6.0
+ */
+export interface RenderPngOptions {
+  /** Draw only these elements (and the text bound to them); default is the whole drawing. @since 1.6.0 */
+  ids?: readonly string[];
+  /** Draw only the elements that touch this box (scene pixels). Ignored when `ids` is given. @since 1.6.0 */
+  box?: { x: number; y: number; width: number; height: number };
+  /** The longest side of the picture in pixels, 64 to 2048 (default 768); a smaller drawing is not enlarged. @since 1.6.0 */
+  maxSide?: number;
+  /** Empty space around the content in scene pixels, 0 to 200 (default 16). @since 1.6.0 */
+  padding?: number;
+}
+
+/**
+ * A picture of the drawing.
+ *
+ * @experimental
+ * @since 1.6.0
+ */
+export interface RenderPngResult {
+  /** `data:image/png;base64,…` */
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
+/**
  * What `scene.batch` resolves to.
  *
  * @since 0.4.0
@@ -571,4 +601,13 @@ export interface SceneContextApi {
    * @since 1.5.0
    */
   drawing(): DrawingSettings | null;
+  /**
+   * Renders the open drawing (or some of its elements) to a small PNG, for a model to look at.
+   * Read only; light colours whatever the theme. Rejects with `NOT_FOUND` when no drawing is open
+   * or no element matches, and `INVALID_ARGUMENT` for a bad option.
+   *
+   * @experimental
+   * @since 1.6.0
+   */
+  renderPng(options?: RenderPngOptions): Promise<RenderPngResult>;
 }

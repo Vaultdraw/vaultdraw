@@ -35,7 +35,7 @@ describe("min_api against the API revision this SDK implements (toimprove M-4)",
     expect(API_REVISION).toBe(REVISION);
   });
 
-  for (const v of ["1.6.0", "2.0.0"]) {
+  for (const v of ["1.7.0", "2.0.0"]) {
     it(`min_api = "${v}" (newer than ${REVISION}) is reported, as the app refuses it`, () => {
       expect(findings(`${MANIFEST}min_api = "${v}"\n`)).not.toEqual([]);
     });

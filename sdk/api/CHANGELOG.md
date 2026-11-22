@@ -2,6 +2,12 @@
 
 The history of `@vaultdraw/api` (the types), the manifest and the `vaultdraw-plugin` tool. The API follows [semantic versioning](https://semver.org/spec/v2.0.0.html) from 1.0.0 on; [stability.md](../docs/stability.md) says what that promises. The app's own change log is `CHANGELOG.md` at the repository root.
 
+## 1.6.0
+
+### Added
+
+- **Render a picture** (`@experimental`): `ctx.scene.renderPng({ ids?, box?, maxSide?, padding? })` draws the open drawing, some elements (with the text bound to them) or the elements touching a box to a PNG data URL, at most `maxSide` pixels on the longest side (64 to 2048, default 768, never enlarged), in light colours whatever the theme. It resolves `{ dataUrl, width, height }`. It only reads, so it needs no permission. It rejects with `NOT_FOUND` when no drawing is open or nothing matches, and `INVALID_ARGUMENT` for a bad option.
+
 ## 1.5.0
 
 ### Added

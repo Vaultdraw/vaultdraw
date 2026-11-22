@@ -129,6 +129,8 @@ describe("@vaultdraw/api public surface", () => {
       "NetRequest",
       "NetResponse",
       "PaperStyle",
+      "RenderPngOptions",
+      "RenderPngResult",
       "SecretApi",
       "ThumbnailState",
       "ThumbnailsApi",

@@ -76,6 +76,7 @@ export type { PanelsApi } from "./panels";
 export { definePlugin } from "./plugin";
 export type { LogApi, Plugin, PluginContext, UiApi } from "./plugin";
 export type { DrawingSettings, PaperStyle } from "./scene";
+export type { RenderPngOptions, RenderPngResult } from "./scene";
 export type {
   BatchOptions,
   PagePlacement,
