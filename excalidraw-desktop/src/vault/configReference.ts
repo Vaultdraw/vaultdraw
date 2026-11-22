@@ -239,7 +239,7 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
     intro: "The file tree.",
     keys: {
       sort: {
-        doc: "Sort order; folders always come first, names compare by number.",
+        doc: "Sort order; folders always come first (in name order under a date sort), names compare by number.",
       },
       mod_click: {
         doc: 'Cmd+click (Ctrl+click on Windows and Linux) on a tree row: `"select"` adds it to or removes it from the selection, as in Zed and Obsidian; `"new_tab"` opens it in a new tab. Middle click and Cmd+Enter always open a new tab.',

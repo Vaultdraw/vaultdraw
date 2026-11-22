@@ -30,6 +30,8 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 - **AI assistant: Ollama on another computer on your network.** Private addresses are still refused by default. Listing a host in `network.allow_private_hosts` (for example `["192.168.1.20:11434"]`, or `"ollama.lan"` for every port) in `config.toml` allows requests to it, `http` included. Only the listed hosts are allowed, Offline mode still blocks them, and only `config.toml` is read for the list (Settings and the page never write it). The refusal now says how to allow an address.
 
 ### Changed
+
+- **Folders stay in name order under a date sort.** With `navigator.sort` set to modified new to old or old to new, folders now list Lec 1, Lec 2 … Lec 6 (still first); only drawings and notes follow the dates. Name Z to A still reverses folders too.
 - AI assistant: the model picker lists only what works now (a signed-in Claude or Codex, or a provider with a saved key), with no "needs a key" rows; with nothing usable it shows "Connect a provider…". The settings fold API keys and missing tools under "Add a provider".
 
 - **AI assistant: one clean result per answer, a history of earlier chats.** A change you keep now shows one line ("Added 4 boxes, 2 ellipses, 5 arrows") with a small Undo button, instead of the same sentence twice; the mode name is no longer repeated on every message; Copy shows on hover. A history button next to **+** (and **AI: Chat history**) lists this vault's last 50 chats, newest first; click one to reopen it, or delete it.

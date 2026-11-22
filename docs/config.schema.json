@@ -516,7 +516,7 @@
       "additionalProperties": false,
       "properties": {
         "sort": {
-          "description": "Sort order; folders always come first, names compare by number.",
+          "description": "Sort order; folders always come first (in name order under a date sort), names compare by number.",
           "default": "name_asc",
           "type": "string",
           "enum": [

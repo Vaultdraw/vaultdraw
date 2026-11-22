@@ -48,7 +48,10 @@ export const compareNames = (a: string, b: string): number =>
   collator.compare(entryDisplayName(a), entryDisplayName(b)) ||
   collator.compare(a, b);
 
-/** Folders always come first; `order` applies within folders and among all files together. */
+/**
+ * Folders always come first. Folders follow the name sorts but stay in name order (A to Z) under
+ * a date sort; `order` applies among all files together.
+ */
 export const compareEntries = (
   a: Pick<VaultEntry, "kind" | "name" | "modifiedAt">,
   b: Pick<VaultEntry, "kind" | "name" | "modifiedAt">,
@@ -59,6 +62,9 @@ export const compareEntries = (
   const aFolder = a.kind === "folder";
   if (aFolder !== (b.kind === "folder")) {
     return aFolder ? -1 : 1;
+  }
+  if (aFolder && (order === "modified_desc" || order === "modified_asc")) {
+    return compareNames(a.name, b.name);
   }
   switch (order) {
     case "name_desc":
