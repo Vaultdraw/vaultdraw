@@ -814,7 +814,7 @@ fn data_key_is_optional_and_checked() {
 #[test]
 fn permission_rules() {
     bad(&with("permissions = [\"vault.delete\"]\n"), "unknown permission");
-    for known in ["net", "secret"] {
+    for known in ["net", "secret", "cli"] {
         assert!(manifest::parse(&with(&format!("permissions = [\"{known}\"]\n"))).is_ok(), "{known} is a permission now");
     }
     bad(&with("permissions = [\"vault.read\", \"vault.read\"]\n"), "duplicate permission");
@@ -930,6 +930,10 @@ fn gateway_allowlist_maps_methods_to_permissions() {
             ("net.open", Some("net")),
             ("net.read", Some("net")),
             ("net.close", Some("net")),
+            ("cli.detect", Some("cli")),
+            ("cli.open", Some("cli")),
+            ("cli.read", Some("cli")),
+            ("cli.close", Some("cli")),
             ("secret.set", Some("secret")),
             ("secret.has", Some("secret")),
             ("secret.delete", Some("secret")),

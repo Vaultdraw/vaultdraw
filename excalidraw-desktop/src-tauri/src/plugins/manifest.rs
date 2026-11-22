@@ -46,11 +46,11 @@ pub(crate) const RESERVED_EXTENSIONS: [&str; 15] = [
 ];
 
 /// Permissions a plugin may declare. A declaration and a consent line, not a sandbox.
-pub(crate) const PERMISSIONS: [&str; 9] = ["vault.read", "vault.write", "folders.import", "control", "pdf", "clipboard", "network.images", "net", "secret"];
+pub(crate) const PERMISSIONS: [&str; 10] = ["vault.read", "vault.write", "folders.import", "control", "pdf", "clipboard", "network.images", "net", "secret", "cli"];
 
 /// A write permission changes files with no undo: adding one needs the user's review.
 pub(crate) fn is_write_permission(p: &str) -> bool {
-    p.ends_with(".write") || p == "folders.import" || p == "control"
+    p.ends_with(".write") || p == "folders.import" || p == "control" || p == "cli"
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

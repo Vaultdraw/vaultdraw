@@ -9,6 +9,7 @@ mod exports;
 mod gateway;
 pub(crate) use gateway::GatewayError;
 mod install;
+mod cli;
 mod net;
 mod secret_store;
 mod manifest;

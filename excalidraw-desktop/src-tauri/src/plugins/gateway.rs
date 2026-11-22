@@ -65,6 +65,10 @@ pub(crate) const ALLOWLIST: &[Row] = &[
     Row { method: "net.open", permission: Some(NET), route: Route::Raw },
     Row { method: "net.read", permission: Some(NET), route: Route::Raw },
     Row { method: "net.close", permission: Some(NET), route: Route::Raw },
+    Row { method: "cli.detect", permission: Some(CLI), route: Route::Raw },
+    Row { method: "cli.open", permission: Some(CLI), route: Route::Raw },
+    Row { method: "cli.read", permission: Some(CLI), route: Route::Raw },
+    Row { method: "cli.close", permission: Some(CLI), route: Route::Raw },
     Row { method: "secret.set", permission: Some(SECRET), route: Route::Raw },
     Row { method: "secret.has", permission: Some(SECRET), route: Route::Raw },
     Row { method: "secret.delete", permission: Some(SECRET), route: Route::Raw },
@@ -91,6 +95,8 @@ pub(crate) const PDF: &str = "pdf";
 pub(crate) const NETWORK_IMAGES: &str = "network.images";
 /// The permission of the `net.*` rows: streamed requests to a provider (consent purpose `ai`; see `net.rs`).
 pub(crate) const NET: &str = "net";
+/// The permission of the `cli.*` rows: run the user's own AI command line (Claude Code, Codex; see `cli.rs`).
+pub(crate) const CLI: &str = "cli";
 /// The permission of the `secret.*` rows: keep a key the plugin can use but never read back.
 pub(crate) const SECRET: &str = "secret";
 
@@ -313,6 +319,10 @@ pub(crate) fn raw_call(app: &tauri::AppHandle, plugin_id: &str, method: &str, bo
     if method.starts_with("net.") || method.starts_with("secret.") {
         let dirs = crate::config::resolve_dirs()?;
         return Ok(super::net::call(&dirs.state, || crate::network::net_config_value(&dirs), plugin_id, method, body)?);
+    }
+    if method.starts_with("cli.") {
+        let dirs = crate::config::resolve_dirs()?;
+        return Ok(super::cli::call(&dirs.state, || crate::network::net_config_value(&dirs), plugin_id, method, body)?);
     }
     if method.starts_with("pdf.") {
         return Ok(crate::pdf_import::gateway_call(method, body)?);

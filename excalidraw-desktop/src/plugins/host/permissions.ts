@@ -16,6 +16,7 @@ export const PERMISSION_TEXT: Readonly<Record<string, string>> = {
     "Download the pictures of web pages that your notes show, after you allow it",
   net: "Send requests to the addresses it is set up for, such as an AI provider, using the keys you store",
   secret: "Keep secrets such as API keys, which it can never read back",
+  cli: "Run the AI command line you already use on this computer (Claude Code or Codex) to answer your questions, only when you press send",
   pdf: "Open PDF files you pick and draw their pages",
   control:
     "Let the vaultdraw command, scripts and the AI apps you allow call its methods",
