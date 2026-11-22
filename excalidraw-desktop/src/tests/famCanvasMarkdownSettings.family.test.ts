@@ -289,6 +289,8 @@ describe("family: [markdown] settings that shape typing", () => {
     expect(keys).toEqual(
       [
         "markdownBlockGap",
+        // Not a typing setting: its on and off rows are in markdown/convertOnEnable.test.tsx.
+        "markdownConvertOnEnable",
         "markdownH1Size",
         "markdownH2Size",
         "markdownH3Size",

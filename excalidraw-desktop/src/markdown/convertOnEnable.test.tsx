@@ -11,6 +11,8 @@ import { newTextElement } from "@excalidraw/element";
 
 import { getRegisteredHandler } from "../commands/handlerRegistry";
 
+import { updatePreferences } from "../vault/preferences";
+
 import { useMarkdownMode } from "./useMarkdownMode";
 
 vi.mock("../editor/links/remeasure", () => ({
@@ -77,6 +79,7 @@ const settle = () => new Promise((r) => setTimeout(r, 20));
 
 afterEach(() => {
   vi.restoreAllMocks();
+  updatePreferences({ markdownConvertOnEnable: true }, window);
 });
 
 describe("turning Markdown mode on converts the text already there", () => {
@@ -92,6 +95,17 @@ describe("turning Markdown mode on converts the text already there", () => {
     // one undo step for the whole conversion
     expect(t.updates.filter((u) => u.elements)).toHaveLength(1);
     expect(t.updates.find((u) => u.elements).captureUpdate).toBe("IMMEDIATELY");
+  });
+
+  it("markdown.convert_on_enable = false: turning the mode on leaves the text as it is", async () => {
+    updatePreferences({ markdownConvertOnEnable: false }, window);
+    const t = setup([text("# Title")], { on: false });
+    await act(async () => {
+      t.hook.result.current.toggle();
+      await settle();
+    });
+    expect(t.byText("# Title")?.customData?.role).toBeUndefined();
+    expect(undoSteps(t.updates)).toBe(0);
   });
 
   it("turning the mode off converts nothing", async () => {

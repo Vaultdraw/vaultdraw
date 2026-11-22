@@ -63,10 +63,10 @@
 .vd-ai-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vd-ai-send { flex: none; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: var(--vault-primary, #6965db); color: var(--vault-on-primary, #fff); cursor: pointer; }
 .vd-ai-send:hover { filter: brightness(1.1); }
-.vd-ai-icon:focus-visible, .vd-ai-tool:focus-visible, .vd-ai-send:focus-visible, .vd-ai-btn:focus-visible, .vd-ai-search:focus-visible, .vd-ai-keyinput:focus-visible, .vd-ai-field select:focus-visible, .vd-ai-hints button:focus-visible { outline: none; box-shadow: var(--vault-ring-inset, 0 0 0 2px var(--vault-primary, #6965db)); }
+.vd-ai-icon:focus-visible, .vd-ai-tool:focus-visible, .vd-ai-send:focus-visible, .vd-ai-btn:focus-visible, .vd-ai-search:focus-visible, .vd-ai-keyinput:focus-visible, .vd-ai-field select:focus-visible, .vd-ai-hints button:focus-visible { outline: none; box-shadow: var(--vault-ring-inset); }
 
 /* pop-up lists open above the composer, as wide as it is */
-.vd-ai-pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); z-index: 5; max-height: min(320px, 50vh); display: flex; flex-direction: column; border: 1px solid var(--vault-border, rgba(128,128,128,.35)); border-radius: var(--vd-radius-pop, 8px); background: var(--vault-surface-lowest, var(--vault-surface, Canvas)); box-shadow: 0 6px 24px rgba(0,0,0,.28); outline: none; }
+.vd-ai-pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); z-index: 5; max-height: min(320px, 50vh); display: flex; flex-direction: column; border: 1px solid var(--vault-border, rgba(128,128,128,.35)); border-radius: var(--vd-radius-pop, 8px); background: var(--vault-surface, Canvas); box-shadow: 0 6px 24px rgba(0,0,0,.28); outline: none; }
 .vd-ai-helper { max-height: 220px; }
 .vd-ai-search { margin: 6px; width: auto; font: inherit; color: inherit; background: var(--vault-surface, transparent); border: 1px solid var(--vault-border, rgba(128,128,128,.35)); border-radius: var(--vd-radius-pop, 6px); padding: 4px 8px; }
 .vd-ai-list { list-style: none; margin: 0; padding: 4px; overflow-y: auto; }
