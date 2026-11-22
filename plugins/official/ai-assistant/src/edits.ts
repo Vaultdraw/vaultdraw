@@ -228,6 +228,7 @@ export function drawingWords(d: DrawingSettings): string {
     parts.push(PAPER_WORDS[d.paper]);
   }
   if (d.pageSize) {
+    // plural-ok: a page size name ("A4 pages"), not a count
     parts.push(`${SIZE_WORDS[d.pageSize]} pages`);
   }
   if (d.orientation) {

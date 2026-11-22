@@ -148,6 +148,7 @@ export function checkImages(
         `${label} is larger than ${MAX_IMAGE_BYTES / 1024 / 1024} MB.`,
       );
     } else if (have + accept.length >= MAX_IMAGES) {
+      // plural-ok: MAX_IMAGES is a fixed limit above 1
       problems.push(`At most ${MAX_IMAGES} images can be sent at once.`);
     } else {
       accept.push(i);
