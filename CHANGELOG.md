@@ -2,7 +2,7 @@
 
 All notable changes to Vaultdraw are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-23
 
 ### Added
 
@@ -130,7 +130,7 @@ All notable changes to Vaultdraw are listed here. The format follows [Keep a Cha
 - **A big note opens at once.** A 1 MB note froze the window for 8 to 14 s (a 4 MB one never opened) because every block rescanned the rest of the note; it now looks only to the end of its paragraph, with the same output (toimprove 288).
 - **Pickers and searches find each word in any order, with accents folded.** The vault search's folder and name matches, the theme pickers, the plugin browser and Settings search now share one rule ("2024 work" finds "Work 2024", "cafe" finds "Café"), as in Obsidian and Zed (toimprove 246).
 
-## [0.2.0] - 2026-10-28
+## [0.2.0 release candidate] - 2026-10-28 (never published; included in 0.2.0)
 
 The plugin platform (plugin API 1.0, frozen after an audit), Markdown notes with Obsidian vaults, Linux builds and memory work. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
