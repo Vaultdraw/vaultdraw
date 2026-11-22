@@ -5,6 +5,7 @@ import { EMPTY_HINT } from "./composerLogic";
 import Ghosts from "./Ghosts";
 import { Icon, Mark } from "./Icons";
 import Markdown from "./markdown";
+import { streamingView } from "./reply";
 import History from "./History";
 import Tabs from "./Tabs";
 import SettingsView from "./SettingsView";
@@ -83,15 +84,12 @@ function Thread({
 }) {
   const end = useRef<HTMLDivElement>(null);
   const running = s.status === "running";
-  const planTask = s.task === "edit" || s.task === "create";
+  const live = streamingView(s.answer);
   useEffect(() => {
     end.current?.scrollIntoView?.({ block: "end" });
   }, [s.turns.length, s.answer, s.error, s.proposal, s.kept]);
 
   const lastApplied = [...s.turns].reverse().find((t) => t.applied);
-  const lastAssistant = [...s.turns]
-    .reverse()
-    .find((t) => t.role === "assistant");
   return (
     <div className="vd-ai-thread" role="log" aria-label="Conversation">
       {s.turns.length === 0 && !running ? (
@@ -107,7 +105,6 @@ function Thread({
           turn={t}
           session={session}
           s={s}
-          last={t === lastAssistant && !running}
           canUndo={t === lastApplied && !running}
         />
       ))}
@@ -117,11 +114,10 @@ function Thread({
           aria-live="polite"
           aria-busy
         >
-          {planTask ? (
+          {live.prose ? <Markdown text={live.prose} /> : null}
+          {live.building ? (
             <p className="vd-ai-wait">Working out the changes…</p>
-          ) : s.answer ? (
-            <Markdown text={s.answer} />
-          ) : (
+          ) : live.prose ? null : (
             <p className="vd-ai-wait">Waiting for the answer…</p>
           )}
         </div>
@@ -140,13 +136,11 @@ function TurnView({
   turn,
   session,
   s,
-  last,
   canUndo,
 }: {
   turn: Turn;
   session: Session;
   s: ReturnType<Session["get"]>;
-  last: boolean;
   canUndo: boolean;
 }) {
   if (turn.role === "user") {
@@ -207,7 +201,11 @@ function TurnView({
               <li key={i}>{l}</li>
             ))}
           </ul>
-          {p.skipped > 0 ? (
+          {p.problems?.length ? (
+            <span className="vd-ai-via">
+              Left out: {p.problems.join("; ")}.
+            </span>
+          ) : p.skipped > 0 ? (
             <span className="vd-ai-via">
               {p.skipped} part{p.skipped === 1 ? "" : "s"} of the reply made no
               sense and {p.skipped === 1 ? "was" : "were"} left out.
@@ -243,21 +241,6 @@ function TurnView({
           >
             <Icon name="copy" size={12} /> Copy
           </button>
-          {last && turn.task === "diagram" ? (
-            <button
-              type="button"
-              className="vd-ai-btn vd-ai-primary"
-              onClick={() => void session.draw()}
-            >
-              Draw it
-            </button>
-          ) : null}
-          {last && s.drawn !== null ? (
-            <span className="vd-ai-via">
-              Drew {s.drawn} shapes. Undo with{" "}
-              {/mac/i.test(navigator.platform) ? "Cmd" : "Ctrl"}+Z.
-            </span>
-          ) : null}
         </div>
       ) : null}
     </div>

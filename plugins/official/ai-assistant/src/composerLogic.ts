@@ -10,7 +10,7 @@ import type { ContextMode } from "./session";
 // ---------------------------------------------------------------------------
 
 /**
- * How much room the toolbar has. The effort and the mode are always icons (their full names are in
+ * How much room the toolbar has. The effort is always an icon (their full names are in
  * their tooltips and menus), and a slot stays free beside them for one more small control. Only the
  * model name changes: it is spelled out at level 0 and loses whole words at 1 and 2, with an
  * ellipsis in the style sheet as the last resort.
@@ -184,16 +184,11 @@ export function imageNote(provider: string): string | null {
 // The question box
 // ---------------------------------------------------------------------------
 
-/**
- * What the box shows under the text: the full list of modes after `/`, the context list after `@`,
- * or nothing. The box starts with one hint line instead of a list of everything.
- */
-export function helperKind(draft: string): "slash" | "at" | null {
-  if (/^\/([a-z]*)$/i.test(draft)) {
-    return "slash";
-  }
+/** What the box shows under the text: the context list after `@`, or nothing. */
+export function helperKind(draft: string): "at" | null {
   return /(?:^|\s)@([a-z]*)$/i.test(draft) ? "at" : null;
 }
 
-/** The empty panel's one line; the full list of modes appears only when `/` is typed. */
-export const EMPTY_HINT = "Type / for commands, @ to add context";
+/** The empty panel's one line. */
+export const EMPTY_HINT =
+  "Ask a question, have a topic explained on the page, or say what to change. @ chooses what is sent.";

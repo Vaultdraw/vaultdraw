@@ -113,3 +113,107 @@ export function noteText(text: string, name: string, limit: number): Context {
 /** The note's display name: its file name without the folder and `.md`. */
 export const noteName = (path: string): string =>
   path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+
+const clip = (t: string, n: number) => {
+  const one = t.replace(/\s+/g, " ").trim();
+  return one.length > n ? `${one.slice(0, n - 1)}…` : one;
+};
+
+/**
+ * A compact picture of the drawing for the assistant: counts, the area it covers, its texts with
+ * ids (top to bottom), and the selection in full. Never longer than `limit` characters: the
+ * selection comes first, then texts until the limit, then a count of what was left out.
+ */
+export function summarizeDrawing(
+  elements: readonly SceneElement[],
+  selection: readonly string[],
+  limit: number,
+  path: string | null,
+): Context {
+  if (path === null && elements.length === 0) {
+    return {
+      text: "No drawing is open. Use `vd new` to make one.",
+      summary: "No drawing open",
+      cut: 0,
+    };
+  }
+  if (elements.length === 0) {
+    return {
+      text: "The drawing is empty.",
+      summary: "The drawing is empty",
+      cut: 0,
+    };
+  }
+  const counts = new Map<string, number>();
+  for (const e of elements) {
+    counts.set(e.type, (counts.get(e.type) ?? 0) + 1);
+  }
+  const box = {
+    x1: Math.min(...elements.map((e) => e.x)),
+    y1: Math.min(...elements.map((e) => e.y)),
+    x2: Math.max(...elements.map((e) => e.x + e.width)),
+    y2: Math.max(...elements.map((e) => e.y + e.height)),
+  };
+  const sel = new Set(selection);
+  const picked = elements.filter((e) => sel.has(e.id));
+  const head = [
+    `${elements.length} element${elements.length === 1 ? "" : "s"}: ${[
+      ...counts,
+    ]
+      .map(([t, n]) => `${n} ${t}`)
+      .join(", ")}.`,
+    `Area: x ${round(box.x1)} to ${round(box.x2)}, y ${round(box.y1)} to ${round(
+      box.y2,
+    )}.`,
+  ];
+  const out: string[] = [...head];
+  let used = head.join("\n").length;
+  let left = 0;
+  const add = (line: string) => {
+    if (used + line.length + 1 > limit - 40) {
+      left++;
+      return;
+    }
+    out.push(line);
+    used += line.length + 1;
+  };
+  if (picked.length) {
+    add(`Selected (${picked.length}), in full:`);
+    for (const e of picked) {
+      add(`- id ${e.id}: ${line(e).slice(2)}`);
+    }
+  }
+  const texts = elements
+    .filter((e) => !sel.has(e.id) && (e.text?.trim() || e.name))
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  if (texts.length) {
+    add("Texts, top to bottom (id, type, text):");
+    for (const e of texts) {
+      add(`- ${e.id} ${e.type}: "${clip(e.text || e.name || "", 80)}"`);
+    }
+  }
+  if (left) {
+    out.push(`(${left} more line${left === 1 ? "" : "s"} left out)`);
+  }
+  return {
+    text: out.join("\n"),
+    summary: `The whole drawing: ${elements.length} element${
+      elements.length === 1 ? "" : "s"
+    }${picked.length ? `, ${picked.length} selected` : ""}`,
+    cut: left,
+  };
+}
+
+/** True when the selection looks like a diagram: shapes joined by arrows or lines. */
+export function selectionIsDiagram(
+  elements: readonly SceneElement[],
+  selection: readonly string[],
+): boolean {
+  const sel = new Set(selection);
+  const picked = elements.filter((e) => sel.has(e.id));
+  return (
+    picked.some((e) => e.type === "arrow" || e.type === "line") &&
+    picked.filter((e) => ["rectangle", "ellipse", "diamond"].includes(e.type))
+      .length >= 2
+  );
+}

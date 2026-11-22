@@ -1,8 +1,9 @@
 /**
  * The box at the bottom of the panel, built like the agent panels of Zed and opencode: the text
- * grows with what you type (Enter sends, Shift+Enter is a new line, Esc stops), `/` picks a mode,
- * `@` picks what is sent, and a row of controls below holds the + button (what is sent, add an
- * image), the model, the reasoning level, the mode and the send button. Images are pasted or
+ * grows with what you type (Enter sends, Shift+Enter is a new line, Esc stops), `@` picks what is
+ * sent, and a row of controls below holds the + button (what is sent, add an image), the model,
+ * the reasoning level, the permission and the send button. There are no modes: the one assistant
+ * decides from the message what to do (toimprove 365). Images are pasted or
  * dropped in and shown as thumbnails. The row shortens its labels when the panel is narrow.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,40 +24,14 @@ import { Icon, Levels } from "./Icons";
 import { imageProblem, readImage } from "./imageFiles";
 import AccessControl from "./AccessControl";
 import Menu, { List, arrowKeys, type MenuItem } from "./Menu";
-import { TASK_TITLES, SYSTEM, type Task } from "./prompts";
 import { availableModels, providerDef, type ProviderId } from "./providers";
 
 import type { ContextMode, Session } from "./session";
 
 const CONNECT = "connect";
 
-export const TASKS: Task[] = [
-  "ask",
-  "describe",
-  "edit",
-  "create",
-  "diagram",
-  "summarise",
-];
-
-/** The word after `/` for each mode. */
-export const SLASH: Record<Task, string> = {
-  ask: "ask",
-  describe: "describe",
-  edit: "edit",
-  create: "new",
-  diagram: "diagram",
-  summarise: "summarise",
-};
-
-const PLACEHOLDER: Record<Task, string> = {
-  ask: "Ask about this drawing",
-  describe: "Describe the selection (add a note if you like)",
-  diagram: "Describe the diagram to draw, e.g. login flow with a retry",
-  summarise: "Summarise (add a note if you like)",
-  edit: "Say what to change, e.g. make the login box red and add a Logout box",
-  create: "Describe the new drawing, e.g. a three-tier web app",
-};
+/** The box's one placeholder: what the assistant can do, in a few words. */
+export const PLACEHOLDER = "Ask, explain, draw or change anything";
 
 const CONTEXTS: { id: ContextMode; label: string; hint: string; at: string }[] =
   [
@@ -71,9 +46,9 @@ const CONTEXTS: { id: ContextMode; label: string; hint: string; at: string }[] =
     { id: "none", label: "Nothing from the drawing", hint: "", at: "none" },
   ];
 
-type Open = null | "model" | "effort" | "mode" | "add" | "sent";
+type Open = null | "model" | "effort" | "add" | "sent";
 
-/** Longest model label (characters) at each toolbar level; the effort and mode are icons. */
+/** Longest model label (characters) at each toolbar level; the effort is an icon. */
 const MODEL_CHARS: Record<BarLevel, number> = { 0: 18, 1: 13, 2: 9 };
 
 /** The toolbar's width, followed as the panel is resized (full labels where jsdom has no layout). */
@@ -109,6 +84,7 @@ export default function Composer({
   const [preview, setPreview] = useState<{
     sent: string;
     summary: string;
+    system: string;
   } | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -156,16 +132,20 @@ export default function Composer({
   }, [open]);
 
   // What would be sent: built only while the "what is sent" view is open (nothing runs otherwise).
-  const wantsContext = s.task !== "create" && s.task !== "diagram";
+  const wantsContext = true;
   const showSent = open === "sent";
   useEffect(() => {
     if (!showSent || running) {
       return;
     }
     let live = true;
-    void session.preview(s.task, draft).then((p) => {
+    void session.preview(draft).then((p) => {
       if (live) {
-        setPreview({ sent: p.sent, summary: p.context?.summary ?? "" });
+        setPreview({
+          sent: p.sent,
+          summary: p.context?.summary ?? "",
+          system: p.system,
+        });
       }
     });
     return () => {
@@ -173,7 +153,6 @@ export default function Composer({
     };
   }, [
     session,
-    s.task,
     s.contextMode,
     s.turns.length,
     showSent,
@@ -181,44 +160,27 @@ export default function Composer({
     running,
   ]);
 
-  // `/` at the start picks a mode; `@` at the end picks what is sent
-  const kind = helperKind(draft);
-  const slash = kind === "slash" ? /^\/([a-z]*)$/i.exec(draft) : null;
-  const at = kind === "at" ? /(?:^|\s)@([a-z]*)$/i.exec(draft) : null;
-  const helper: MenuItem[] = useMemo(() => {
-    if (slash) {
-      const q = slash[1].toLowerCase();
-      return TASKS.filter((t) => SLASH[t].startsWith(q)).map((t) => ({
-        id: t,
-        label: TASK_TITLES[t],
-        hint: `/${SLASH[t]}`,
-        checked: s.task === t,
-      }));
-    }
-    if (at) {
-      const q = at[1].toLowerCase();
-      return CONTEXTS.filter((c) => c.at.startsWith(q)).map((c) => ({
-        id: c.id,
-        label: c.label,
-        hint: `@${c.at}`,
-        checked: s.contextMode === c.id,
-      }));
-    }
-    return [];
-  }, [slash?.[1], at?.[1], s.task, s.contextMode]); // eslint-disable-line react-hooks/exhaustive-deps
-  const helperOn = helper.length > 0 && !open;
-  const slashQuery = slash?.[1];
+  // `@` at the end picks what is sent
+  const at = helperKind(draft) === "at" ? /(?:^|\s)@([a-z]*)$/i.exec(draft) : null;
   const atQuery = at?.[1];
-  useEffect(() => setActive(0), [slashQuery, atQuery]);
+  const helper: MenuItem[] = useMemo(() => {
+    if (atQuery === undefined) {
+      return [];
+    }
+    const q = atQuery.toLowerCase();
+    return CONTEXTS.filter((c) => c.at.startsWith(q)).map((c) => ({
+      id: c.id,
+      label: c.label,
+      hint: `@${c.at}`,
+      checked: s.contextMode === c.id,
+    }));
+  }, [atQuery, s.contextMode]);
+  const helperOn = helper.length > 0 && !open;
+  useEffect(() => setActive(0), [atQuery]);
 
   const pickHelper = (it: MenuItem) => {
-    if (slash) {
-      session.setTask(it.id as Task);
-      setDraft("");
-    } else {
-      session.setContextMode(it.id as ContextMode);
-      setDraft((d) => d.replace(/(^|\s)@[a-z]*$/i, "$1"));
-    }
+    session.setContextMode(it.id as ContextMode);
+    setDraft((d) => d.replace(/(^|\s)@[a-z]*$/i, "$1"));
   };
 
   // Pasted or dropped pictures: checked, shrunk where large, then shown as thumbnails.
@@ -258,7 +220,6 @@ export default function Composer({
     const sentImages = images;
     void session
       .run(
-        s.task,
         draft,
         sentImages.map((i) => ({ mime: i.mime, data: i.data })),
       )
@@ -271,9 +232,7 @@ export default function Composer({
           setImages((cur) => (cur.length === 0 ? sentImages : cur));
         }
       });
-    if (s.task === "ask" || s.task === "edit" || s.task === "create") {
-      setDraft("");
-    }
+    setDraft("");
     setImages([]);
     setProblem(null);
   };
@@ -300,12 +259,6 @@ export default function Composer({
     id: e,
     label: e || "Default",
     checked: cfg.effort === e,
-  }));
-  const modeItems: MenuItem[] = TASKS.map((t) => ({
-    id: t,
-    label: TASK_TITLES[t],
-    hint: `/${SLASH[t]}`,
-    checked: s.task === t,
   }));
   // Behind +: what is sent (only for modes that send the drawing), a look at it, and images.
   const addItems: MenuItem[] = [
@@ -372,7 +325,7 @@ export default function Composer({
             items={helper}
             active={active}
             onPick={pickHelper}
-            label={slash ? "Modes" : "Context"}
+            label="Context"
           />
         </div>
       ) : null}
@@ -406,8 +359,8 @@ export default function Composer({
       <textarea
         ref={box}
         className="vd-ai-input"
-        aria-label={PLACEHOLDER[s.task]}
-        placeholder={PLACEHOLDER[s.task]}
+        aria-label={PLACEHOLDER}
+        placeholder={PLACEHOLDER}
         value={draft}
         rows={1}
         onChange={(e) => setDraft(e.target.value)}
@@ -478,7 +431,7 @@ export default function Composer({
               <Icon name="close" size={11} />
             </button>
           </div>
-          <pre>{`Instructions:\n${SYSTEM[s.task]}\n\nMessage:\n${
+          <pre>{`Instructions:\n${preview?.system ?? ""}\n\nMessage:\n${
             preview?.sent || "(nothing yet)"
           }`}</pre>
         </div>
@@ -549,20 +502,6 @@ export default function Composer({
             onPick={(it) => void session.setEffort(it.id)}
           />
         ) : null}
-        <Menu
-          label="Mode"
-          className="vd-ai-mode vd-ai-icon"
-          title={`Mode: ${TASK_TITLES[s.task]} (/${SLASH[s.task]})`}
-          trigger={
-            <>
-              <Icon name="slash" size={14} />
-            </>
-          }
-          items={modeItems}
-          open={open === "mode"}
-          setOpen={(o) => setOpen(o ? "mode" : null)}
-          onPick={(it) => session.setTask(it.id as Task)}
-        />
         <AccessControl session={session} mode={s.access} />
         <span className="vd-ai-spacer" />
         {running ? (

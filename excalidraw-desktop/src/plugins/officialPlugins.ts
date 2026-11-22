@@ -486,30 +486,14 @@ export const OFFICIAL_PLUGINS: readonly OfficialPlugin[] = [
     defaultOff: true,
     importers: [],
     commands: [
-      { id: "ask", title: "AI: Ask about this drawing", when: ["vaultOpen"] },
       {
         id: "describe",
         title: "AI: Describe the selection",
         when: ["drawingOpen"],
       },
       {
-        id: "diagram",
-        title: "AI: Generate a diagram from text",
-        when: ["drawingOpen"],
-      },
-      {
         id: "summarise",
-        title: "AI: Summarise this note",
-        when: ["vaultOpen"],
-      },
-      {
-        id: "edit",
-        title: "AI: Edit this drawing",
-        when: ["drawingOpen"],
-      },
-      {
-        id: "create",
-        title: "AI: Create a new drawing",
+        title: "AI: Summarise this note or drawing",
         when: ["vaultOpen"],
       },
       { id: "keep", title: "AI: Keep the proposed change" },

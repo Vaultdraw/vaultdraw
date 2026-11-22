@@ -2,27 +2,21 @@
  * The assistant's state and the one request it runs at a time. The panel reads it with
  * `useSyncExternalStore`; commands call `run`, `cancel` and `clear`.
  */
+import { ACCESS_LABEL, isAccess, nextAccess, type AccessMode } from "./access";
+import { buildActions } from "./actions";
 import {
-  pickElements,
-  describeElements,
   noteName,
   noteText,
-  textOf,
+  selectionIsDiagram,
+  summarizeDrawing,
   type Context,
 } from "./context";
-import { ACCESS_LABEL, isAccess, nextAccess, type AccessMode } from "./access";
-import { insertDiagram } from "./diagram";
-import {
-  buildProposal,
-  describeForEdit,
-  drawingName,
-  NoChange,
-  stillValid,
-  type Proposal,
-} from "./edits";
+import { drawingName, stillValid, type Proposal } from "./edits";
 import { friendlyError, statusMessage } from "./errors";
+import { conversation } from "./memory";
 import { lastImages } from "./images";
-import { SYSTEM, TASK_TITLES, userMessage, type Task } from "./prompts";
+import { systemPrompt, userMessage } from "./prompts";
+import { parseReply } from "./reply";
 import {
   buildRequest,
   createParser,
@@ -52,7 +46,10 @@ export interface Turn {
   id: number;
   role: "user" | "assistant";
   text: string;
-  task: Task;
+  /** The user's own words (a user turn's `text` may add "+ 2 images"). */
+  ask?: string;
+  /** The Mermaid or element JSON an assistant turn drew, so a follow-up can rewrite it. */
+  source?: string;
   /** An assistant turn that ended in an error shows it in the thread. */
   error?: string;
   /** A proposed change; `outcome` is set once it was kept or discarded. */
@@ -83,7 +80,8 @@ export interface ChatSummary {
 interface StoredTurn {
   role: Turn["role"];
   text: string;
-  task: Task;
+  ask?: string;
+  source?: string;
   error?: string;
   outcome?: string;
   summary?: string;
@@ -108,7 +106,6 @@ const titleOf = (turns: readonly { role: string; text: string }[]) => {
 
 export interface SessionState {
   status: "idle" | "running";
-  task: Task;
   /** What the user asked (shown above the answer). */
   request: string;
   /** What is sent besides the request: shown before and after sending. */
@@ -117,13 +114,9 @@ export interface SessionState {
   sent: string;
   answer: string;
   error: string | null;
-  /** The earlier turns of an `ask` conversation. */
-  history: readonly ChatMessage[];
   hasKey: boolean;
   /** One line about the provider and model, e.g. "Anthropic, claude-sonnet-4-5". */
   via: string;
-  /** Set after a diagram answer: the number of shapes drawn, or null. */
-  drawn: number | null;
   /** A change the model proposed, shown but not applied until Keep. */
   proposal: Proposal | null;
   /** What Keep did, in plain words (cleared by the next request). */
@@ -163,14 +156,11 @@ export interface TabInfo {
 
 /** What a tab keeps while another one is shown. */
 interface TabSnap {
-  task: Task;
   request: string;
   context: Context | null;
   sent: string;
   answer: string;
   error: string | null;
-  history: readonly ChatMessage[];
-  drawn: number | null;
   proposal: Proposal | null;
   kept: string | null;
   turns: readonly Turn[];
@@ -181,17 +171,12 @@ interface TabSnap {
 export interface Session {
   get(): SessionState;
   subscribe(cb: () => void): () => void;
-  /** Builds what would be sent for `task` (no request). */
+  /** Builds what would be sent for `request`: the instructions, the context and the message. */
   preview(
-    task: Task,
     request: string,
-  ): Promise<{ context: Context | null; sent: string }>;
+  ): Promise<{ context: Context | null; sent: string; system: string }>;
   /** Asks; `images` (at most the composer's limit) go with the question. */
-  run(
-    task: Task,
-    request: string,
-    images?: readonly MessageImage[],
-  ): Promise<void>;
+  run(request: string, images?: readonly MessageImage[]): Promise<void>;
   cancel(): void;
   /** Empties the shown chat (it stays in the history). */
   clear(): void;
@@ -212,15 +197,13 @@ export interface Session {
   removeKey(): Promise<void>;
   /** Copies the current answer and says whether it worked. */
   copyAnswer(text?: string): Promise<void>;
-  /** Draws the Mermaid in the current answer. */
-  draw(): Promise<void>;
   /** Applies the proposed change (one undo step), or creates the new drawing. */
   keep(): Promise<void>;
   /** Drops the proposed change; nothing was written. */
   discard(): void;
   config(): ProviderConfig;
-  /** A command picked a task: select it and focus the box. */
-  setTask(task: Task, target?: "request" | "key"): void;
+  /** Shows the chat (or the key box) and puts the cursor in it. */
+  focus(target?: "request" | "key"): void;
   /** Chooses provider and model together (the model picker). */
   setModel(provider: ProviderId | "auto", model: string): Promise<void>;
   setEffort(effort: string): Promise<void>;
@@ -261,16 +244,13 @@ export function createSession(ctx: PluginContext): Session {
   const listeners = new Set<() => void>();
   let state: SessionState = {
     status: "idle",
-    task: "ask",
     request: "",
     context: null,
     sent: "",
     answer: "",
     error: null,
-    history: [],
     hasKey: false,
     via: "",
-    drawn: null,
     proposal: null,
     kept: null,
     focus: { tick: 0, target: "request" },
@@ -390,7 +370,8 @@ export function createSession(ctx: PluginContext): Session {
   const storeTurn = (t: Turn): StoredTurn => ({
     role: t.role,
     text: t.text,
-    task: t.task,
+    ...(t.ask && t.ask !== t.text ? { ask: t.ask } : {}),
+    ...(t.source ? { source: t.source } : {}),
     ...(t.error ? { error: t.error } : {}),
     // a proposal that was never kept can't be kept again after reopening
     ...(t.proposal
@@ -462,83 +443,71 @@ export function createSession(ctx: PluginContext): Session {
   const limit = () =>
     Math.max(500, ctx.settings.get<number>("max_context_chars") || 12000);
 
-  async function contextFor(task: Task): Promise<Context | null> {
-    if (task === "diagram") {
-      return null;
+  /** What the assistant sees: the open note, or a compact summary of the drawing. */
+  async function contextFor(): Promise<Context | null> {
+    const mode = state.contextMode;
+    if (mode === "none") {
+      return { text: "", summary: "Nothing from the drawing", cut: 0, none: true };
     }
-    if (task === "create") {
-      return null;
-    }
-    if (task === "edit") {
-      const all = ctx.scene.elements();
-      const d = describeForEdit(all, ctx.scene.selection(), limit());
-      return {
-        text: d.text,
-        cut: d.cut,
-        summary: `The whole drawing: ${d.summary}`,
-      };
-    }
-    if (task === "summarise") {
-      // A note in the active tab is summarised as it is on disk; a drawing by its text.
-      const notePath = ctx.workspace.activeNotePath();
-      if (notePath) {
-        const name = noteName(notePath);
-        try {
-          const note = await ctx.vault.readNote(notePath);
-          return noteText(note.text, name, limit());
-        } catch (err) {
-          return {
-            text: "",
-            summary: `Note "${name}"`,
-            cut: 0,
-            emptyMessage: `Could not read this note (${
-              err instanceof Error ? err.message : "unknown problem"
-            }). Save it and try again.`,
-          };
-        }
+    const notePath = ctx.workspace.activeNotePath();
+    if (notePath) {
+      const name = noteName(notePath);
+      try {
+        const note = await ctx.vault.readNote(notePath);
+        const c = noteText(note.text, name, limit());
+        return { ...c, text: `The open note "${name}":\n${c.text}` };
+      } catch (err) {
+        return {
+          text: "",
+          summary: `Note "${name}"`,
+          cut: 0,
+          emptyMessage: `Could not read this note (${
+            err instanceof Error ? err.message : "unknown problem"
+          }). Save it and try again.`,
+        };
       }
     }
     const all = ctx.scene.elements();
-    const mode =
-      task === "ask" || task === "describe" ? state.contextMode : "auto";
-    if (mode === "none") {
-      return {
-        text: "",
-        summary: "Nothing from the drawing",
-        cut: 0,
-        none: true,
-      };
+    const selection = ctx.scene.selection();
+    if (mode === "selection") {
+      const set = new Set(selection);
+      const picked = all.filter((e) => set.has(e.id));
+      if (picked.length === 0) {
+        return {
+          text: "",
+          summary: "Only the selection",
+          cut: 0,
+          emptyMessage:
+            "Select something in the drawing first, or choose another context.",
+        };
+      }
+      return summarizeDrawing(picked, selection, limit(), ctx.scene.path());
     }
-    const picked = pickElements(all, ctx.scene.selection());
-    const { elements, scope } =
-      mode === "drawing"
-        ? { elements: all, scope: "drawing" as const }
-        : mode === "selection"
-        ? picked.scope === "selection"
-          ? picked
-          : { elements: [], scope: "selection" as const }
-        : picked;
-    if (task === "summarise") {
-      const c = textOf(elements, limit());
-      return {
-        ...c,
-        summary: `${
-          scope === "selection" ? "Selected text" : "Text of this drawing"
-        }: ${c.summary}`,
-      };
-    }
-    const c = describeElements(elements, limit());
-    return {
-      ...c,
-      summary: `${
-        scope === "selection" ? "The selection" : "The whole drawing"
-      }: ${c.summary}`,
-    };
+    return summarizeDrawing(all, selection, limit(), ctx.scene.path());
   }
 
-  async function preview(task: Task, request: string) {
-    const context = await contextFor(task);
-    return { context, sent: userMessage(task, request, context?.text ?? "") };
+  /** The request before this one (a vague follow-up keeps its recipe). */
+  const previousAsk = () =>
+    [...state.turns].reverse().find((t) => t.role === "user")?.ask;
+
+  async function preview(request: string) {
+    const context = await contextFor();
+    const system = systemPrompt(
+      {
+        request,
+        previous: previousAsk(),
+        selectionIsDiagram: selectionIsDiagram(
+          ctx.scene.elements(),
+          ctx.scene.selection(),
+        ),
+      },
+      accessNow(),
+    );
+    return {
+      context,
+      system,
+      sent: userMessage(request, context?.text ?? ""),
+    };
   }
 
   /** Opens the answer stream of the chosen provider: a command line, or an HTTP request. */
@@ -575,19 +544,10 @@ export function createSession(ctx: PluginContext): Session {
     return res;
   }
 
-  async function run(
-    wanted: Task,
-    request: string,
-    images: readonly MessageImage[] = [],
-  ) {
+  async function run(request: string, images: readonly MessageImage[] = []) {
     if (state.status === "running") {
       return;
     }
-    // read only: a request to change or make a drawing is answered in words
-    const task: Task =
-      accessNow() === "read" && (wanted === "edit" || wanted === "create")
-        ? "ask"
-        : wanted;
     const token = runToken;
     // a request whose tab was left in the meantime must not write into the tab shown now
     const put = (patch: Partial<SessionState>) => {
@@ -609,10 +569,10 @@ export function createSession(ctx: PluginContext): Session {
     hasKey = await ctx.secret.has(secretNameOf(config()));
     const cfg = config();
     const via = viaOf(cfg);
-    const { context, sent } = await preview(task, request);
+    const ask = request.trim();
+    const { context, sent, system } = await preview(ask);
     const refuse = (error: string) =>
       put({
-        task,
         request,
         context,
         sent,
@@ -620,69 +580,39 @@ export function createSession(ctx: PluginContext): Session {
         error,
         via,
         provider: cfg.provider,
-        drawn: null,
       });
-    if (task === "describe" && ctx.scene.selection().length === 0) {
-      return refuse(
-        "Select something in the drawing first, then run this again.",
-      );
+    if (!ask && images.length === 0) {
+      return refuse("Type a message first.");
     }
-    if (
-      (task === "describe" || task === "ask" || task === "summarise") &&
-      !context?.text &&
-      !context?.none
-    ) {
-      return refuse(
-        context?.emptyMessage ??
-          (state.contextMode === "selection" && task !== "summarise"
-            ? "Select something in the drawing first, or choose another context."
-            : "The drawing is empty, so there is nothing to ask about."),
-      );
-    }
-    if (context?.none && !request.trim()) {
-      return refuse("Type a question first.");
-    }
-    if ((task === "edit" || task === "create") && !request.trim()) {
-      return refuse(
-        task === "edit"
-          ? "Say what to change in the drawing."
-          : "Say what the new drawing should show.",
-      );
-    }
-    if (task === "edit" && ctx.scene.path() === null) {
-      return refuse('Open a drawing first, or use "New drawing" to make one.');
-    }
-    if (task === "diagram" && !request.trim()) {
-      return refuse("Say what the diagram should show.");
+    if (context?.emptyMessage && !context.text) {
+      return refuse(context.emptyMessage);
     }
     if (needsKey(cfg) && !hasKey) {
       return refuse(friendlyError({ code: "SECRET_MISSING" }, cfg.provider));
     }
-    const prior = task === "ask" && state.task === "ask" ? state.history : [];
-    // pictures go with the newest message only; earlier turns keep just their words
+    // every turn carries the conversation (toimprove 364: a follow-up such as "you didn't change
+    // anything" must know what came before); pictures go with the newest message only
+    const prior = conversation(state.turns);
+    const content = prior.at(-1)?.role === "user"
+      ? `${prior.pop()!.content}\n\n${sent}`
+      : sent;
     const messages: ChatMessage[] = [
       ...prior,
       images.length
-        ? { role: "user", content: sent, images }
-        : { role: "user", content: sent },
+        ? { role: "user", content, images }
+        : { role: "user", content },
     ];
     const mine = new AbortController();
     controller = mine;
     const shown =
-      (request.trim() ||
-        (task === "describe"
-          ? "Describe the selection"
-          : task === "summarise"
-          ? "Summarise this"
-          : TASK_TITLES[task])) +
+      (ask || "") +
       (images.length
-        ? `${request.trim() ? "\n" : " "}+ ${images.length} image${
+        ? `${ask ? "\n" : ""}+ ${images.length} image${
             images.length === 1 ? "" : "s"
           }`
         : "");
     put({
       status: "running",
-      task,
       request,
       context,
       sent,
@@ -690,15 +620,11 @@ export function createSession(ctx: PluginContext): Session {
       error: null,
       via,
       provider: cfg.provider,
-      drawn: null,
-      turns: [
-        ...state.turns,
-        { id: ++turnId, role: "user", text: shown, task },
-      ],
+      turns: [...state.turns, { id: ++turnId, role: "user", text: shown, ask }],
     });
     let answer = "";
     try {
-      const res = await openAnswer(cfg, SYSTEM[task], messages, mine.signal);
+      const res = await openAnswer(cfg, system, messages, mine.signal);
       const parser = createParser(cfg.provider);
       const dec = new TextDecoder();
       const add = (parts: string[]) => {
@@ -719,94 +645,7 @@ export function createSession(ctx: PluginContext): Session {
       if (!answer.trim()) {
         throw new ProviderError("The answer was empty");
       }
-      const history =
-        task === "ask"
-          ? [
-              ...messages.map((m) => ({ role: m.role, content: m.content })),
-              { role: "assistant" as const, content: answer },
-            ]
-          : [];
-      if (task === "edit" || task === "create") {
-        try {
-          const proposal = buildProposal(
-            answer,
-            task,
-            ctx.scene.elements(),
-            task === "edit" ? ctx.scene.path() : null,
-            Math.max(1, ctx.settings.get<number>("edit_max_ops") || 60),
-          );
-          put({
-            status: "idle",
-            history,
-            proposal,
-            turns: [
-              ...state.turns,
-              {
-                id: ++turnId,
-                role: "assistant",
-                text: "",
-                task,
-                proposal,
-                summary: proposal.headline,
-              },
-            ],
-          });
-          // The first shape the plan touches is selected, so the change shows on the canvas too.
-          if (proposal.touched[0]) {
-            ctx.scene.scrollTo(proposal.touched[0]);
-          }
-          // apply at once: an edit goes in as one undo step; a new drawing still asks (it is a new
-          // file and the view moves to it)
-          if (accessNow() === "auto" && task === "edit") {
-            await session.keep();
-          }
-        } catch (err) {
-          if (err instanceof NoChange) {
-            // not a failure: said calmly in the thread, with the model's own words after it
-            set({
-              status: "idle",
-              history,
-              turns: [
-                ...state.turns,
-                {
-                  id: ++turnId,
-                  role: "assistant",
-                  text: err.said
-                    ? `${err.message}\n\n${err.said}`
-                    : err.message,
-                  task,
-                },
-              ],
-            });
-            return;
-          }
-          const message = (err as Error).message;
-          put({
-            status: "idle",
-            history,
-            error: message,
-            turns: [
-              ...state.turns,
-              {
-                id: ++turnId,
-                role: "assistant",
-                text: "",
-                task,
-                error: message,
-              },
-            ],
-          });
-        }
-      } else {
-        put({
-          status: "idle",
-          history,
-          turns: [
-            ...state.turns,
-            { id: ++turnId, role: "assistant", text: answer, task },
-          ],
-        });
-      }
+      await finish(answer, put, token);
     } catch (err) {
       const stopped = (err as { code?: string }).code === "ABORTED";
       const message = stopped
@@ -814,21 +653,97 @@ export function createSession(ctx: PluginContext): Session {
         : err instanceof StatusError
         ? statusMessage(cfg.provider, err.status, err.detail)
         : friendlyError(err, cfg.provider);
-      // what streamed before a stop or a failure stays in the thread
+      // what streamed before a stop or a failure stays in the thread (words only)
+      const said = parseReply(answer).prose;
       put({
         status: "idle",
         error: message,
-        turns: answer.trim()
-          ? [
-              ...state.turns,
-              { id: ++turnId, role: "assistant", text: answer, task },
-            ]
+        turns: said
+          ? [...state.turns, { id: ++turnId, role: "assistant", text: said }]
           : state.turns,
       });
     } finally {
       if (controller === mine) {
         controller = null;
       }
+    }
+  }
+
+  /** The answer is in: words for the thread, and the actions as one proposal. */
+  async function finish(
+    answer: string,
+    put: (patch: Partial<SessionState>) => void,
+    token: number,
+  ) {
+    const reply = parseReply(answer);
+    const prose = reply.prose;
+    const source =
+      reply.blocks
+        .filter((b) => b.kind === "diagram" || b.kind === "draw")
+        .map((b) => `\`\`\`vd ${b.kind}\n${b.body}\n\`\`\``)
+        .join("\n")
+        .slice(0, 4000) || undefined;
+    const say = (text: string, extra: Partial<Turn> = {}) =>
+      put({
+        status: "idle",
+        turns: [
+          ...state.turns,
+          { id: ++turnId, role: "assistant", text, ...extra },
+        ],
+      });
+    if (reply.blocks.length === 0) {
+      return say(prose || answer.trim());
+    }
+    if (accessNow() === "read") {
+      return say(
+        `${prose}\n\n_Read only: the drawing was not changed._`.trim(),
+      );
+    }
+    let proposal: Proposal | null = null;
+    try {
+      proposal = await buildActions(reply, {
+        elements: ctx.scene.elements(),
+        selection: ctx.scene.selection(),
+        path: ctx.scene.path(),
+        viewCenter: ctx.scene.viewportCenter(),
+        maxOps: Math.max(1, ctx.settings.get<number>("edit_max_ops") || 60),
+        convertMermaid: (text) => ctx.diagrams.mermaidToElements(text),
+      });
+    } catch (err) {
+      return say(prose, { error: (err as Error).message });
+    }
+    if (token !== runToken) {
+      return;
+    }
+    if (!proposal) {
+      return say(
+        `${prose}\n\n_Nothing in the reply could be applied to the drawing._`.trim(),
+        { source },
+      );
+    }
+    put({
+      status: "idle",
+      proposal,
+      turns: [
+        ...state.turns,
+        {
+          id: ++turnId,
+          role: "assistant",
+          text: prose,
+          proposal,
+          summary: proposal.headline,
+          source,
+        },
+      ],
+    });
+    // the first shape the plan touches is shown, so the change shows on the canvas too
+    if (proposal.touched[0]) {
+      ctx.scene.scrollTo(proposal.touched[0]);
+    }
+    // apply at once: a change goes in as one undo step; a new drawing still asks (it is a new
+    // file and the view moves to it)
+    if (accessNow() === "auto" && proposal.kind === "edit") {
+      await session.keep();
     }
   }
 
@@ -870,14 +785,11 @@ export function createSession(ctx: PluginContext): Session {
   }
 
   const blankSnap = (): TabSnap => ({
-    task: state.task,
     request: "",
     context: null,
     sent: "",
     answer: "",
     error: null,
-    history: [],
-    drawn: null,
     proposal: null,
     kept: null,
     turns: [],
@@ -887,36 +799,26 @@ export function createSession(ctx: PluginContext): Session {
     draft: "",
   });
   const takeSnap = (): TabSnap => ({
-    task: state.task,
     request: state.request,
     context: state.context,
     sent: state.sent,
     answer: state.answer,
     error: state.error,
-    history: state.history,
-    drawn: state.drawn,
     proposal: state.proposal,
     kept: state.kept,
     turns: state.turns,
     contextMode: state.contextMode,
     draft,
   });
-  /** What a saved chat brings back: its turns, and for an ask chat its questions and answers as follow-up context. */
-  const snapFromStored = (rec: StoredChat): TabSnap => {
-    const turns: Turn[] = rec.turns.map((t) => ({ ...t, id: ++turnId }));
-    const task = turns.at(-1)?.task ?? "ask";
-    return {
-      ...blankSnap(),
-      task,
-      turns,
-      history:
-        task === "ask"
-          ? turns
-              .filter((t) => t.task === "ask" && t.text)
-              .map((t) => ({ role: t.role, content: t.text }))
-          : [],
-    };
-  };
+  /** What a saved chat brings back: its turns (the conversation memory is built from them). */
+  const snapFromStored = (rec: StoredChat): TabSnap => ({
+    ...blankSnap(),
+    turns: rec.turns.map((t) => {
+      const { task: _old, ...rest } = t as StoredTurn & { task?: string };
+      void _old;
+      return { ...rest, id: ++turnId };
+    }),
+  });
   const readChat = async (id: string): Promise<StoredChat | null> => {
     const rec = (await ctx.storage.global.get<Json>(chatKey(id))) as
       | StoredChat
@@ -944,18 +846,18 @@ export function createSession(ctx: PluginContext): Session {
     controller = null;
     runToken++;
     if (state.status === "running") {
+      const said = parseReply(state.answer).prose;
       state = {
         ...state,
         status: "idle",
         error: null,
-        turns: state.answer.trim()
+        turns: said
           ? [
               ...state.turns,
               {
                 id: ++turnId,
                 role: "assistant",
-                text: state.answer,
-                task: state.task,
+                text: said,
               },
             ]
           : state.turns,
@@ -1167,18 +1069,9 @@ export function createSession(ctx: PluginContext): Session {
         set({ error: editError(err) });
       }
     },
-    async draw() {
-      try {
-        const n = await insertDiagram(ctx, state.answer);
-        set({ drawn: n, error: null });
-      } catch (err) {
-        set({ error: (err as Error).message });
-      }
-    },
     config,
-    setTask(task, target = "request") {
+    focus(target = "request") {
       set({
-        task,
         view: target === "key" ? "settings" : "chat",
         focus: { tick: state.focus.tick + 1, target },
       });

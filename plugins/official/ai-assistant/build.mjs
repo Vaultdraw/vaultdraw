@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -37,6 +38,22 @@ const main = await esbuild.build({
   jsx: "automatic",
   external: SHARED,
   loader: { ".css": "text" },
+  plugins: [
+    {
+      // `./file.md?raw` imports the file as a string (as Vite and Vitest do)
+      name: "raw",
+      setup(b) {
+        b.onResolve({ filter: /\?raw$/ }, (a) => ({
+          path: path.resolve(a.resolveDir, a.path.replace(/\?raw$/, "")),
+          namespace: "raw",
+        }));
+        b.onLoad({ filter: /.*/, namespace: "raw" }, (a) => ({
+          contents: readFileSync(a.path, "utf8"),
+          loader: "text",
+        }));
+      },
+    },
+  ],
   write: false,
   minify: true,
 });

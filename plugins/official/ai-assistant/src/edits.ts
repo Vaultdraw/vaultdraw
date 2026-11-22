@@ -42,6 +42,8 @@ export interface Proposal {
   drawing?: DrawingSettings;
   /** Parts of the reply that were left out because they made no sense. */
   skipped: number;
+  /** What was left out, in plain words (a diagram that could not be drawn …). */
+  problems?: string[];
   /** Existing elements the plan changes or removes. */
   touched: string[];
   ghosts: Ghost[];
@@ -166,6 +168,13 @@ const SIZE_WORDS: Record<string, string> = {
   phone: "phone",
 };
 const SIZES = Object.keys(SIZE_WORDS);
+
+/** The values the drawing settings take, for the model's help text (one source with the checks below). */
+export const SETTING_VALUES = {
+  paper: Object.keys(PAPER_WORDS),
+  paperTheme: Object.keys(THEME_WORDS),
+  pageSize: SIZES,
+} as const;
 
 /** The drawing settings in a model's op, with only valid fields; null when it has none. */
 function pickDrawing(src: Record<string, unknown>): DrawingSettings | null {

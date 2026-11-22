@@ -15,33 +15,13 @@ title = "AI assistant"
 icon = "sparkles"
 
 [[contributes.commands]]
-id = "ask"
-title = "AI: Ask about this drawing"
-when = ["vaultOpen"]
-
-[[contributes.commands]]
 id = "describe"
 title = "AI: Describe the selection"
 when = ["drawingOpen"]
 
 [[contributes.commands]]
-id = "diagram"
-title = "AI: Generate a diagram from text"
-when = ["drawingOpen"]
-
-[[contributes.commands]]
 id = "summarise"
-title = "AI: Summarise this note"
-when = ["vaultOpen"]
-
-[[contributes.commands]]
-id = "edit"
-title = "AI: Edit this drawing"
-when = ["drawingOpen"]
-
-[[contributes.commands]]
-id = "create"
-title = "AI: Create a new drawing"
+title = "AI: Summarise this note or drawing"
 when = ["vaultOpen"]
 
 [[contributes.commands]]
@@ -194,6 +174,6 @@ scope = ["global"]
 key = "create_folder"
 type = "string"
 title = "Folder for new AI drawings"
-description = "Where \"AI: Create a new drawing\" saves, after you keep it. Empty is the vault's top folder. The folder must exist."
+description = "Where a new drawing the assistant makes is saved, after you keep it. Empty is the vault's top folder. The folder must exist."
 default = ""
 scope = ["global"]
