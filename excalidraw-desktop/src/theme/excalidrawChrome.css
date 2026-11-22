@@ -5,6 +5,26 @@
  * blur, shadows only on islands and popovers.
  */
 
+/* The editor's own UI keeps Excalidraw's sizes: interface.font_size scales
+   the app around it (theme/interfaceFont.ts writes these tokens on <html>;
+   here they are pinned back to the designSystem.css defaults). */
+.excalidraw {
+  font-size: var(--vd-fs-body);
+  --vd-fs-kbd: 10px;
+  --vd-fs-caption: 11px;
+  --vd-fs-small: 12px;
+  --vd-fs-body: 13px;
+  --vd-fs-emph: 14px;
+  --vd-fs-title: 16px;
+  --vd-fs-display: 20px;
+  --vd-row: 26px;
+  --vd-row-tall: 56px;
+  --vd-bar: 38px;
+  --vd-control: 28px;
+  --vd-control-sm: 24px;
+  --vd-control-lg: 34px;
+}
+
 /* Islands: surface-variant, 1 px outline, 8 px radius, 1 px shadow. */
 .excalidraw .Island,
 .excalidraw .layer-ui__wrapper__footer-left .Island {

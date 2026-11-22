@@ -114,13 +114,14 @@ describe("tokens written for a size and family", () => {
     expect(big.end).toBeLessThan(small.end);
   });
 
-  it("defaults in designSystem.css match UI_SIZE_TOKENS", () => {
-    const css = readFileSync(
-      join(__dirname, "..", "theme", "designSystem.css"),
-      "utf8",
-    );
-    for (const [name, px] of Object.entries(UI_SIZE_TOKENS)) {
-      expect(css, name).toMatch(new RegExp(`${name}:\\s*${px}px;`));
+  it("defaults in designSystem.css (and the editor's pinned copy) match UI_SIZE_TOKENS", () => {
+    for (const file of ["designSystem.css", "excalidrawChrome.css"]) {
+      const css = readFileSync(join(__dirname, "..", "theme", file), "utf8");
+      for (const [name, px] of Object.entries(UI_SIZE_TOKENS)) {
+        expect(css, `${file} ${name}`).toMatch(
+          new RegExp(`${name}:\\s*${px}px;`),
+        );
+      }
     }
   });
 
