@@ -84,6 +84,7 @@ describe("manifest", () => {
       "cancel",
       "clear",
       "new-chat",
+      "history",
       "choose-model",
       "cycle-effort",
       "settings",

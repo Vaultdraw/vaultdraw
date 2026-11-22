@@ -88,10 +88,14 @@ describe("edit this drawing", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Keep" }));
     await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toMatch(
-        /Applied: Adds 2 boxes, restyles 1 box\. Undo with (Cmd|Ctrl)\+Z/,
+      expect(screen.getByLabelText("Result").textContent).toMatch(
+        /^Added 2 boxes, restyled 1 box/,
       ),
     );
+    // ONE result per answer: no second "Applied" line, no key-hint sentence
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getAllByLabelText("Result")).toHaveLength(1);
+    expect(document.body.textContent).not.toMatch(/Applied:|Undo with/);
     expect(p!.scene.batches).toHaveLength(1);
     expect(p!.scene.live().filter((e) => e.type === "rectangle").length).toBe(
       3,
@@ -290,7 +294,7 @@ describe("create a new drawing", () => {
     expect(Object.keys(p!.vault.drawings())).toEqual(["Login flow.excalidraw"]);
     fireEvent.click(screen.getByRole("button", { name: "Keep" }));
     await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toMatch(
+      expect(screen.getByLabelText("Result").textContent).toMatch(
         /Created "Login flow 2.excalidraw"/,
       ),
     );

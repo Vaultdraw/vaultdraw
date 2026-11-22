@@ -64,6 +64,10 @@ id = "new-chat"
 title = "AI: New chat"
 
 [[contributes.commands]]
+id = "history"
+title = "AI: Chat history"
+
+[[contributes.commands]]
 id = "choose-model"
 title = "AI: Choose model"
 

@@ -4,7 +4,8 @@ import Composer, { SLASH, TASKS } from "./Composer";
 import Ghosts from "./Ghosts";
 import { Icon, Mark } from "./Icons";
 import Markdown from "./markdown";
-import { TASK_TITLES, type Task } from "./prompts";
+import History from "./History";
+import { type Task } from "./prompts";
 import { providerDef } from "./providers";
 import SettingsView from "./SettingsView";
 
@@ -45,6 +46,18 @@ export default function Panel({ session }: { session: Session }) {
         >
           <Icon name="plus" />
         </button>
+        <button
+          type="button"
+          className="vd-ai-icon"
+          aria-label="Chat history"
+          aria-pressed={s.view === "history"}
+          title="Chat history"
+          onClick={() =>
+            session.setView(s.view === "history" ? "chat" : "history")
+          }
+        >
+          <Icon name="history" />
+        </button>
         <span className="vd-ai-spacer" />
         <button
           type="button"
@@ -61,6 +74,8 @@ export default function Panel({ session }: { session: Session }) {
       </div>
       {s.view === "settings" ? (
         <SettingsView session={session} s={s} />
+      ) : s.view === "history" ? (
+        <History session={session} />
       ) : (
         <>
           <Thread session={session} s={s} />
@@ -85,6 +100,7 @@ function Thread({
     end.current?.scrollIntoView?.({ block: "end" });
   }, [s.turns.length, s.answer, s.error, s.proposal, s.kept]);
 
+  const lastApplied = [...s.turns].reverse().find((t) => t.applied);
   const lastAssistant = [...s.turns]
     .reverse()
     .find((t) => t.role === "assistant");
@@ -112,6 +128,7 @@ function Thread({
           session={session}
           s={s}
           last={t === lastAssistant && !running}
+          canUndo={t === lastApplied && !running}
         />
       ))}
       {running ? (
@@ -134,11 +151,6 @@ function Thread({
           {s.error}
         </p>
       ) : null}
-      {s.kept ? (
-        <p className="vd-ai-kept" role="status">
-          {s.kept}
-        </p>
-      ) : null}
       <div ref={end} />
     </div>
   );
@@ -149,27 +161,51 @@ function TurnView({
   session,
   s,
   last,
+  canUndo,
 }: {
   turn: Turn;
   session: Session;
   s: ReturnType<Session["get"]>;
   last: boolean;
+  canUndo: boolean;
 }) {
   if (turn.role === "user") {
     return (
       <div className="vd-ai-turn vd-ai-user">
-        <span className="vd-ai-badge">{TASK_TITLES[turn.task]}</span>
         <p>{turn.text}</p>
       </div>
     );
   }
   const p = turn.proposal;
-  if (p && turn.outcome) {
-    // once kept or discarded, the card shrinks to one line in the history
+  if (turn.outcome) {
+    // once kept or discarded, the card shrinks to ONE result line (and a small Undo)
     return (
-      <p className="vd-ai-outcome">
-        {p.headline}: {turn.outcome}
-      </p>
+      <div className="vd-ai-turn vd-ai-assistant">
+        {turn.text ? <Markdown text={turn.text} /> : null}
+        <div
+          className="vd-ai-result"
+          data-state={turn.applied ? "applied" : "off"}
+          aria-label="Result"
+        >
+          {turn.applied ? <Icon name="check" size={12} /> : null}
+          <span className="vd-ai-result-text">
+            {turn.applied
+              ? turn.undone
+                ? `${turn.outcome} (undone)`
+                : turn.outcome
+              : `${turn.summary ?? p?.headline ?? ""}: ${turn.outcome}`}
+          </span>
+          {canUndo && turn.undoPath !== undefined && !turn.undone ? (
+            <button
+              type="button"
+              className="vd-ai-btn vd-ai-ghost"
+              onClick={() => session.undo(turn.id)}
+            >
+              Undo
+            </button>
+          ) : null}
+        </div>
+      </div>
     );
   }
   return (
@@ -221,7 +257,7 @@ function TurnView({
         <div className="vd-ai-row vd-ai-actions">
           <button
             type="button"
-            className="vd-ai-btn vd-ai-ghost"
+            className="vd-ai-btn vd-ai-ghost vd-ai-copy"
             aria-label="Copy"
             onClick={() => void session.copyAnswer(turn.text)}
           >

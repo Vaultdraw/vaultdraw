@@ -38,7 +38,7 @@ import {
   type ProviderId,
 } from "./providers";
 
-import type { CliToolStatus, PluginContext } from "@vaultdraw/api";
+import type { CliToolStatus, Json, PluginContext } from "@vaultdraw/api";
 
 /** What the question is built from: chosen in the panel, default from the `context` setting. */
 export type ContextMode = "auto" | "drawing" | "selection" | "none";
@@ -53,8 +53,53 @@ export interface Turn {
   error?: string;
   /** A proposed change; `outcome` is set once it was kept or discarded. */
   proposal?: Proposal;
+  /** What happened to the proposal, as one line: "Added 2 boxes", "Discarded", "Not applied". */
   outcome?: string;
+  /** The proposal's headline, kept after the proposal itself is gone (a reopened chat). */
+  summary?: string;
+  /** True when `outcome` is the whole result line of a change that was applied. */
+  applied?: boolean;
+  /** The drawing an applied change can still be undone in (not kept in saved chats). */
+  undoPath?: string;
+  undone?: boolean;
 }
+
+/** One saved chat in the history list. */
+export interface ChatSummary {
+  id: string;
+  title: string;
+  /** Milliseconds since 1970. */
+  at: number;
+  provider: ProviderId;
+  /** The vault it was made in. */
+  vault: string;
+}
+
+/** What is stored of a chat: the turns without the proposals (ops, ghosts) and without ids. */
+interface StoredTurn {
+  role: Turn["role"];
+  text: string;
+  task: Task;
+  error?: string;
+  outcome?: string;
+  summary?: string;
+  applied?: boolean;
+  undone?: boolean;
+}
+interface StoredChat extends ChatSummary {
+  turns: StoredTurn[];
+}
+
+/** The history keeps this many chats; the oldest go first. */
+export const MAX_CHATS = 50;
+const INDEX_KEY = "chats";
+const chatKey = (id: string) => `chat:${id}`;
+
+const titleOf = (turns: readonly { role: string; text: string }[]) => {
+  const first = turns.find((t) => t.role === "user")?.text.trim() ?? "";
+  const one = first.replace(/\s+/g, " ");
+  return one.length > 80 ? `${one.slice(0, 79)}…` : one || "Chat";
+};
 
 export interface SessionState {
   status: "idle" | "running";
@@ -86,8 +131,8 @@ export interface SessionState {
   tools: readonly CliToolStatus[] | null;
   /** True while the login check of the tools runs. */
   checking: boolean;
-  /** "chat" or the settings view of the panel. */
-  view: "chat" | "settings";
+  /** "chat", the settings view or the list of earlier chats. */
+  view: "chat" | "settings" | "history";
   contextMode: ContextMode;
   /** The provider the panel uses now (the `provider` setting, with "auto" resolved). */
   provider: ProviderId;
@@ -131,7 +176,14 @@ export interface Session {
   setContextMode(mode: ContextMode, persist?: boolean): void;
   /** The `provider` setting as stored: a provider id or "auto". */
   rawProvider(): string;
-  setView(view: "chat" | "settings"): void;
+  setView(view: "chat" | "settings" | "history"): void;
+  /** The saved chats of this vault, newest first (reads storage when called, not before). */
+  chats(): Promise<ChatSummary[]>;
+  /** Shows a saved chat in the panel. */
+  openChat(id: string): Promise<void>;
+  deleteChat(id: string): Promise<void>;
+  /** Undoes the change a result card reports (the app's own undo; one step). */
+  undo(turnId: number): void;
   /** Asks the panel to open its model picker. */
   openModelPicker(): void;
   /** Looks for the command lines; `check` also asks each whether it is logged in (runs them). */
@@ -223,12 +275,83 @@ export function createSession(ctx: PluginContext): Session {
     );
   }
 
+  /** The saved chat the thread belongs to (made on the first save). */
+  let chatId: string | null = null;
+  let restoring = false;
+  let saveChain: Promise<void> = Promise.resolve();
+
   const set = (patch: Partial<SessionState>) => {
     state = { ...state, ...patch };
     for (const cb of [...listeners]) {
       cb();
     }
+    // a finished step (answer, Keep, Discard, Undo) saves the chat; nothing is read or written before
+    if (patch.turns && state.status === "idle" && !restoring) {
+      saveChat();
+    }
   };
+
+  const storeTurn = (t: Turn): StoredTurn => ({
+    role: t.role,
+    text: t.text,
+    task: t.task,
+    ...(t.error ? { error: t.error } : {}),
+    // a proposal that was never kept can't be kept again after reopening
+    ...(t.proposal
+      ? {
+          outcome: t.outcome ?? "Not applied",
+          summary: t.summary ?? t.proposal.headline,
+        }
+      : t.outcome
+      ? { outcome: t.outcome, summary: t.summary }
+      : {}),
+    ...(t.applied ? { applied: true } : {}),
+    ...(t.undone ? { undone: true } : {}),
+  });
+
+  /** Writes the thread as one saved chat and keeps the newest `MAX_CHATS` (storage is lazy: first write is here). */
+  function saveChat() {
+    const turns = state.turns;
+    if (turns.length === 0) {
+      return;
+    }
+    const id = (chatId ??= `${Date.now().toString(36)}${Math.random()
+      .toString(36)
+      .slice(2, 6)}`);
+    const rec: StoredChat = {
+      id,
+      title: titleOf(turns),
+      at: Date.now(),
+      provider: state.provider,
+      vault: ctx.vault.info()?.name ?? "",
+      turns: turns.map(storeTurn),
+    };
+    saveChain = saveChain
+      .then(async () => {
+        const store = ctx.storage.global;
+        await store.set(chatKey(id), rec as unknown as Json);
+        const list = ((await store.get<Json>(INDEX_KEY)) ??
+          []) as unknown as ChatSummary[];
+        const entry: ChatSummary = {
+          id,
+          title: rec.title,
+          at: rec.at,
+          provider: rec.provider,
+          vault: rec.vault,
+        };
+        const next = [entry, ...list.filter((c) => c.id !== id)].slice(
+          0,
+          MAX_CHATS,
+        );
+        for (const gone of list.filter(
+          (c) => !next.some((n) => n.id === c.id),
+        )) {
+          await store.delete(chatKey(gone.id));
+        }
+        await store.set(INDEX_KEY, next as unknown as Json);
+      })
+      .catch((err) => ctx.log.warn("could not save the chat", err));
+  }
 
   const limit = () =>
     Math.max(500, ctx.settings.get<number>("max_context_chars") || 12000);
@@ -353,7 +476,7 @@ export function createSession(ctx: PluginContext): Session {
       kept: null,
       // a proposal still waiting is dropped by a new question
       turns: state.proposal
-        ? withOutcome(state.turns, state.proposal, "Not applied.")
+        ? withOutcome(state.turns, state.proposal, "Not applied")
         : state.turns,
     };
     await detect(false);
@@ -483,7 +606,14 @@ export function createSession(ctx: PluginContext): Session {
             proposal,
             turns: [
               ...state.turns,
-              { id: ++turnId, role: "assistant", text: "", task, proposal },
+              {
+                id: ++turnId,
+                role: "assistant",
+                text: "",
+                task,
+                proposal,
+                summary: proposal.headline,
+              },
             ],
           });
           // The first shape the plan touches is selected, so the change shows on the canvas too.
@@ -591,6 +721,7 @@ export function createSession(ctx: PluginContext): Session {
     },
     clear() {
       controller?.abort();
+      chatId = null;
       set({
         status: "idle",
         request: "",
@@ -631,7 +762,7 @@ export function createSession(ctx: PluginContext): Session {
         proposal: null,
         kept: null,
         answer: "",
-        turns: was ? withOutcome(state.turns, was, "Discarded.") : state.turns,
+        turns: was ? withOutcome(state.turns, was, "Discarded") : state.turns,
       });
     },
     async keep() {
@@ -640,7 +771,6 @@ export function createSession(ctx: PluginContext): Session {
         ctx.ui.toast("There is no proposed change to keep");
         return;
       }
-      const undo = /mac/i.test(navigator.platform) ? "Cmd" : "Ctrl";
       try {
         if (p.kind === "edit") {
           if (!stillValid(p, ctx.scene.elements(), ctx.scene.path())) {
@@ -652,12 +782,15 @@ export function createSession(ctx: PluginContext): Session {
             return;
           }
           await ctx.scene.batch(p.ops, { path: p.path ?? undefined });
-          const kept = `Applied: ${p.headline}. Undo with ${undo}+Z.`;
+          const kept = p.done || p.headline;
           set({
             proposal: null,
             error: null,
             kept,
-            turns: withOutcome(state.turns, p, kept),
+            turns: withOutcome(state.turns, p, kept, {
+              applied: true,
+              undoPath: p.path ?? undefined,
+            }),
           });
         } else {
           const folder = (
@@ -681,12 +814,12 @@ export function createSession(ctx: PluginContext): Session {
             throw new Error("Could not find a free name for the new drawing.");
           }
           await ctx.workspace.open(made);
-          const kept = `Created "${made}": ${p.headline}.`;
+          const kept = `Created "${made}"`;
           set({
             proposal: null,
             error: null,
             kept,
-            turns: withOutcome(state.turns, p, kept),
+            turns: withOutcome(state.turns, p, kept, { applied: true }),
           });
         }
       } catch (err) {
@@ -744,6 +877,87 @@ export function createSession(ctx: PluginContext): Session {
     setView(view) {
       set({ view });
     },
+    async chats() {
+      const vault = ctx.vault.info()?.name ?? "";
+      const list = ((await ctx.storage.global.get<Json>(INDEX_KEY)) ??
+        []) as unknown as ChatSummary[];
+      return list.filter((c) => c.vault === vault);
+    },
+    async openChat(id) {
+      const rec = (await ctx.storage.global.get<Json>(chatKey(id))) as
+        | StoredChat
+        | undefined;
+      if (!rec || !Array.isArray(rec.turns)) {
+        ctx.ui.toast("This chat could not be opened", { kind: "error" });
+        return;
+      }
+      controller?.abort();
+      const turns: Turn[] = rec.turns.map((t) => ({ ...t, id: ++turnId }));
+      const task = turns.at(-1)?.task ?? "ask";
+      // the follow-up context of an ask chat is its questions and answers
+      const history: ChatMessage[] =
+        task === "ask"
+          ? turns
+              .filter((t) => t.task === "ask" && t.text)
+              .map((t) => ({ role: t.role, content: t.text }))
+          : [];
+      chatId = rec.id;
+      restoring = true;
+      set({
+        status: "idle",
+        task,
+        request: "",
+        answer: "",
+        error: null,
+        history,
+        drawn: null,
+        proposal: null,
+        kept: null,
+        turns,
+        view: "chat",
+      });
+      restoring = false;
+    },
+    async deleteChat(id) {
+      const store = ctx.storage.global;
+      const list = ((await store.get<Json>(INDEX_KEY)) ??
+        []) as unknown as ChatSummary[];
+      await store.delete(chatKey(id));
+      await store.set(
+        INDEX_KEY,
+        list.filter((c) => c.id !== id) as unknown as Json,
+      );
+      if (chatId === id) {
+        chatId = null;
+      }
+    },
+    undo(turnId) {
+      const t = state.turns.find((x) => x.id === turnId);
+      if (!t || !t.applied || t.undone || t.undoPath === undefined) {
+        return;
+      }
+      if (ctx.scene.path() !== t.undoPath) {
+        ctx.ui.toast("Open the drawing this change was made in, then undo it");
+        return;
+      }
+      // the app's own undo (one step); the canvas listens for its key on the document
+      const mac = /mac/i.test(navigator.platform);
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "z",
+          code: "KeyZ",
+          metaKey: mac,
+          ctrlKey: !mac,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      set({
+        turns: state.turns.map((x) =>
+          x.id === turnId ? { ...x, undone: true } : x,
+        ),
+      });
+    },
     openModelPicker() {
       set({ view: "chat", menu: { tick: state.menu.tick + 1 } });
     },
@@ -766,8 +980,11 @@ function withOutcome(
   turns: readonly Turn[],
   proposal: Proposal,
   outcome: string,
+  extra: Partial<Turn> = {},
 ): Turn[] {
-  return turns.map((t) => (t.proposal === proposal ? { ...t, outcome } : t));
+  return turns.map((t) =>
+    t.proposal === proposal ? { ...t, outcome, ...extra } : t,
+  );
 }
 
 function editError(err: unknown): string {

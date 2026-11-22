@@ -303,9 +303,9 @@ test("AI assistant: an edit is proposed first, Discard changes nothing, Keep app
   // Keep through its palette command: applied at once as one change.
   card = await propose();
   await run(page, "AI: Keep", /AI: Keep the proposed change/);
-  await expect(
-    page.getByRole("status").filter({ hasText: "Applied:" }),
-  ).toContainText("Applied: Adds 1 box, moves 1 text");
+  await expect(page.getByLabel("Result")).toContainText(
+    "Added 1 box, moved 1 text",
+  );
   expect(await count()).toBeGreaterThan(2);
   const moved = (await live(page)).elements.find((e) => e.id === "b");
   expect(Math.round(moved!.x)).toBe(400);

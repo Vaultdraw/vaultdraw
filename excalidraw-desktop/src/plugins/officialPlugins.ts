@@ -517,6 +517,7 @@ export const OFFICIAL_PLUGINS: readonly OfficialPlugin[] = [
       { id: "cancel", title: "AI: Stop the answer" },
       { id: "clear", title: "AI: Clear the conversation" },
       { id: "new-chat", title: "AI: New chat" },
+      { id: "history", title: "AI: Chat history" },
       { id: "choose-model", title: "AI: Choose model" },
       { id: "cycle-effort", title: "AI: Cycle reasoning effort" },
       { id: "settings", title: "AI: Connect and settings" },

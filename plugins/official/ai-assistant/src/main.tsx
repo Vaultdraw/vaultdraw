@@ -48,6 +48,10 @@ export default definePlugin({
       session.clear();
       open(session.get().task);
     });
+    ctx.commands.register("history", () => {
+      ctx.panels.open("assistant");
+      session.setView("history");
+    });
     ctx.commands.register("choose-model", () => {
       ctx.panels.open("assistant");
       session.openModelPicker();

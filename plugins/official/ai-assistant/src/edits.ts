@@ -28,6 +28,8 @@ export interface Proposal {
   title: string;
   /** "Adds 3 boxes, moves 1 arrow" */
   headline: string;
+  /** The same in the past tense for the result card: "Added 3 boxes, moved 1 arrow". */
+  done: string;
   /** One plain line per change. */
   lines: string[];
   ops: SceneOp[];
@@ -467,10 +469,24 @@ export function buildProposal(
     phrase("deletes", counts.delete),
   ].filter(Boolean);
   const headline = parts.join(", ").replace(/^./, (c) => c.toUpperCase());
+  const past = (verb: string, m: Map<string, number>) =>
+    m.size === 0
+      ? ""
+      : `${verb} ${[...m].map(([t, n]) => `${n} ${nameOf(t, n)}`).join(", ")}`;
+  const done = [
+    past("added", counts.add),
+    past("moved", counts.move),
+    past("restyled", counts.restyle),
+    past("deleted", counts.delete),
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .replace(/^./, (c) => c.toUpperCase());
   return {
     kind,
     title,
     headline,
+    done,
     lines,
     ops,
     skipped,

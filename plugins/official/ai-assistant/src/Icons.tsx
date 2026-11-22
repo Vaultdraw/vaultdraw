@@ -9,6 +9,8 @@ const PATHS = {
   check: "M3 8.5 6.5 12 13 4.5",
   back: "M9.5 3.5 5 8l4.5 4.5",
   close: "M4 4l8 8M12 4 4 12",
+  history: "M2.5 8a5.5 5.5 0 1 0 1.8-4.07M2.5 2.5v3h3M8 5v3.2l2 1.3",
+  trash: "M3 4.5h10M6.5 4.5v-2h3v2M4.5 4.5l.5 8.5h6l.5-8.5",
 } as const;
 
 export type IconName = keyof typeof PATHS;
