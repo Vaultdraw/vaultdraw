@@ -15,6 +15,7 @@ import { pluginUiHandlers } from "../plugins/ui/pluginCommands";
 import { SORT_ORDERS, type SortOrder } from "../vault/sortOrder";
 
 import { CONFIG_COMMAND_HANDLERS } from "./configCommands";
+import { HOME_PAGE_COMMAND_HANDLERS } from "./homePageCommands";
 import { PROFILE_COMMAND_HANDLERS } from "./profileCommands";
 import {
   SETTINGS_PENS_COMMAND_ID,
@@ -156,6 +157,7 @@ export function appCommandHandlers(
     ),
     ...PEN_COMMAND_HANDLERS,
     ...CONFIG_COMMAND_HANDLERS,
+    ...HOME_PAGE_COMMAND_HANDLERS,
     ...PROFILE_COMMAND_HANDLERS,
     ...HELP_LINK_HANDLERS,
     ...EXTENSION_COMMAND_HANDLERS,

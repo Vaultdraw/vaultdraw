@@ -202,6 +202,9 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
       thumbnail_cache_mb: {
         doc: "Size cap of a vault's thumbnail cache on disk, in megabytes; the oldest thumbnails go first. Applies at the next thumbnail saved.",
       },
+      home_page: {
+        doc: "What the home pane shows when no drawing is open: `full` (actions and recent drawings), `minimal` (actions only) or `blank` (nothing).",
+      },
       defer_home_pane: {
         doc: "When a vault opens, paint the file tree first and the home pane one frame later, in the same place; `false` draws both together.",
       },

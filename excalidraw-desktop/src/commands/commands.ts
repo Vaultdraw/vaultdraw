@@ -53,6 +53,7 @@ import { LIST_COMMANDS } from "./listCommands";
 import { THEME_BROWSER_COMMANDS, THEME_COMMANDS } from "./themeCommands";
 import { THUMBNAIL_COMMANDS } from "./thumbnailCommands";
 import { CONFIG_COMMANDS } from "./configCommands";
+import { HOME_PAGE_COMMANDS } from "./homePageCommands";
 import { BACKUP_COMMANDS } from "./backupCommands";
 import { PROFILE_COMMANDS } from "./profileCommands";
 import { MEMORY_COMMANDS } from "./memoryCommands";
@@ -738,6 +739,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
   ...WATCHDOG_COMMANDS,
   ...WINDOW_COMMANDS,
   ...CONFIG_COMMANDS,
+  ...HOME_PAGE_COMMANDS,
   ...PROFILE_COMMANDS,
   ...BACKUP_COMMANDS,
   ...IMPORT_UPGRADE_COMMANDS,

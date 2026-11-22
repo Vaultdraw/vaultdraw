@@ -10,7 +10,13 @@ import {
   SORT_ORDERS,
   type SortOrder,
 } from "../../../vault/sortOrder";
+import {
+  HOME_PAGES,
+  updatePreferences,
+  type HomePage,
+} from "../../../vault/preferences";
 import { SettingRow } from "../SettingRow";
+import { usePreference } from "../usePreference";
 import { useSettings, type SettingControls } from "../SettingsContext";
 
 import { Stepper, Switch } from "./controls";
@@ -57,6 +63,34 @@ const ShowTagChipsSetting = () => {
         checked={showTagChips}
         onChange={setShowTagChips}
       />
+    </SettingRow>
+  );
+};
+
+export const HOME_PAGE_LABELS: Record<HomePage, string> = {
+  full: "Actions and recent drawings",
+  minimal: "Actions only",
+  blank: "Blank",
+};
+
+const HomePageSetting = () => {
+  const mode = usePreference("homePage");
+  return (
+    <SettingRow id="home-page">
+      <select
+        className="vault-input"
+        aria-label="Start page"
+        value={mode}
+        onChange={(e) =>
+          updatePreferences({ homePage: e.target.value as HomePage })
+        }
+      >
+        {HOME_PAGES.map((m) => (
+          <option key={m} value={m}>
+            {HOME_PAGE_LABELS[m]}
+          </option>
+        ))}
+      </select>
     </SettingRow>
   );
 };
@@ -126,6 +160,7 @@ const SortOrderSetting = () => (
 export const interfaceControls: SettingControls = {
   "interface-zoom": { Component: ZoomSetting },
   "show-tag-chips": { Component: ShowTagChipsSetting },
+  "home-page": { Component: HomePageSetting },
   "notice-seconds": { Component: NoticeSecondsSetting },
   thumbnails: { Component: ThumbnailsSetting },
   "activity-bar": { Component: ActivityBarSetting },

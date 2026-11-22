@@ -23,6 +23,8 @@ import {
 
 import "./home.css";
 
+import type { HomePage } from "../vault/preferences";
+
 export interface HomeAction {
   /** Command registry id: the shortcut shown is this command's live binding. */
   id: string;
@@ -86,6 +88,8 @@ interface VaultHomeProps {
   ownerWindow?: Window | null;
   /** True while a full-pane view (the graph) covers the home. */
   inert?: boolean;
+  /** `interface.home_page`: full (default), minimal (no recent drawings) or blank. */
+  mode?: HomePage;
 }
 
 export const VaultHome = ({
@@ -95,6 +99,7 @@ export const VaultHome = ({
   onOpenDrawing,
   ownerWindow,
   inert,
+  mode = "full",
 }: VaultHomeProps) => {
   const shortcut = useCommandShortcutLookup(ownerWindow ?? null, formatChord);
   // The plugin's stub registers the command at boot, so this loads no plugin code.
@@ -103,8 +108,21 @@ export const VaultHome = ({
     () => !!getRegisteredCommand(OBSIDIAN_IMPORT_COMMAND_ID),
     () => false,
   );
+  if (mode === "blank") {
+    return (
+      <div
+        className="vault-empty-state vault-home vault-home--blank"
+        inert={inert}
+        data-home-page="blank"
+      />
+    );
+  }
   return (
-    <div className="vault-empty-state vault-home" inert={inert}>
+    <div
+      className="vault-empty-state vault-home"
+      inert={inert}
+      data-home-page={mode}
+    >
       <div className="vault-empty-state__icon">
         <IconDrawing width="40" height="40" />
       </div>
@@ -133,7 +151,9 @@ export const VaultHome = ({
             );
           })}
       </div>
-      <RecentDrawings entries={recent} onOpen={onOpenDrawing} />
+      {mode === "full" && (
+        <RecentDrawings entries={recent} onOpen={onOpenDrawing} />
+      )}
     </div>
   );
 };

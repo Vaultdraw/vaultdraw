@@ -4304,6 +4304,30 @@
    "palette": true
   },
   {
+   "id": "view.homePage.full",
+   "title": "Start page: Actions and recent drawings",
+   "category": "View",
+   "keys": [],
+   "when": [],
+   "palette": true
+  },
+  {
+   "id": "view.homePage.minimal",
+   "title": "Start page: Actions only",
+   "category": "View",
+   "keys": [],
+   "when": [],
+   "palette": true
+  },
+  {
+   "id": "view.homePage.blank",
+   "title": "Start page: Blank",
+   "category": "View",
+   "keys": [],
+   "when": [],
+   "palette": true
+  },
+  {
    "id": "profile.switch",
    "title": "Profile: Switch profile",
    "category": "Profile",
@@ -4938,6 +4962,13 @@
    "page": "interface",
    "label": "Show tag chips in the file tree",
    "configKey": "interface.show_tag_chips",
+   "section": null
+  },
+  {
+   "id": "home-page",
+   "page": "interface",
+   "label": "Start page",
+   "configKey": "interface.home_page",
    "section": null
   },
   {

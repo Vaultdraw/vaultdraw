@@ -7,6 +7,7 @@ import {
 } from "../../vault/preferences";
 import { ChoiceGroup, SwitchRow } from "../controls";
 
+import type { HomePage } from "../../vault/preferences";
 import type { StepProps } from "../types";
 
 /** Save delays offered; anything else in config.toml is left as it is. */
@@ -20,6 +21,12 @@ export const LINE_STYLES = [
   { value: 0, label: "Clean", hint: "straight, precise lines" },
   { value: 1, label: "Hand-drawn", hint: "Excalidraw's look" },
   { value: 2, label: "Rough", hint: "extra sketchy" },
+] as const;
+
+export const START_PAGES = [
+  { value: "full", label: "Recent", hint: "actions and recent drawings" },
+  { value: "minimal", label: "Minimal", hint: "actions only" },
+  { value: "blank", label: "Blank", hint: "an empty page" },
 ] as const;
 
 export const Basics = ({ env }: StepProps) => {
@@ -56,6 +63,14 @@ export const Basics = ({ env }: StepProps) => {
         onChange={(autosaveDelayMs) =>
           updatePreferences({ autosaveDelayMs }, win)
         }
+      />
+      <ChoiceGroup<HomePage>
+        name="setup-start-page"
+        label="Start page"
+        value={prefs.homePage}
+        columns={3}
+        options={START_PAGES.map((o) => ({ ...o }))}
+        onChange={(homePage) => updatePreferences({ homePage }, win)}
       />
       <ChoiceGroup<number>
         name="setup-lines"

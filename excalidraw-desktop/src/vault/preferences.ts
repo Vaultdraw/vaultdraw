@@ -224,6 +224,9 @@ export type PaperStyle = "plain" | BackgroundPatternType;
 export type PageModeDefault = "normal" | "page";
 /** Paper theme as spelled in config.toml (the model uses "oldSchool"). */
 export type PagePaperTheme = "normal" | "old_school" | "match";
+/** What the vault home pane shows when no drawing is open. */
+export type HomePage = "full" | "minimal" | "blank";
+export const HOME_PAGES: readonly HomePage[] = ["full", "minimal", "blank"];
 
 /** One vault's Tags section state; every field is optional (not set = default). */
 export type TagsPaneEntry = {
@@ -340,6 +343,8 @@ interface VaultPreferencesBase {
   confirmDelete: boolean;
   /** Show small tag chips after drawing names in the file tree. */
   showTagChips: boolean;
+  /** Vault home pane: actions and recent drawings (`full`), actions only (`minimal`) or nothing (`blank`). */
+  homePage: HomePage;
   /** Mount the vault home pane one frame after the file tree first paints (faster vault open). */
   deferHomePane: boolean;
   /** Seconds an error notice stays before it closes itself; 0 keeps it until dismissed. */
@@ -559,6 +564,7 @@ export const DEFAULT_PREFERENCES: VaultPreferences = {
   zoom: 100,
   confirmDelete: true,
   showTagChips: true,
+  homePage: "full",
   deferHomePane: true,
   noticeSeconds: DEFAULT_NOTICE_SECONDS,
   thumbnails: true,
@@ -735,6 +741,8 @@ export const isPaperMajorEvery = (value: unknown) =>
 
 export const isPageMode = (value: unknown): value is PageModeDefault =>
   value === "normal" || value === "page";
+export const isHomePage = (value: unknown): value is HomePage =>
+  value === "full" || value === "minimal" || value === "blank";
 export const isPagePaperTheme = (value: unknown): value is PagePaperTheme =>
   value === "normal" || value === "old_school" || value === "match";
 /** 0 = unset (the A4 side is used). */
@@ -1203,6 +1211,7 @@ export function normalizePreferences(input: unknown): VaultPreferences {
     themesPreviews: pick(parsed.themesPreviews, isBoolean, d.themesPreviews),
     confirmDelete: pick(parsed.confirmDelete, isBoolean, d.confirmDelete),
     showTagChips: pick(parsed.showTagChips, isBoolean, d.showTagChips),
+    homePage: pick(parsed.homePage, isHomePage, d.homePage),
     deferHomePane: pick(parsed.deferHomePane, isBoolean, d.deferHomePane),
     noticeSeconds: pick(parsed.noticeSeconds, isNoticeSeconds, d.noticeSeconds),
     thumbnails: pick(parsed.thumbnails, isBoolean, d.thumbnails),

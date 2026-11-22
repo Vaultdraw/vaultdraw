@@ -3837,6 +3837,7 @@ export const VaultApp = ({
                     onOpenDrawing={(path) => void handleOpenDrawing(path)}
                     ownerWindow={win}
                     inert={mainCovered}
+                    mode={prefsNow.homePage}
                   />
                 </DeferredHome>
               </ActiveTabGate>

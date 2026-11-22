@@ -477,6 +477,23 @@ export const SETTINGS_SCHEMA: readonly SettingSchema[] = [
     configKey: "interface.show_tag_chips",
   },
   {
+    id: "home-page",
+    page: "interface",
+    label: "Start page",
+    description:
+      "What shows when no drawing is open: the actions and your recent drawings, the actions only, or a blank page.",
+    keywords: [
+      "home",
+      "start",
+      "recent",
+      "blank",
+      "minimal",
+      "empty",
+      "welcome",
+    ],
+    configKey: "interface.home_page",
+  },
+  {
     id: "notice-seconds",
     page: "interface",
     label: "Error notices stay for",

@@ -145,6 +145,7 @@ import {
   normalizeGitNoticeDismissed,
   isPageMode,
   isPagePaperTheme,
+  isHomePage,
   isPageSide,
   isThemeInstallMaxKb,
   isThemesIndexTtlHours,
@@ -371,6 +372,7 @@ type ConfigField =
   | "confirmDelete"
   | "showTagChips"
   | "deferHomePane"
+  | "homePage"
   | "noticeSeconds"
   | "thumbnails"
   | "thumbnailMaxElements"
@@ -637,6 +639,12 @@ const CORE_MAPPING: readonly ConfigMapping[] = [
     key: "interface.show_tag_chips",
     expected: "true or false",
     valid: (v) => typeof v === "boolean",
+  },
+  {
+    field: "homePage",
+    key: "interface.home_page",
+    expected: '"full", "minimal" or "blank"',
+    valid: isHomePage,
   },
   {
     field: "deferHomePane",
