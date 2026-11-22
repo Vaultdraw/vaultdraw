@@ -299,6 +299,8 @@ autosave_delay_ms = 500
 # inline_styles = true
 # Draw **bold**, *italic* and `code` words inside a line without their marks (the text keeps them)
 # live_preview = true
+# Turning Markdown mode on in a drawing converts the text already there, as if typed
+# convert_on_enable = true
 
 [layout]
 # Show the header above the canvas (title, save status, History, Graph)

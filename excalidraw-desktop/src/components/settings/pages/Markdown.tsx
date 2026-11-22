@@ -120,6 +120,26 @@ const LivePreviewSetting = () => {
   );
 };
 
+const ConvertOnEnableSetting = () => {
+  const { win } = useSettings();
+  const on = usePref(win, "markdownConvertOnEnable");
+  return (
+    <SettingRow
+      id="markdown-convert-on-enable"
+      htmlFor="vault-markdown-convert-on-enable"
+      testId="setting-markdown-convert-on-enable"
+    >
+      <Switch
+        id="vault-markdown-convert-on-enable"
+        checked={on}
+        onChange={(next) =>
+          updatePreferences({ markdownConvertOnEnable: next }, win)
+        }
+      />
+    </SettingRow>
+  );
+};
+
 const GapSetting = () => {
   const { win } = useSettings();
   const value = usePref(win, "markdownBlockGap");
@@ -149,4 +169,5 @@ export const markdownControls: SettingControls = {
   "markdown-heading-bold": { Component: BoldSetting },
   "markdown-inline-styles": { Component: InlineSetting },
   "markdown-live-preview": { Component: LivePreviewSetting },
+  "markdown-convert-on-enable": { Component: ConvertOnEnableSetting },
 };

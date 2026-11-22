@@ -424,6 +424,9 @@ export const CONFIG_REFERENCE: readonly TableDoc[] = [
       live_preview: {
         doc: "In Markdown mode, **bold**, *italic* and `code` words inside a line are drawn without their marks; the text keeps them.",
       },
+      convert_on_enable: {
+        doc: "Turning Markdown mode on in a drawing converts the text already there (headings, quotes, lists, tasks) as if typed; one undo takes it back.",
+      },
     },
   },
   {

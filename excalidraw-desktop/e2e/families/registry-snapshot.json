@@ -1143,6 +1143,18 @@
    "palette": true
   },
   {
+   "id": "markdown.convertExisting",
+   "title": "Markdown: Convert existing text",
+   "category": "Markdown",
+   "keys": [],
+   "when": [
+    "drawingOpen",
+    "writable",
+    "editorFocus"
+   ],
+   "palette": true
+  },
+  {
    "id": "library.toggle",
    "title": "Library: Open/close",
    "category": "Library",
@@ -5130,6 +5142,13 @@
    "page": "drawing",
    "label": "Hide bold, italic and code marks",
    "configKey": "markdown.live_preview",
+   "section": null
+  },
+  {
+   "id": "markdown-convert-on-enable",
+   "page": "drawing",
+   "label": "Convert text when Markdown mode turns on",
+   "configKey": "markdown.convert_on_enable",
    "section": null
   },
   {

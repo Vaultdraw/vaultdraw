@@ -1444,6 +1444,11 @@
           "description": "In Markdown mode, **bold**, *italic* and `code` words inside a line are drawn without their marks; the text keeps them.",
           "default": true,
           "type": "boolean"
+        },
+        "convert_on_enable": {
+          "description": "Turning Markdown mode on in a drawing converts the text already there (headings, quotes, lists, tasks) as if typed; one undo takes it back.",
+          "default": true,
+          "type": "boolean"
         }
       }
     },

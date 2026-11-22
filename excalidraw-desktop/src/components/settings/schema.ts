@@ -727,6 +727,15 @@ export const SETTINGS_SCHEMA: readonly SettingSchema[] = [
     ],
     configKey: "markdown.live_preview",
   },
+  {
+    id: "markdown-convert-on-enable",
+    page: "drawing",
+    label: "Convert text when Markdown mode turns on",
+    description:
+      "Turning Markdown mode on in a drawing turns the text already there into headings, quotes, bullets and tasks, as if you had typed it. One undo takes it back. The palette's Convert existing text does the same at any time.",
+    keywords: ["markdown", "convert", "existing", "heading", "paste"],
+    configKey: "markdown.convert_on_enable",
+  },
 
   // ---- Tools: pen and laser (page was "Pens & laser") ----
   {
