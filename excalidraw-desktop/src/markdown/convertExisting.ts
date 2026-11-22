@@ -14,7 +14,7 @@
  * Not touched: texts that already have a role, code texts (Cascadia font),
  * lines inside ``` fences, locked texts, deleted ones.
  */
-import { FONT_FAMILY } from "@excalidraw/common";
+import { FONT_FAMILY, regularFontOf } from "@excalidraw/common";
 import { newElementWith, newTextElement } from "@excalidraw/element";
 import { pointFrom, pointRotateRads } from "@excalidraw/math";
 
@@ -206,7 +206,7 @@ const isConvertible = (e: AnyElement) =>
   !e.isDeleted &&
   !e.locked &&
   roleOf(e as never) === null &&
-  e.fontFamily !== FONT_FAMILY.Cascadia;
+  regularFontOf(e.fontFamily) !== FONT_FAMILY.Cascadia;
 
 /** The size, font and custom data a block's box takes, styled as typing it would. */
 const styleOf = (

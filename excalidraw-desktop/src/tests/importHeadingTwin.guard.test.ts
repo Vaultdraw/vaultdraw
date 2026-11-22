@@ -23,7 +23,8 @@ const list = (src: string, name: string) =>
     .map((s) => s.trim().replace(/^["']|["']$/g, ""));
 
 describe("twin: the editor's copy of the import's heading steps", () => {
-  const typing = read("src/markdown/markdownTyping.ts");
+  // The editor's copy moved with the shared block styling (toimprove 345).
+  const typing = read("src/markdown/blockStyle.ts");
   it("IMPORT_HEADING_SCALE equals the import's HEADING_SCALE", () => {
     const fonts = read(
       "../plugins/official/markdown-import/src/layout/fonts.ts",
