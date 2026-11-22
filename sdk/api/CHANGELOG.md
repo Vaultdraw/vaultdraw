@@ -7,6 +7,7 @@ The history of `@vaultdraw/api` (the types), the manifest and the `vaultdraw-plu
 ### Added
 
 - **`ctx.cli`** (permission `cli`, `@experimental`): `detect()` finds the AI command lines the user already has (Claude Code, Codex) and, with `check`, whether each is logged in; `run(...)` asks one and streams its output. The plugin names the tool; the app builds the command (absolute path, no shell, the question on standard input, a time limit, killed on `signal`). Offline mode and `network.allow_ai = false` refuse it. The tool keeps its own login; the app never reads or stores it.
+- `CliRequest.images`: up to 4 pictures (5 MiB each) go with the question; the app puts them in the run's own empty folder for Codex and in the message for Claude Code, and deletes them when the run ends.
 - Error codes `CLI_NOT_FOUND` and `CLI_FAILED`. The permission `cli` counts as a write permission: an update that adds it asks the user again.
 
 ## 1.3.0

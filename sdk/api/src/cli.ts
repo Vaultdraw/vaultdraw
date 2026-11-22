@@ -49,6 +49,25 @@ export interface CliRequest {
   prompt: string;
   /** Total time to wait, 1000 to 1800000 milliseconds (default 300000). @since 1.4.0 */
   timeoutMs?: number;
+  /**
+   * Pictures that go with the question: at most 4, each at most 5 MiB (PNG, JPEG, GIF or WebP).
+   * The app puts them where the tool reads them, in the run's own empty folder, and deletes them
+   * when the run ends. @since 1.4.0
+   */
+  images?: CliImage[];
+}
+
+/**
+ * One picture for a `CliRequest`.
+ *
+ * @experimental
+ * @since 1.4.0
+ */
+export interface CliImage {
+  /** `image/png`, `image/jpeg`, `image/gif` or `image/webp`. @since 1.4.0 */
+  mime: string;
+  /** The file's bytes as base64 text, with no `data:` lead. @since 1.4.0 */
+  data: string;
 }
 
 /**

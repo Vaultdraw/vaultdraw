@@ -119,6 +119,7 @@ describe("@vaultdraw/api public surface", () => {
   it("knows the experimental areas", () => {
     expect([...experimentalNames()].sort()).toEqual([
       "CliApi",
+      "CliImage",
       "CliRequest",
       "CliRun",
       "CliToolId",

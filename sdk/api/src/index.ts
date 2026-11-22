@@ -126,6 +126,7 @@ export type {
 } from "./clipboard";
 export type {
   CliApi,
+  CliImage,
   CliRequest,
   CliRun,
   CliToolId,

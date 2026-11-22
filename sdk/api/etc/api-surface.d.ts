@@ -14,6 +14,11 @@ export interface CliRequest {
     system?: string;
     prompt: string;
     timeoutMs?: number;
+    images?: CliImage[];
+}
+export interface CliImage {
+    mime: string;
+    data: string;
 }
 export interface CliRun {
     readonly body: AsyncIterable<Uint8Array>;
@@ -216,7 +221,7 @@ export type { DiagramsApi, MermaidDrawing } from "./diagrams";
 export type { ThumbnailState, ThumbnailsApi } from "./thumbnails";
 export type { PdfApi, PdfDocument, PdfImportSettings, PdfPageSize, PdfRenderOptions, } from "./pdf";
 export type { ClipboardApi, PasteEvent, PasteResult, ToastOptions, } from "./clipboard";
-export type { CliApi, CliRequest, CliRun, CliToolId, CliToolStatus, } from "./cli";
+export type { CliApi, CliImage, CliRequest, CliRun, CliToolId, CliToolStatus, } from "./cli";
 export type { NetApi, NetRequest, NetResponse } from "./net";
 export type { NetworkApi } from "./network";
 export type { SecretApi } from "./secret";

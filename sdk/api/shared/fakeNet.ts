@@ -34,6 +34,7 @@ export interface FakeCliRun {
   effort?: string;
   system?: string;
   prompt: string;
+  images?: { mime: string; data: string }[];
 }
 
 /** The stand-in for the `cli.*` rows (permission `cli`): script the tools and the output. */
@@ -222,6 +223,9 @@ export async function fakeNetRow(
       effort: arg.effort as string | undefined,
       system: arg.system as string | undefined,
       prompt: String(arg.prompt),
+      ...(Array.isArray(arg.images)
+        ? { images: arg.images as { mime: string; data: string }[] }
+        : {}),
     };
     fake.cli.runs.push(run);
     if (!fake.cli.respond) {

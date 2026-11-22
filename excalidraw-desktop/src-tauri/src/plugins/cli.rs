@@ -12,7 +12,9 @@
 //! - a time limit and a cancel both kill the whole process group;
 //! - Offline mode and `network.allow_ai` block it like a request to a provider (the tools talk to
 //!   their provider over the internet);
-//! - Vaultdraw never reads, copies or stores the tool's login: the tool keeps its own.
+//! - Vaultdraw never reads, copies or stores the tool's login: the tool keeps its own;
+//! - pictures (at most 4, 5 MiB each, PNG/JPEG/GIF/WebP) go to claude inside its input message and
+//!   to codex as files in a folder made for that run, which is deleted when the run ends.
 //!
 //! `cli.detect` finds the tools and, when asked (`check`), asks each one whether it is logged in.
 //! `cli.open` starts a run and returns `{"id"}`; `cli.read` pulls tagged chunks of its standard
@@ -32,7 +34,7 @@ use std::{
         Arc, LazyLock, Mutex,
     },
     thread::JoinHandle,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 const PURPOSE: &str = "ai";
@@ -244,6 +246,14 @@ fn kill_group(child: &mut std::process::Child) {
 // cli.open
 // ---------------------------------------------------------------------------
 
+#[derive(Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+struct ImageIn {
+    mime: String,
+    /// The file's bytes as base64 text.
+    data: String,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct OpenRequest {
@@ -253,6 +263,106 @@ struct OpenRequest {
     system: Option<String>,
     prompt: String,
     timeout_ms: Option<u64>,
+    #[serde(default)]
+    images: Vec<ImageIn>,
+}
+
+const MAX_IMAGES: usize = 4;
+const MAX_IMAGE_BYTES: usize = 5 * 1024 * 1024;
+static IMAGE_SEQ: AtomicU64 = AtomicU64::new(1);
+
+/// The file extension for an accepted picture type.
+fn image_ext(mime: &str) -> Option<&'static str> {
+    match mime {
+        "image/png" => Some("png"),
+        "image/jpeg" => Some("jpg"),
+        "image/gif" => Some("gif"),
+        "image/webp" => Some("webp"),
+        _ => None,
+    }
+}
+
+/// Standard base64 (padding optional, no spaces) to bytes; `None` for any other character or a
+/// length that cannot be base64. Small and local: the only decoder the app needs.
+fn decode_base64(text: &str) -> Option<Vec<u8>> {
+    let t = text.trim_end_matches('=').as_bytes();
+    if t.len() % 4 == 1 {
+        return None;
+    }
+    let mut out = Vec::with_capacity(t.len() / 4 * 3 + 2);
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for &c in t {
+        let v = match c {
+            b'A'..=b'Z' => c - b'A',
+            b'a'..=b'z' => c - b'a' + 26,
+            b'0'..=b'9' => c - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => return None,
+        };
+        acc = (acc << 6) | v as u32;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+            acc &= (1 << bits) - 1;
+        }
+    }
+    Some(out)
+}
+
+/// Refuses too many pictures, a type that is not a picture, text that is not base64 and a picture
+/// over the size cap. The size is judged from the text before anything is decoded.
+fn check_images(images: &[ImageIn]) -> Result<()> {
+    if images.len() > MAX_IMAGES {
+        return Err(err("INVALID_ARGUMENT", format!("At most {MAX_IMAGES} images can be sent at once")));
+    }
+    for i in images {
+        if image_ext(&i.mime).is_none() {
+            return Err(err("INVALID_ARGUMENT", "Images must be PNG, JPEG, GIF or WebP"));
+        }
+        if i.data.len() / 4 * 3 > MAX_IMAGE_BYTES + 3 {
+            return Err(err("TOO_LARGE", "An image is larger than 5 MiB"));
+        }
+        if !i.data.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'+' || c == b'/' || c == b'=') {
+            return Err(err("INVALID_ARGUMENT", "An image is not base64 text"));
+        }
+    }
+    Ok(())
+}
+
+/// Writes the pictures into a new folder inside `cwd` for codex's `--image`; returns the folder and
+/// the files. The caller deletes the folder when the run ends.
+fn write_images(cwd: &Path, images: &[ImageIn]) -> Result<(PathBuf, Vec<PathBuf>)> {
+    sweep_old_image_folders(cwd);
+    let dir = cwd.join(format!("img-{}-{}", std::process::id(), IMAGE_SEQ.fetch_add(1, Ordering::Relaxed)));
+    std::fs::create_dir_all(&dir).map_err(|e| err("INTERNAL", format!("Could not prepare the image folder: {e}")))?;
+    let mut files = Vec::new();
+    for (n, i) in images.iter().enumerate() {
+        let bytes = decode_base64(&i.data).filter(|b| b.len() <= MAX_IMAGE_BYTES);
+        let (Some(bytes), Some(ext)) = (bytes, image_ext(&i.mime)) else {
+            let _ = std::fs::remove_dir_all(&dir);
+            return Err(err("INVALID_ARGUMENT", "An image could not be read"));
+        };
+        let f = dir.join(format!("image-{}.{ext}", n + 1));
+        if let Err(e) = std::fs::write(&f, bytes) {
+            let _ = std::fs::remove_dir_all(&dir);
+            return Err(err("INTERNAL", format!("Could not save an image: {e}")));
+        }
+        files.push(f);
+    }
+    Ok((dir, files))
+}
+
+/// Folders a crashed run left behind (older than an hour) are removed; nothing else is touched.
+fn sweep_old_image_folders(cwd: &Path) {
+    let Ok(rd) = std::fs::read_dir(cwd) else { return };
+    for e in rd.flatten() {
+        let old = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| SystemTime::now().duration_since(t).ok()).is_some_and(|d| d > Duration::from_secs(3600));
+        if old && e.file_name().to_string_lossy().starts_with("img-") && e.path().is_dir() {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
 }
 
 /// A model name is plain: letters, digits and `. _ : - [ ]`.
@@ -264,7 +374,7 @@ fn check_model(m: &str) -> Result<()> {
 }
 
 /// What to run for a request: the argument array and the text for standard input. Pure.
-fn build_run(t: &Tool, req: &OpenRequest, cwd: &Path) -> Result<(Vec<String>, String)> {
+fn build_run(t: &Tool, req: &OpenRequest, cwd: &Path, files: &[PathBuf]) -> Result<(Vec<String>, String)> {
     if let Some(m) = req.model.as_deref().filter(|m| !m.is_empty()) {
         check_model(m)?;
     }
@@ -288,10 +398,23 @@ fn build_run(t: &Tool, req: &OpenRequest, cwd: &Path) -> Result<(Vec<String>, St
         if let Some(e) = effort {
             a.extend([s("--effort"), s(e)]);
         }
-        return Ok((a, req.prompt.clone()));
+        if req.images.is_empty() {
+            return Ok((a, req.prompt.clone()));
+        }
+        // pictures travel in the input message (one JSON line), so the input is read as stream-json
+        a.extend([s("--input-format"), s("stream-json")]);
+        let mut content: Vec<Value> = req.images.iter().map(|i| json!({"type": "image", "source": {"type": "base64", "media_type": i.mime, "data": i.data}})).collect();
+        content.push(json!({"type": "text", "text": req.prompt}));
+        let line = json!({"type": "user", "message": {"role": "user", "content": content}});
+        return Ok((a, format!("{line}\n")));
     }
     // codex has no system-prompt flag: the instructions lead the text on standard input.
-    let mut a: Vec<String> = ["exec", "--json", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config", "--ignore-rules", "-s", "read-only", "-C"].iter().map(|x| s(x)).collect();
+    // each `--image` is followed by an option, because the flag takes every value up to the next one
+    let mut a: Vec<String> = vec![s("exec")];
+    for f in files {
+        a.extend([s("--image"), f.to_string_lossy().into_owned()]);
+    }
+    a.extend(["--json", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config", "--ignore-rules", "-s", "read-only", "-C"].iter().map(|x| s(x)));
     a.push(cwd.to_string_lossy().into_owned());
     if let Some(m) = model {
         a.extend([s("-m"), s(m)]);
@@ -318,8 +441,19 @@ fn open(state_dir: &Path, config: impl Fn() -> Result<Option<Value>> + Copy, plu
     let bin = find_binary(t).ok_or_else(|| err("CLI_NOT_FOUND", format!("{} is not installed on this computer", t.binary)))?;
     let cwd = state_dir.join("ai-cli");
     std::fs::create_dir_all(&cwd).map_err(|e| err("INTERNAL", format!("Could not prepare the work folder: {e}")))?;
-    let (args, stdin) = build_run(t, &req, &cwd)?;
-    let id = start(plugin_id, &bin, &args, stdin, &cwd, Duration::from_millis(timeout_ms))?;
+    check_images(&req.images)?;
+    // codex reads pictures from files; claude gets them in its input, so it needs no folder
+    let (folder, files) = if t.id == "codex" && !req.images.is_empty() { write_images(&cwd, &req.images).map(|(d, f)| (Some(d), f))? } else { (None, Vec::new()) };
+    let started = build_run(t, &req, &cwd, &files).and_then(|(args, stdin)| start(plugin_id, &bin, &args, stdin, &cwd, Duration::from_millis(timeout_ms), folder.clone()));
+    let id = match started {
+        Ok(id) => id,
+        Err(e) => {
+            if let Some(d) = folder {
+                let _ = std::fs::remove_dir_all(d);
+            }
+            return Err(e);
+        }
+    };
     Ok(serde_json::to_vec(&json!({ "id": id })).unwrap_or_default())
 }
 
@@ -347,7 +481,8 @@ fn streams() -> std::sync::MutexGuard<'static, HashMap<u64, Arc<Stream>>> {
 }
 
 /// Starts `bin args` (absolute `bin`, no shell), feeds it `stdin`, and registers a stream for it.
-fn start(plugin_id: &str, bin: &Path, args: &[String], stdin: String, cwd: &Path, limit: Duration) -> Result<u64> {
+/// `cleanup` is a folder deleted when the run ends (the pictures of a codex run).
+fn start(plugin_id: &str, bin: &Path, args: &[String], stdin: String, cwd: &Path, limit: Duration, cleanup: Option<PathBuf>) -> Result<u64> {
     if !bin.is_absolute() {
         return Err(err("INVALID_ARGUMENT", "The program must be given by its full path"));
     }
@@ -371,7 +506,12 @@ fn start(plugin_id: &str, bin: &Path, args: &[String], stdin: String, cwd: &Path
         let stdout = child.stdout.take().expect("piped");
         let stderr = child.stderr.take().expect("piped");
         map.insert(id, Arc::new(Stream { plugin: plugin_id.into(), cancel: cancel.clone(), rx: Mutex::new(rx) }));
-        std::thread::spawn(move || supervise(child, stdout, stderr, tx, cancel, limit));
+        std::thread::spawn(move || {
+            supervise(child, stdout, stderr, tx, cancel, limit);
+            if let Some(d) = cleanup {
+                let _ = std::fs::remove_dir_all(d);
+            }
+        });
     }
     Ok(id)
 }
@@ -523,7 +663,7 @@ mod tests {
 
     fn run(plugin: &str, bin: &Path, args: &[&str], stdin: &str, limit: Duration) -> Result<u64> {
         let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
-        start(plugin, bin, &args, stdin.into(), std::env::temp_dir().as_path(), limit)
+        start(plugin, bin, &args, stdin.into(), std::env::temp_dir().as_path(), limit, None)
     }
 
     #[test]
@@ -595,10 +735,10 @@ mod tests {
     #[test]
     fn only_listed_tools_and_plain_options_are_accepted() {
         let d = Path::new("/tmp/w");
-        let req = |tool: &str, model: Option<&str>, effort: Option<&str>| OpenRequest { tool: tool.into(), model: model.map(Into::into), effort: effort.map(Into::into), system: Some("sys".into()), prompt: "hi".into(), timeout_ms: None };
+        let req = |tool: &str, model: Option<&str>, effort: Option<&str>| OpenRequest { tool: tool.into(), model: model.map(Into::into), effort: effort.map(Into::into), system: Some("sys".into()), prompt: "hi".into(), timeout_ms: None, images: Vec::new() };
         assert!(self::tool("rm").is_err());
         let claude = self::tool("claude").unwrap();
-        let (a, stdin) = build_run(claude, &req("claude", Some("opus"), Some("high")), d).unwrap();
+        let (a, stdin) = build_run(claude, &req("claude", Some("opus"), Some("high")), d, &[]).unwrap();
         assert_eq!(stdin, "hi");
         let at = |k: &str| a.iter().position(|x| x == k).map(|i| a[i + 1].clone());
         assert_eq!(at("--model").as_deref(), Some("opus"));
@@ -606,16 +746,16 @@ mod tests {
         assert_eq!(at("--system-prompt").as_deref(), Some("sys"));
         assert_eq!(at("--tools").as_deref(), Some(""), "the tool's own tools are off");
         assert!(a.iter().any(|x| x == "--no-session-persistence"));
-        assert!(build_run(claude, &req("claude", Some("--dangerous"), None), d).is_err());
-        assert!(build_run(claude, &req("claude", Some("a b"), None), d).is_err());
-        assert!(build_run(claude, &req("claude", None, Some("ludicrous")), d).is_err());
+        assert!(build_run(claude, &req("claude", Some("--dangerous"), None), d, &[]).is_err());
+        assert!(build_run(claude, &req("claude", Some("a b"), None), d, &[]).is_err());
+        assert!(build_run(claude, &req("claude", None, Some("ludicrous")), d, &[]).is_err());
         let codex = self::tool("codex").unwrap();
-        let (a, stdin) = build_run(codex, &req("codex", Some("gpt-5"), Some("low")), d).unwrap();
+        let (a, stdin) = build_run(codex, &req("codex", Some("gpt-5"), Some("low")), d, &[]).unwrap();
         assert!(stdin.starts_with("sys") && stdin.ends_with("hi"));
         assert_eq!(a.last().unwrap(), "-");
         assert!(a.contains(&"model_reasoning_effort=\"low\"".to_string()));
         assert!(a.windows(2).any(|w| w == ["-s", "read-only"]));
-        assert!(build_run(codex, &req("codex", None, Some("max")), d).is_err(), "codex has no max level");
+        assert!(build_run(codex, &req("codex", None, Some("max")), d, &[]).is_err(), "codex has no max level");
     }
 
     #[test]
@@ -653,5 +793,96 @@ mod tests {
         let no_ai = || Ok(Some(json!({"network": {"allow_ai": false}})));
         assert!(call(d.path(), no_ai, "t-cli-off", "cli.open", br#"{"tool":"claude","prompt":"hi"}"#).is_err());
         assert_eq!(call(d.path(), off, "t-cli-off", "cli.nope", b"{}").unwrap_err().code, "NOT_FOUND");
+    }
+
+    fn picture(mime: &str, data: &str) -> ImageIn {
+        ImageIn { mime: mime.into(), data: data.into() }
+    }
+
+    fn image_req(tool: &str, images: Vec<ImageIn>) -> OpenRequest {
+        OpenRequest { tool: tool.into(), model: None, effort: None, system: Some("sys".into()), prompt: "what is this".into(), timeout_ms: None, images }
+    }
+
+    #[test]
+    fn base64_is_decoded_and_bad_text_is_refused() {
+        assert_eq!(decode_base64("aGVsbG8=").unwrap(), b"hello");
+        assert_eq!(decode_base64("aGVsbG8").unwrap(), b"hello", "padding is optional");
+        assert_eq!(decode_base64("").unwrap(), b"");
+        assert!(decode_base64("a").is_none(), "one leftover character cannot be base64");
+        assert!(decode_base64("aGVs bG8=").is_none(), "a space is not base64");
+        assert!(decode_base64("aGVs\nbG8=").is_none());
+    }
+
+    #[test]
+    fn pictures_are_limited_in_number_type_and_size() {
+        let ok = picture("image/png", "aGVsbG8=");
+        assert!(check_images(&[ok.clone(), ok.clone(), ok.clone(), ok.clone()]).is_ok());
+        assert_eq!(check_images(&vec![ok.clone(); 5]).unwrap_err().code, "INVALID_ARGUMENT");
+        assert!(check_images(&[picture("image/svg+xml", "aGVsbG8=")]).is_err());
+        assert!(check_images(&[picture("text/html", "aGVsbG8=")]).is_err());
+        assert!(check_images(&[picture("image/png", "not base64!!")]).is_err());
+        let big = "A".repeat(MAX_IMAGE_BYTES / 3 * 4 + 400);
+        assert_eq!(check_images(&[picture("image/png", &big)]).unwrap_err().code, "TOO_LARGE");
+    }
+
+    #[test]
+    fn claude_gets_pictures_in_its_input_message_and_nothing_on_the_command_line() {
+        let claude = self::tool("claude").unwrap();
+        let req = image_req("claude", vec![picture("image/png", "aGVsbG8=")]);
+        let (a, stdin) = build_run(claude, &req, Path::new("/tmp/w"), &[]).unwrap();
+        assert!(a.windows(2).any(|w| w == ["--input-format", "stream-json"]));
+        assert!(!a.iter().any(|x| x.contains("aGVsbG8")), "picture data is never an argument");
+        let v: Value = serde_json::from_str(stdin.trim_end()).unwrap();
+        assert_eq!(v["type"], "user");
+        let c = &v["message"]["content"];
+        assert_eq!(c[0]["type"], "image");
+        assert_eq!(c[0]["source"]["media_type"], "image/png");
+        assert_eq!(c[0]["source"]["data"], "aGVsbG8=");
+        assert_eq!(c[1]["text"], "what is this");
+        assert!(stdin.ends_with('\n'));
+        // without pictures nothing changes: plain text on standard input
+        let (a, stdin) = build_run(claude, &image_req("claude", vec![]), Path::new("/tmp/w"), &[]).unwrap();
+        assert!(!a.iter().any(|x| x == "--input-format"));
+        assert_eq!(stdin, "what is this");
+    }
+
+    #[test]
+    fn codex_gets_pictures_as_files_in_a_folder_that_is_deleted_after_the_run() {
+        let d = tempfile::tempdir().unwrap();
+        let req = image_req("codex", vec![picture("image/png", "aGVsbG8="), picture("image/jpeg", "d29ybGQ=")]);
+        let (folder, files) = write_images(d.path(), &req.images).unwrap();
+        assert!(folder.starts_with(d.path()), "the files are inside the work folder");
+        assert_eq!(std::fs::read(&files[0]).unwrap(), b"hello");
+        assert_eq!(std::fs::read(&files[1]).unwrap(), b"world");
+        assert!(files[1].to_string_lossy().ends_with("image-2.jpg"));
+        let (a, stdin) = build_run(self::tool("codex").unwrap(), &req, d.path(), &files).unwrap();
+        assert_eq!(a.iter().filter(|x| *x == "--image").count(), 2);
+        let last_image = a.iter().rposition(|x| x == "--image").unwrap();
+        assert!(a[last_image + 2].starts_with("--"), "an option follows the last picture, so `-` stays the prompt");
+        assert_eq!(a.last().unwrap(), "-");
+        assert!(!stdin.contains("aGVsbG8"));
+        // the folder goes away when the run ends
+        let bin = script(d.path(), "quick", "cat >/dev/null");
+        let args: Vec<String> = Vec::new();
+        let id = start("t-cli-img", &bin, &args, String::new(), d.path(), Duration::from_secs(10), Some(folder.clone())).unwrap();
+        let (_, err) = drain("t-cli-img", id);
+        assert!(err.is_none(), "{err:?}");
+        for _ in 0..100 {
+            if !folder.exists() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(!folder.exists(), "the pictures are deleted when the run ends");
+    }
+
+    #[test]
+    fn a_bad_picture_stops_the_run_before_anything_starts() {
+        let d = tempfile::tempdir().unwrap();
+        let on = || Ok(None);
+        let body = br#"{"tool":"codex","prompt":"hi","images":[{"mime":"image/svg+xml","data":"aGk="}]}"#;
+        assert_eq!(call(d.path(), on, "t-cli-badimg", "cli.open", body).unwrap_err().code, "INVALID_ARGUMENT");
+        let nested = br#"{"tool":"codex","prompt":"hi","images":[{"mime":"image/png","data":"aGk=","path":"/etc/passwd"}]}"#;
+        assert!(call(d.path(), on, "t-cli-badimg", "cli.open", nested).is_err(), "a picture has only a type and data");
     }
 }
