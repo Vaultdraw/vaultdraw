@@ -34,3 +34,8 @@
   cursor: default;
   opacity: 0.6;
 }
+
+/* A hand pointer over a task box on the canvas (toimprove 370). */
+canvas.interactive[data-task-box] {
+  cursor: pointer !important;
+}

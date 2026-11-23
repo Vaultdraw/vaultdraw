@@ -15,6 +15,8 @@ export type LineTrigger =
 export const BULLET = "•";
 export const TASK_OPEN = "☐";
 export const TASK_DONE = "☑";
+/** Task boxes are drawn this much larger than their text, easy to see and click (toimprove 370). */
+export const TASK_BOX_SCALE = 1.4;
 
 const BULLET_RE = /^( *)[-*+]$/;
 const ORDERED_RE = /^( *)\d{1,9}[.)]$/;

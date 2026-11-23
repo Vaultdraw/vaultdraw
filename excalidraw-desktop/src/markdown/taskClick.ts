@@ -7,7 +7,7 @@
  */
 import { getFontString } from "@excalidraw/common";
 
-import { listItemOf, toggledTask } from "./lineRules";
+import { listItemOf, TASK_BOX_SCALE, toggledTask } from "./lineRules";
 
 /** The parts of a text element the hit test reads. */
 export type TaskText = {
@@ -64,7 +64,12 @@ export function taskClickAt(
       ? el.x + el.width - lineWidth
       : el.x;
   const boxStart = left + measure(line.slice(0, item.length - 2));
-  const boxEnd = left + measure(line.slice(0, item.length - 1));
+  // the box may be drawn larger (Markdown mode): count it at its drawn size
+  const boxEnd =
+    boxStart +
+    (measure(line.slice(0, item.length - 1)) -
+      measure(line.slice(0, item.length - 2))) *
+      TASK_BOX_SCALE;
   const slack = el.fontSize * SLACK;
   if (sceneX < boxStart - slack || sceneX > boxEnd + slack) {
     return null;

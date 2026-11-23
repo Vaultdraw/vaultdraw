@@ -68,3 +68,24 @@ describe("clicking a task box on the canvas (toimprove 369)", () => {
     expect(taskClickAt(text(list, { angle: 1 }), 5, 5, measure)).toBeNull();
   });
 });
+
+describe("task boxes drawn larger (toimprove 370)", () => {
+  it("a click just right of the plain glyph still hits the larger drawn box", () => {
+    // glyph 10 wide drawn 14 wide: x 12 is inside it
+    expect(taskClickAt(text("☐ a"), 12, 5, measure)).toBe("☑ a");
+  });
+
+  it("one larger run per box, on the box only", async () => {
+    const { taskBoxRunsOf } = await import("./inlineStyler");
+    const runs = taskBoxRunsOf({
+      text: "Title\n☐ a\n  ☑ b",
+      fontFamily: 3,
+      fontSize: 20,
+    });
+    expect(runs.map((r) => [r.start, r.end])).toEqual([
+      [6, 7],
+      [12, 13],
+    ]);
+    expect(runs[0].font).toContain("28px");
+  });
+});

@@ -21,6 +21,31 @@ import type { TextRun, TextRunStyler } from "@excalidraw/element";
 import type { FontFamilyValues } from "@excalidraw/element/types";
 
 import { hardBreaks, parseInline } from "./inlineRuns";
+import { listItemOf, TASK_BOX_SCALE, TASK_DONE, TASK_OPEN } from "./lineRules";
+
+/** One run per task box: the box glyph drawn larger, the text unchanged. */
+export const taskBoxRunsOf = (
+  el: Pick<El, "text" | "fontFamily" | "fontSize">,
+): TextRun[] => {
+  const runs: TextRun[] = [];
+  let at = 0;
+  for (const line of el.text.split("\n")) {
+    const item = listItemOf(line);
+    const box = item?.marker.slice(-1);
+    if (item && (box === TASK_OPEN || box === TASK_DONE)) {
+      const start = at + item.length - 2;
+      runs.push({
+        start,
+        end: start + 1,
+        font: font(el.fontFamily, el.fontSize * TASK_BOX_SCALE),
+      });
+    }
+    at += line.length + 1;
+  }
+  return runs;
+};
+
+const HAS_BOX = /[☐☑]/;
 
 export const INLINE_SLOT = "markdown";
 
@@ -95,14 +120,19 @@ export const inlineRunsOf = (el: El): TextRun[] => {
 const cache = new WeakMap<object, { version: number; runs: TextRun[] }>();
 
 export const inlineStyler: TextRunStyler = (el) => {
-  if (!/[*_`\\]/.test(el.text)) {
+  const marks = /[*_`\\]/.test(el.text);
+  const boxes = HAS_BOX.test(el.text);
+  if (!marks && !boxes) {
     return null;
   }
   const hit = cache.get(el);
   if (hit && hit.version === el.version) {
     return hit.runs;
   }
-  const runs = inlineRunsOf(el);
+  const runs = [
+    ...(marks ? inlineRunsOf(el) : []),
+    ...(boxes ? taskBoxRunsOf(el) : []),
+  ];
   cache.set(el, { version: el.version, runs });
   return runs;
 };

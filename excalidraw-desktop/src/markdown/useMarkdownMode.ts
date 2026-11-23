@@ -30,6 +30,8 @@ import { selectedTexts } from "./selectedTexts";
 import { canvasMeasure, taskClickAt } from "./taskClick";
 import { toggleFirstTask, toggleTaskInTextarea } from "./taskToggle";
 
+const HAS_TASK_BOX = /[☐☑]/;
+
 export const MARKDOWN_TOGGLE_COMMAND = "markdown.toggle";
 export const MARKDOWN_TOGGLE_TASK_COMMAND = "markdown.toggleTask";
 export const MARKDOWN_TOGGLE_BOLD_COMMAND = "markdown.toggleBold";
@@ -263,7 +265,7 @@ export function useMarkdownMode({
       if (
         !api ||
         !container ||
-        e.button !== 0 ||
+        (e.type !== "pointermove" && e.button !== 0) ||
         e.shiftKey ||
         e.metaKey ||
         e.ctrlKey ||
@@ -285,6 +287,7 @@ export function useMarkdownMode({
         const el = els[i];
         if (
           el.type !== "text" ||
+          !HAS_TASK_BOX.test(el.text) ||
           p.x < el.x - el.width ||
           p.x > el.x + el.width ||
           p.y < el.y ||
@@ -323,9 +326,23 @@ export function useMarkdownMode({
         e.stopPropagation();
       }
     };
+    // A hand pointer over a box (as over Obsidian's checkboxes): a class the
+    // stylesheet turns into the pointer, over the editor's own cursor.
+    const onMove = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName !== "CANVAS") {
+        return;
+      }
+      target.toggleAttribute(
+        "data-task-box",
+        e.buttons === 0 && boxUnder(e) !== null,
+      );
+    };
     win.document.addEventListener("pointerdown", onDown, true);
     win.document.addEventListener("dblclick", onDouble, true);
+    win.document.addEventListener("pointermove", onMove, true);
     return () => {
+      win.document.removeEventListener("pointermove", onMove, true);
       win.document.removeEventListener("pointerdown", onDown, true);
       win.document.removeEventListener("dblclick", onDouble, true);
     };
