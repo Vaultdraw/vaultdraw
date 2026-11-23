@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { CaptureUpdateAction } from "@excalidraw/excalidraw";
+import { viewportCoordsToSceneCoords } from "@excalidraw/common";
 
 import type {
   ExcalidrawImperativeAPI,
@@ -26,6 +27,7 @@ import { applyEdits } from "../editor/links/applyEdits";
 
 import { typingSettingsFrom } from "./markdownSettings";
 import { selectedTexts } from "./selectedTexts";
+import { canvasMeasure, taskClickAt } from "./taskClick";
 import { toggleFirstTask, toggleTaskInTextarea } from "./taskToggle";
 
 export const MARKDOWN_TOGGLE_COMMAND = "markdown.toggle";
@@ -248,6 +250,86 @@ export function useMarkdownMode({
       }),
     [toggle],
   );
+
+  // Click a ☐ / ☑ box on the canvas to tick it (toimprove 369). Capture
+  // phase, so a hit never reaches the editor (no select, drag or edit).
+  useEffect(() => {
+    const win = live.current.getWindow() ?? window;
+    const boxUnder = (e: MouseEvent) => {
+      const { getApi, getContainer, isWritable } = live.current;
+      const api = getApi();
+      const container = getContainer();
+      const target = e.target as HTMLElement | null;
+      if (
+        !api ||
+        !container ||
+        e.button !== 0 ||
+        e.shiftKey ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        target?.tagName !== "CANVAS" ||
+        !container.contains(target) ||
+        container.querySelector("textarea.excalidraw-wysiwyg") ||
+        !isWritable()
+      ) {
+        return null;
+      }
+      const state = api.getAppState();
+      if (state.activeTool.type !== "selection") {
+        return null;
+      }
+      const p = viewportCoordsToSceneCoords(e, state);
+      const els = api.getSceneElements();
+      for (let i = els.length - 1; i >= 0; i--) {
+        const el = els[i];
+        if (
+          el.type !== "text" ||
+          p.x < el.x - el.width ||
+          p.x > el.x + el.width ||
+          p.y < el.y ||
+          p.y > el.y + el.height
+        ) {
+          continue;
+        }
+        const next = taskClickAt(el, p.x, p.y, canvasMeasure(el));
+        if (next !== null) {
+          return { id: el.id, next };
+        }
+      }
+      return null;
+    };
+    const onDown = (e: PointerEvent) => {
+      const found = boxUnder(e);
+      const api = live.current.getApi();
+      if (found && api) {
+        e.preventDefault();
+        e.stopPropagation();
+        applyEdits(api, [
+          { elementId: found.id, field: "text", value: found.next },
+        ]);
+      }
+    };
+    // A quick second tick must not open the text for editing.
+    const onDouble = (e: MouseEvent) => {
+      const container = live.current.getContainer();
+      const target = e.target as HTMLElement | null;
+      if (
+        container?.contains(target) &&
+        target?.tagName === "CANVAS" &&
+        boxUnder(e) !== null
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    win.document.addEventListener("pointerdown", onDown, true);
+    win.document.addEventListener("dblclick", onDouble, true);
+    return () => {
+      win.document.removeEventListener("pointerdown", onDown, true);
+      win.document.removeEventListener("dblclick", onDouble, true);
+    };
+  }, []);
 
   /** What the editor reads when a text starts being edited. */
   const textEditorExtension = useCallback(
