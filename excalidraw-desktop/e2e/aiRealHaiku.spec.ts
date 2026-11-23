@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- this opt-in real-model run reports its call count and replies to the person running it */
 import { writeFileSync } from "node:fs";
 
 import { type Page } from "@playwright/test";
