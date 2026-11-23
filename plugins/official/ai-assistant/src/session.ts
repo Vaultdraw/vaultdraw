@@ -1392,8 +1392,13 @@ function editError(err: unknown): string {
       return "No drawing is open, so there is nothing to change.";
     case "PERMISSION":
       return "The AI assistant needs permission to write drawings. Turn it off and on again in Settings, Plugins.";
-    case "INVALID_ARGUMENT":
-      return "The app could not apply part of the plan, so nothing was changed. Ask again, in other words.";
+    case "INVALID_ARGUMENT": {
+      // the host names the part it refused: show it, a bare "could not apply" helps nobody
+      const why = (err as { message?: string } | null)?.message?.trim();
+      return `The app could not apply part of the plan, so nothing was changed.${
+        why ? ` (${why})` : ""
+      } Ask again, in other words.`;
+    }
     case "TOO_LARGE":
       return "The drawing would become too large, so nothing was changed.";
     default:

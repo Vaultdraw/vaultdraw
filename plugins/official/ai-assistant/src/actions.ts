@@ -40,6 +40,18 @@ export const MAX_REPLY_OPS = 500;
 const REF_OK = /^[A-Za-z0-9_.:-]{1,64}$/;
 
 /**
+ * An add op with a `ref` key that holds no name (`ref: undefined`) is refused by the host
+ * ("op N (ref): must be 1 to 64 letters…"), so a whole page failed to apply (toimprove 367).
+ */
+export function withoutEmptyRef(op: SceneOp): SceneOp {
+  if (op.op === "add" && "ref" in op && typeof op.ref !== "string") {
+    const { ref: _ref, ...rest } = op;
+    return rest as SceneOp;
+  }
+  return op;
+}
+
+/**
  * Gives a drawing's refs their own prefix (two drawings in one reply both have an "A" or "e1",
  * and the host refuses a ref used twice) and only the characters the host accepts in a ref.
  */
@@ -396,7 +408,7 @@ export async function buildActions(
     headline,
     done,
     lines: [...lines, ...(base?.lines ?? [])],
-    ops,
+    ops: ops.map(withoutEmptyRef),
     ...(base?.drawing ? { drawing: base.drawing } : {}),
     skipped: (base?.skipped ?? 0) + problems.length,
     problems,
