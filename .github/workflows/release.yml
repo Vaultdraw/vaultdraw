@@ -127,6 +127,9 @@ jobs:
       - name: Checksums
         working-directory: dist
         run: |
+          # The Linux bundles arrive in appimage/, deb/ and rpm/ folders: bring every file to the top first.
+          find . -mindepth 2 -type f -exec mv -t . {} +
+          find . -mindepth 1 -type d -empty -delete
           ls -la
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
