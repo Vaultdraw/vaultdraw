@@ -3,9 +3,9 @@
 # Same shape as linux.yml. It runs only once the owner pushes this file; enabling Actions is an owner action.
 # The installer is unsigned for now: Windows SmartScreen warns on first run (docs/windows.md).
 name: windows
+# Manual only while Windows is not released (owner, 2026-11-24): run it from the Actions tab.
 on:
-  push: { branches: [main] }
-  pull_request:
+  workflow_dispatch:
 concurrency: { group: "windows-${{ github.ref }}", cancel-in-progress: true }
 permissions: { contents: read }
 
