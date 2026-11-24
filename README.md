@@ -7,7 +7,7 @@
 
 <p align="center">Your Excalidraw drawings, in a folder you own.</p>
 
-Vaultdraw is an offline desktop app for macOS that keeps your [Excalidraw](https://github.com/excalidraw/excalidraw) drawings as plain files in a folder on your computer, a bit like Obsidian for whiteboards. No account, no cloud, no telemetry.
+Vaultdraw is an offline desktop app for macOS and Linux that keeps your [Excalidraw](https://github.com/excalidraw/excalidraw) drawings as plain files in a folder on your computer, a bit like Obsidian for whiteboards. No account, no cloud, no telemetry.
 
 [Website](https://vaultdraw.vercel.app) · [Download](https://github.com/Vaultdraw/vaultdraw/releases/latest) · [Changelog](CHANGELOG.md) · [Docs](https://vaultdraw.vercel.app/docs/)
 
@@ -75,14 +75,19 @@ The Excalidraw editor, plus what you need once you have more than one drawing:
 - Your drawings are ordinary `.excalidraw` files in a folder you pick: back them up, sync them or open them anywhere.
 - A file tree and tabs, autosave and crash recovery; changes made outside the app are picked up without losing your edits.
 - Backups: one zip of your vault to a folder you pick, checked after writing; restore goes into a new folder, never over anything. Optional daily or weekly schedule, and `vaultdraw backup` / `vaultdraw restore` from a terminal.
-- Page mode (A4, Letter or custom pages) with PDF export, notebook paper, and PNG, SVG or clipboard export. The official Auto-export plugin (off until you turn it on) keeps an SVG or PNG copy of each drawing next to it, or in an export folder, every time you save. The official AI assistant plugin (off until you turn it on) asks the model you choose about a drawing with your own key, and turns a text request into a diagram; Offline mode blocks it except for a model on your own computer. The official Table plugin turns pasted spreadsheet cells, CSV or a Markdown table into a table of ordinary Excalidraw shapes (a toast offers it on paste, or use the palette command Insert table from clipboard).
+- Page mode (A4, Letter or custom pages) with PDF export, notebook paper, and PNG, SVG or clipboard export. The official Auto-export plugin (off until you turn it on) keeps an SVG or PNG copy of each drawing next to it, or in an export folder, every time you save.  The official Table plugin turns pasted spreadsheet cells, CSV or a Markdown table into a table of ordinary Excalidraw shapes (a toast offers it on paste, or use the palette command Insert table from clipboard).
+- **AI assistant** (official plugin, off until you turn it on). A chat panel where you say what you want: it answers, explains, edits the drawing, or builds a whole page with headings, notes and labelled diagrams, laid out so nothing overlaps. It uses the Claude or Codex you already signed in to (your subscription) or your own API key for Anthropic, OpenAI or a local Ollama. Pick the model and reasoning effort, paste or drop images, keep several chats in tabs and reopen earlier ones. **Ask first** (the default) shows each change and waits for Keep, **Apply at once** edits with one Undo, **Read only** never changes the drawing. Offline mode blocks it except for a model on your own computer.
+- **Markdown mode**: type `# `, `- `, `> `, `[ ] `, `**bold**` or `` `code` `` in a drawing's text and it is drawn as a heading, bullet, quote, task or styled word. **Markdown: Convert existing text** does the same for text already there. Click a ☐ or ☑ box to tick it. The text stays plain Markdown.
+- **Make it look like yours**: interface font size and typeface (Settings → Interface), a minimal or blank start page, a recent-drawings toggle, and clearer activity bar icons. Narrow windows fold the file list over the drawing.
+- **File tree**: select several files (Cmd+click, Shift+click, or `V`) to move or trash them together; pictures and PDFs show in the tree and pictures open in a viewer; **Export folder…** writes every drawing as PNG or SVG; notes can be created and duplicated; folders keep name order under a date sort.
+- **Links to one element**: `[[Drawing#^id]]` opens a drawing and selects that element (**Links: Copy link to selected element**).
+- **Tabs mark only unsaved edits**, with a dot where the close button is, so the header does not flicker between Unsaved and Saved while you type.
+- A short first-run setup (skippable) and a theme preview as you move through `>Theme:` in the palette.
 - Mermaid diagrams and LaTeX formulas, converted offline. Everything works offline; there is no account and no telemetry.
 - A plain-text config folder you can edit by hand, and a `vaultdraw` command for the terminal.
 - Turn off any built-in feature you don't use (search, links, tags, graph, library, templates, formulas, Mermaid, PDF import): off means not loaded. A safe start (`vaultdraw launch --safe`) opens the app with all of them and every plugin off.
 - `vaultdraw://` links that open a drawing, a search or a new drawing from a note, a web page or a script, asking first before anything writes. `.excalidraw` and `.excalidrawlib` files open from Finder's Open With, copied into a vault only if you say so ([details](docs/uri-scheme.md)).
 - Vim-style key sequences (`g g`, `<leader> f f`) with a which-key popup, and every tool key rebindable; nothing is bound until you write it. A copyable preset is in `docs/presets/vim.toml`.
-
-**Coming next:** plugins (AI, a shape generator and more).
 
 Writing a plugin? See [sdk/docs/getting-started.md](sdk/docs/getting-started.md). Testing and packaging are in [testing.md](sdk/docs/testing.md) and [packaging.md](sdk/docs/packaging.md). What a plugin may declare, and what that does and does not protect, is in [permissions.md](sdk/docs/permissions.md). The API is 1.0 and frozen: [stability.md](sdk/docs/stability.md) has the promise and the deprecation rules.
 
@@ -100,7 +105,7 @@ flowchart LR
   config -->|settings, reloaded live| app
 ```
 
-Everything stays on your Mac. Back up, sync or version the vault folder with any tool you like.
+Everything stays on your computer. Back up, sync or version the vault folder with any tool you like.
 
 ## Install
 
@@ -113,7 +118,7 @@ Or with Homebrew, which also installs the `vaultdraw` command:
 brew install --cask vaultdraw/tap/vaultdraw
 ```
 
-It runs on macOS, on Apple Silicon and on Intel.
+The DMG runs on macOS, on Apple Silicon and on Intel.
 
 Vaultdraw isn't signed with an Apple Developer certificate yet, so macOS may refuse to open it the first time. Try to open it once, then go to **System Settings → Privacy & Security** and click **Open Anyway**. If macOS says the app is "damaged", or the `vaultdraw` command stops with `Killed: 9` or hangs the first time, run this and try again. It clears the download flag from the app and the command inside it:
 
@@ -123,7 +128,16 @@ xattr -dr com.apple.quarantine /Applications/Vaultdraw.app
 
 With Homebrew, `brew install --cask --no-quarantine vaultdraw/tap/vaultdraw` never sets the flag.
 
-**Linux** (64-bit Intel and AMD): a `.deb` for Debian and Ubuntu, an `.rpm` for Fedora, `vaultdraw-bin` on the AUR for Arch, and an AppImage. One command per distribution: [docs/linux.md](docs/linux.md).
+**Linux** (64-bit Intel and AMD). The builds are unsigned: check them against `SHA256SUMS` on the release page.
+
+| Distribution | Install |
+| --- | --- |
+| Debian, Ubuntu, Mint | `curl -LO https://github.com/Vaultdraw/vaultdraw/releases/download/v0.2.0/Vaultdraw_0.2.0_amd64.deb && sudo apt install ./Vaultdraw_0.2.0_amd64.deb` |
+| Fedora | `sudo dnf install https://github.com/Vaultdraw/vaultdraw/releases/download/v0.2.0/Vaultdraw-0.2.0-1.x86_64.rpm` |
+| Arch, Manjaro (AUR) | `yay -S vaultdraw-bin` |
+| Any other | the `Vaultdraw_0.2.0_amd64.AppImage` on the releases page: `chmod +x` it and run it |
+
+More detail: [docs/linux.md](docs/linux.md).
 
 ## Command line
 
