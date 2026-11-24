@@ -157,6 +157,8 @@ test("AI: a wrong key says so in plain words; Remove key forgets it", async ({
   await expect(alert).toContainText("did not accept the key");
   await expect(page.locator("body")).not.toContainText(KEY);
   await page.getByRole("button", { name: "AI settings" }).click();
+  // keys live under "Add a provider", folded until opened
+  await page.getByText("Add a provider").click();
   await page.getByRole("button", { name: "Remove Anthropic key" }).click();
   await expect(
     page.getByRole("status", { name: "Anthropic key status" }),
@@ -343,3 +345,32 @@ test("AI panel at 480 px leaves the drawing at least 320 px, like the file list 
   ).toBeGreaterThanOrEqual(320);
   expect(errors).toEqual([]);
 });
+
+// The drawing keeps its room in every window width, also after the window shrinks with the panel
+// open and with a wide remembered panel width (the panel gives way, never the drawing).
+for (const width of [700, 800, 1000, 1200]) {
+  test(`AI panel: shrinking the window to ${width} px keeps the drawing at least 320 px`, async ({
+    page,
+  }) => {
+    const errors = trackErrors(page);
+    await setup(page, { width: 1400, height: 760 });
+    // widen the panel as far as it goes, then shrink the window
+    const handle = page.getByRole("separator", {
+      name: /^Resize (?!navigator)/,
+    });
+    await handle.focus();
+    for (let i = 0; i < 60; i++) {
+      await page.keyboard.press("ArrowLeft");
+    }
+    await page.setViewportSize({ width, height: 760 });
+    await expect
+      .poll(
+        async () =>
+          (await page
+            .locator(".vault-editor canvas.interactive")
+            .boundingBox())!.width,
+      )
+      .toBeGreaterThanOrEqual(320);
+    expect(errors).toEqual([]);
+  });
+}

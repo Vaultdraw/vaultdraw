@@ -19,10 +19,18 @@ describe("panel width", () => {
     expect(clampPanelWidth(400, 300)).toBe(280);
     expect(clampPanelWidth(NaN, 1500)).toBe(PANEL_DEFAULT_WIDTH);
   });
+  it("leaves the drawing 320 px whenever the window allows it", () => {
+    for (const w of [700, 800, 900, 1200, 2000]) {
+      const panel = clampPanelWidth(5000, w);
+      expect(w - 36 - panel).toBeGreaterThanOrEqual(320);
+    }
+  });
   it("reads saved widths, clamped, default when missing", () => {
     expect(savedPanelWidth({}, "a", 1500)).toBe(320);
     expect(savedPanelWidth({ a: 450 }, "a", 1500)).toBe(450);
-    expect(savedPanelWidth({ a: 450 }, "a", 600)).toBe(360);
+    // the drawing keeps 320 px (+ the 36 px activity bar), so a remembered 450 px shrinks in a small window
+    expect(savedPanelWidth({ a: 450 }, "a", 700)).toBe(342);
+    expect(savedPanelWidth({ a: 450 }, "a", 600)).toBe(280);
   });
   it("writes widths and drops the default (reset)", () => {
     expect(withPanelWidth({ b: 300 }, "a", 450)).toEqual({ a: 450, b: 300 });

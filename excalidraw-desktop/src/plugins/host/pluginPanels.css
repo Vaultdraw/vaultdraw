@@ -1,7 +1,8 @@
 .vault-plugin-panel {
-  flex: 0 0 320px;
+  flex: 0 1 320px;
   width: 320px;
   min-width: 0;
+  position: relative;
   overflow: auto;
   border-left: 1px solid var(--vault-border, rgba(128, 128, 128, 0.3));
   background: var(--vault-surface, var(--island-bg-color, transparent));
@@ -21,7 +22,7 @@
 }
 
 /* Resize handle on the panel's left edge (drag, Left/Right keys, double-click resets). */
-.vault-plugin-panel { position: relative; overflow-x: hidden; }
+.vault-plugin-panel { overflow-x: hidden; }
 .vault-plugin-panel__resize {
   position: absolute;
   top: 0;

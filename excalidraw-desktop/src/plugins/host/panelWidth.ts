@@ -3,12 +3,29 @@ export const PANEL_DEFAULT_WIDTH = 320;
 export const PANEL_MIN_WIDTH = 280;
 export const PANEL_MAX_FRACTION = 0.6;
 export const PANEL_KEY_STEP = 16;
+/** The drawing always keeps this much room beside a docked panel (the file list overlay's rule too). */
+export const DRAWING_MIN_WIDTH = 320;
+/** The panel's own 1 px border, so the drawing is never one pixel short. */
+const EDGE = 2;
+/** The activity bar's width, which the drawing also shares the window with. */
+export const ACTIVITY_BAR_WIDTH = 36;
 
-/** Keeps a width between the minimum and 60% of the window (the minimum wins in a tiny window). */
-export const clampPanelWidth = (value: number, windowWidth: number): number => {
+/**
+ * Keeps a width between the minimum and 60% of the window, and leaves the drawing at least
+ * `DRAWING_MIN_WIDTH` (the minimum wins in a tiny window).
+ */
+export const clampPanelWidth = (
+  value: number,
+  windowWidth: number,
+  /** The row's width left after the other docked parts (file list, activity bar), when measured. */
+  room?: number,
+): number => {
   const max = Math.max(
     PANEL_MIN_WIDTH,
-    Math.floor(windowWidth * PANEL_MAX_FRACTION),
+    Math.min(
+      Math.floor(windowWidth * PANEL_MAX_FRACTION),
+      (room ?? windowWidth - ACTIVITY_BAR_WIDTH) - DRAWING_MIN_WIDTH - EDGE,
+    ),
   );
   const v = Number.isFinite(value) && value > 0 ? value : PANEL_DEFAULT_WIDTH;
   return Math.round(Math.min(max, Math.max(PANEL_MIN_WIDTH, v)));
@@ -61,3 +78,7 @@ export const keyPanelWidth = (
   }
   return null;
 };
+
+/** A docked panel fits only when the drawing keeps its room beside at least the narrowest panel. */
+export const panelFits = (room: number): boolean =>
+  room - DRAWING_MIN_WIDTH - EDGE >= PANEL_MIN_WIDTH;
