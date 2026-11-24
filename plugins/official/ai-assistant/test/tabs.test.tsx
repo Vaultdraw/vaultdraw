@@ -145,7 +145,8 @@ describe("chat tabs (toimprove 362)", () => {
         .getByRole("option", { name: /^Selection, or the whole drawing/ })
         .getAttribute("aria-selected"),
     ).toBe("true");
-    fireEvent.keyDown(document.activeElement ?? document.body, {
+    // Escape inside the open menu closes only the menu (focus moves into it on a timer)
+    fireEvent.keyDown(document.querySelector(".vd-ai-pop")!, {
       key: "Escape",
     });
     fireEvent.click(tabs()[0]);
