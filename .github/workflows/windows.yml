@@ -10,7 +10,7 @@ concurrency: { group: "windows-${{ github.ref }}", cancel-in-progress: true }
 permissions: { contents: read }
 
 env:
-  CI: "1"
+  CI: "true"
 
 defaults:
   run:
