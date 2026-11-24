@@ -1,8 +1,8 @@
 # Release builds: one tag (v<version>) or a manual run builds the macOS (universal DMG) and Linux (AppImage,
-# deb, rpm) bundles (Windows is not released yet), then writes SHA256SUMS and creates a DRAFT GitHub release.
+# deb, rpm) bundles, then writes SHA256SUMS and creates a DRAFT GitHub release.
 # The workflow never publishes: the owner reviews the draft and clicks Publish (docs/releasing.md).
 # Only the release job can write to the repository (contents: write). Build jobs only read it.
-# No signing yet: the builds are unsigned (macOS Gatekeeper and Windows SmartScreen warn; see docs/windows.md).
+# No signing yet: the builds are unsigned (macOS Gatekeeper warns; see docs/releasing.md).
 name: release
 on:
   push: { tags: ["v*"] }
@@ -66,12 +66,6 @@ jobs:
               excalidraw-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
               excalidraw-desktop/src-tauri/target/release/bundle/deb/*.deb
               excalidraw-desktop/src-tauri/target/release/bundle/rpm/*.rpm
-          # Windows is not released yet (owner, 2026-11-24). To add it back:
-          # - name: windows
-          #   os: windows-latest
-          #   tauri_args: ""
-          #   rust_targets: ""
-          #   bundles: excalidraw-desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -106,10 +100,6 @@ jobs:
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}     # app-specific password, for notarisation
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # and for Windows (a certificate file or Azure Trusted Signing; set in the windows job only):
-          # WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          # WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          # AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET (Trusted Signing), if chosen
           CI: "true"
       - uses: actions/upload-artifact@v4
         with:
@@ -148,5 +138,5 @@ jobs:
           else
             gh release create "$TAG" ./* --draft --target "$GITHUB_SHA" \
               --title "Vaultdraw $TAG" \
-              --notes "Draft. Check the notes in CHANGELOG.md, then publish. Builds are unsigned: see docs/windows.md for the Windows warning and docs/releasing.md for macOS."
+              --notes "Draft. Check the notes in CHANGELOG.md, then publish. Builds are unsigned: see docs/releasing.md for the macOS first-launch step."
           fi
