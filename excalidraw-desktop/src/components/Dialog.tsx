@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useEscapeLayer } from "./escapeLayers";
 import { IconClose } from "./Icons";
@@ -139,7 +139,8 @@ export const Dialog = ({
   const live = useRef({ onClose, busy });
   live.current = { onClose, busy };
   const [doc, setDoc] = useState<Document | null>(null);
-  useEffect(() => setDoc(backdropRef.current?.ownerDocument ?? null), []);
+  // Layout effect: Escape works from the dialog's first painted frame, not one tick later.
+  useLayoutEffect(() => setDoc(backdropRef.current?.ownerDocument ?? null), []);
   // Escape closes only the top layer (escapeLayers: dialogs, Settings, modal
   // pages), wherever focus sits.
   useEscapeLayer(
