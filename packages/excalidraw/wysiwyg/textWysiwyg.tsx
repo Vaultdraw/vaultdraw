@@ -740,6 +740,7 @@ export const textWysiwyg = ({
     }
   };
 
+  const valueAtStart = editable.value;
   let pendingInitialSelection =
     initialSelection ??
     (() => {
@@ -1140,13 +1141,16 @@ export const textWysiwyg = ({
       // placed (the end of the value) would pan the canvas there.
       editable.onblur = handleSubmit;
       editable.focus({ preventScroll: true });
-      if (pendingInitialSelection) {
+      // Only while nothing was typed yet: a key pressed before this tick
+      // already moved the caret, and putting it back would scramble the
+      // next letters ("Header" typed fast became "Headre").
+      if (pendingInitialSelection && editable.value === valueAtStart) {
         editable.setSelectionRange(
           pendingInitialSelection.start,
           pendingInitialSelection.end,
         );
-        pendingInitialSelection = null;
       }
+      pendingInitialSelection = null;
     });
   };
 
