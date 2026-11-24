@@ -58,8 +58,10 @@ jobs:
             tauri_args: --target universal-apple-darwin
             rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
             bundles: excalidraw-desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          # Built on the oldest supported Ubuntu, so the packages run on glibc 2.35+ (Debian 12, Ubuntu 22.04, Mint 21);
+          # built on 24.04 they needed glibc 2.39 and did not start on Debian 12 (2026-11-24).
           - name: linux
-            os: ubuntu-24.04
+            os: ubuntu-22.04
             tauri_args: ""
             rust_targets: ""
             bundles: |
