@@ -57,7 +57,11 @@ const ROWS: Row[] = [
       const dialog = page.getByRole("dialog", {
         name: "New drawing from template",
       });
+      await expect(dialog).toBeVisible();
       await dialog.getByRole("combobox").fill("flowchart");
+      await expect(dialog.getByRole("option").first()).toContainText(
+        "Flowchart",
+      );
       await page.keyboard.press("Enter");
       await expect(dialog).toHaveCount(0);
     },
@@ -71,10 +75,12 @@ for (const row of ROWS) {
     await freezeClock(page);
     await openVault(page, row.seed);
     for (let i = 0; i < row.expected.length; i++) {
+      const before = (await files(page)).length;
       await row.create(page);
+      // wait for THIS drawing to exist (not just any file), so the tab closed next is its own
       await expect
         .poll(async () => (await files(page)).length)
-        .toBeGreaterThan(0);
+        .toBeGreaterThan(before);
       await expect(
         page.locator(".vault-editor canvas.interactive"),
       ).toBeVisible();

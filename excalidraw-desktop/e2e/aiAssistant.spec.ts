@@ -303,7 +303,9 @@ test("AI assistant: an edit is proposed first, Discard changes nothing, Keep app
   // Keep through its palette command: applied at once as one change.
   card = await propose();
   await run(page, "AI: Keep", /AI: Keep the proposed change/);
-  await expect(page.getByLabel("Result")).toContainText(
+  // The earlier Discarded card stays in the chat like a log line; the newest card is the Keep.
+  await expect(page.getByLabel("Result")).toHaveCount(2);
+  await expect(page.getByLabel("Result").last()).toContainText(
     "Added 1 box, moved 1 text",
   );
   expect(await count()).toBeGreaterThan(2);
@@ -360,7 +362,11 @@ test("AI panel: connect a subscription, pick a model and effort, chat, stop, and
   // Open the assistant: the empty state, and Claude found without any setup.
   await run(page, "AI: Open the assistant", /AI: Open the assistant/);
   await expect(page.getByText("What can I do for you?")).toBeVisible();
-  await expect(page.getByLabel("Current chat")).toContainText("Claude");
+  await expect(
+    page
+      .getByRole("tablist", { name: "Chats" })
+      .getByRole("tab", { selected: true }),
+  ).toHaveAttribute("title", /Claude/);
 
   // The gear: one place for the connections, with a re-check.
   await page.getByRole("button", { name: "AI settings" }).click();
@@ -388,9 +394,10 @@ test("AI panel: connect a subscription, pick a model and effort, chat, stop, and
   );
   await page.getByRole("button", { name: "Reasoning effort" }).click();
   await page.getByRole("option", { name: /^high/ }).click();
+  // the effort is an icon button now: its title says the level
   await expect(
     page.getByRole("button", { name: "Reasoning effort" }),
-  ).toContainText("high");
+  ).toHaveAttribute("title", /high/);
 
   // Ask with Enter: the answer streams in as Markdown, nothing went to the network, the tool got the choices.
   const box = page.locator(".vd-ai-input");
@@ -445,20 +452,26 @@ test("AI panel: connect a subscription, pick a model and effort, chat, stop, and
     ops: [{ op: "add", type: "rectangle", text: "Logout", x: 300, y: 60 }],
   });
   await page.evaluate((reply) => {
-    (window as any).__plugins.backend.net.cli.respond = () => ({
-      chunks: [
-        `${JSON.stringify({
-          type: "stream_event",
-          event: {
-            type: "content_block_delta",
-            delta: {
-              type: "text_delta",
-              text: `Done.\n\`\`\`vd edit\n${reply}\n\`\`\``,
+    // The first run answers with the edit; the check of the drawing the assistant runs after Keep
+    // (a second run on the same fake tool) gets a plain "looks right", so only one proposal exists.
+    let runs = 0;
+    (window as any).__plugins.backend.net.cli.respond = () => {
+      const text =
+        runs++ === 0
+          ? `Done.\n\`\`\`vd edit\n${reply}\n\`\`\``
+          : "The drawing looks right.";
+      return {
+        chunks: [
+          `${JSON.stringify({
+            type: "stream_event",
+            event: {
+              type: "content_block_delta",
+              delta: { type: "text_delta", text },
             },
-          },
-        })}\n`,
-      ],
-    });
+          })}\n`,
+        ],
+      };
+    };
   }, plan);
   await expect(
     page.getByRole("button", { name: "Mode", exact: true }),

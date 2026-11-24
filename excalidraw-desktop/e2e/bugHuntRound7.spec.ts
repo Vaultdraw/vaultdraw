@@ -36,16 +36,18 @@ test("BH-11: two New Drawing clicks make two drawings (Untitled, Untitled 1), ne
     Date.now = () => fixed;
   });
   await openVault(page, "?seed=empty");
-  const btn = page.getByRole("button", { name: "New Drawing" }).first();
-  await btn.click();
+  // The start page's New drawing makes "Untitled" at once (the file list's + button asks for a name).
+  const newDrawing = () =>
+    page
+      .locator(".vault-home")
+      .getByRole("button", { name: /^New drawing/ })
+      .first();
+  await newDrawing().click();
   await expect(row(page, "Untitled.excalidraw")).toBeVisible();
   await page.waitForTimeout(1500);
   await page.getByRole("tab").getByRole("button").first().click();
   await page.waitForTimeout(500);
-  await page
-    .getByRole("button", { name: /New drawing/i })
-    .first()
-    .click();
+  await newDrawing().click();
   await page.waitForTimeout(2000);
   const names = await page
     .locator("[data-tree-path^='Untitled']")
