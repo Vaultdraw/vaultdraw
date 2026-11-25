@@ -136,10 +136,20 @@ jobs:
           ls -la
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
-      - name: Create the draft, or replace its files on a re-run
+      - name: Manual run, a rehearsal - check the repository is reachable, write nothing
+        if: github.event_name != 'push'
+        run: |
+          gh release list --limit 1 >/dev/null
+          echo "::notice::rehearsal for $TAG: bundles built and SHA256SUMS written; no release was created or changed"
+      - name: Create the draft, or replace its files on a re-run of a draft
+        if: github.event_name == 'push'
         working-directory: dist
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
+            if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" != "true" ]; then
+              echo "::error::$TAG is already published; its files are never replaced. Raise the version for a new release."
+              exit 1
+            fi
             gh release upload "$TAG" ./* --clobber
           else
             gh release create "$TAG" ./* --draft --target "$GITHUB_SHA" \
