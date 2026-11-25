@@ -120,6 +120,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: v${{ needs.check.outputs.version }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/download-artifact@v4
         with:
