@@ -17,7 +17,7 @@ _base="${LOCAL_DEB_DIR:+file://$LOCAL_DEB_DIR}"
 _base="${_base:-https://github.com/Vaultdraw/vaultdraw/releases/download/v${pkgver}}"
 source_x86_64=("${_name}-${pkgver}-amd64.deb::${_base}/Vaultdraw_${pkgver}_amd64.deb")
 # Filled by update.sh from the release's SHA256SUMS.
-sha256sums_x86_64=('SKIP')
+sha256sums_x86_64=('51e8a95bd33aa3a8128b047e6cf442a9283e88d65f333c3f88f6c59d753624d4')
 noextract=("${_name}-${pkgver}-amd64.deb")
 
 package() {

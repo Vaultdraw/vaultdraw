@@ -15,6 +15,6 @@ pkgbase = vaultdraw-bin
 	options = !strip
 	options = !debug
 	source_x86_64 = vaultdraw-0.2.0-amd64.deb::https://github.com/Vaultdraw/vaultdraw/releases/download/v0.2.0/Vaultdraw_0.2.0_amd64.deb
-	sha256sums_x86_64 = SKIP
+	sha256sums_x86_64 = 51e8a95bd33aa3a8128b047e6cf442a9283e88d65f333c3f88f6c59d753624d4
 
 pkgname = vaultdraw-bin
